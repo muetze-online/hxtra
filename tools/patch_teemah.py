@@ -15,10 +15,11 @@ fixed values (no new knobs):
   Entry 2  the SHARC's Blob 0 buffer enlarged (kit_patch_amp.expand_sharc_blob0_buffer), as add-model does.
   Entry 0  Teemah!'s Static Model Table cost raised by --cost (default 100: a guess, not measured).
 
-The 0x102 type numbers for second-order high/low-pass are not decoded yet: types 3 and 1 (a first-order pair,
-which is which not known) are the defaults, so a wrong guess shows as the crossover mirrored on the unit.
-With first-order sections, one a side (--sections 1, default) sums flat: 1/(1+s) + s/(1+s) = 1; two a side
-(LR2) would cancel at f, (1+s^2)/(1+s)^2, so --sections 2 is only for second-order types.
+0x102 types (docs/research/sharc/cores/filters.md): 1 / 2 = first-order low / high-pass, 3 / 4 = second-order
+low / high-pass. Default: a 4th-order Linkwitz-Riley crossover as the stock Split crossover builds it, two
+sections a side, HP type 4, LP type 3, Q 0.7071: -6.02 dB a band at f, 24 dB/oct, the bands sum flat (an
+all-pass). First order: --sections 1 --hp-type 2 --lp-type 1 sums flat too, 1/(1+s) + s/(1+s) = 1; two
+first-order sections a side (LR2) would cancel at f, (1+s^2)/(1+s)^2.
 """
 import argparse, os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,7 +34,7 @@ SLOT_MAP = {2: 5, 3: 6, 4: 7, 5: 8, 6: 12}          # old top-level slot (path [
 f2u = lambda x: struct.unpack('<I', struct.pack('<f', x))[0]
 
 
-def build_members(b0, freq, hp_type, lp_type, dry_db, wet_db, split, sections=1):
+def build_members(b0, freq, hp_type, lp_type, dry_db, wet_db, split, sections=2):
     """[(rec template (20 words, offsets to be filled), ins, outs, init pairs)] of the new composite."""
     ct = b0[0x10]
     h = b0[ct + 7 * (STOCK_COMP - 0x600000): ct + 7 * (STOCK_COMP - 0x600000) + 7]
@@ -162,8 +163,8 @@ def e4_with(e4, b0_new, blob_idx, blob_new):
     return out
 
 
-def patch_teemah(l6ia_bytes, freq=400.0, hp_type=3, lp_type=1, dry_db=0.0, wet_db=0.0, split=False, cost=100,
-                 sections=1, log=print):
+def patch_teemah(l6ia_bytes, freq=400.0, hp_type=4, lp_type=3, dry_db=0.0, wet_db=0.0, split=False, cost=100,
+                 sections=2, log=print):
     e0 = kp.get_entry_swapped(l6ia_bytes, 0)
     e3 = kp.get_entry_swapped(l6ia_bytes, 3)
     e4 = kp.get_entry_swapped(l6ia_bytes, 4)
@@ -191,14 +192,14 @@ def main():
     ap.add_argument('input', help='stock .hxf or L6IA')
     ap.add_argument('output')
     ap.add_argument('--freq', type=float, default=400.0)
-    ap.add_argument('--hp-type', type=int, default=3)
-    ap.add_argument('--lp-type', type=int, default=1)
+    ap.add_argument('--hp-type', type=int, default=4, help='0x102 type of the high-pass (default 4: 2nd order)')
+    ap.add_argument('--lp-type', type=int, default=3, help='0x102 type of the low-pass (default 3: 2nd order)')
     ap.add_argument('--dry-db', type=float, default=0.0, help='gain of the dry path at the mixer (-120: off)')
     ap.add_argument('--wet-db', type=float, default=0.0)
     ap.add_argument('--split', action='store_true', help='dry path full band (low-passes bypassed)')
     ap.add_argument('--cost', type=int, default=100)
-    ap.add_argument('--sections', type=int, choices=(1, 2), default=1,
-                    help='filter sections a side (default 1: first-order types sum flat; 2 = LR2, notch at f)')
+    ap.add_argument('--sections', type=int, choices=(1, 2), default=2,
+                    help='filter sections a side (default 2: LR4 with the default types)')
     ap.add_argument('--donor', help='stock .hxf, when input is a raw L6IA and output a .hxf')
     a = ap.parse_args()
     data, is_hxf = kp.load_l6ia_from_any(a.input)
