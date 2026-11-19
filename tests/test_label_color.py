@@ -166,6 +166,9 @@ def test_with_dist_xover_the_distortions_follow_with_their_stock_counts(monkeypa
     base = stock_params()
     monkeypatch.setenv('HX_DIST_XOVER', '1')
     params = stock_params()
-    assert params[:len(base)] == base and len(params) == len(base) + len(patch_dist.MODELS)
-    models = {m['name']: m for m in pa.parse_entry3_full(stock_entry(3))['models']}
-    assert [n for _, n in params[len(base):]] == [len(models[n]['params']) for n in patch_dist.MODELS] == [5, 3]
+    info = pa.parse_entry3_full(stock_entry(3))
+    names = patch_dist.core_mono(info)
+    assert params[:len(base)] == base and len(params) == len(base) + len(names) == len(base) + 44
+    models = {m['name']: m for m in info['models']}
+    assert [n for _, n in params[len(base):]] == [len(models[n]['params']) for n in names]
+    assert dict(zip(names, (n for _, n in params[len(base):])))['HD2_DistTeemahMono'] == 5

@@ -296,7 +296,9 @@ class Blob:
         """An input node for parameter `slot` (op 0xa float, 0xb int; its state index the next) with a root default
         (a float word, or an int for 0xb), feeding a writer per (top-level slot, pid, how) of `outs`. how: None the
         value itself, ('curve', 9 values) through an op 0x3 node (a table B row), ('select', word if 0, word if not)
-        through an op 0x2a node (port 0 ? port 2 : port 1, as Regal Bass DI switches its 0x102 types). Tables A, C,
+        through an op 0x2a node (port 0 ? port 2 : port 1, as Regal Bass DI switches its 0x102 types),
+        ('plus_curve', other slot, 9 values) the value plus the other slot's knob through a new 0x3 node, added by an
+        op 0x14 node (the dB sum patch_dist's group G3 uses). Tables A, C,
         D, E (and B when a curve is added) are rebuilt at the map's end, the old ones left unused."""
         pm = self.pm
         assert patch_comp.pmap_sizes(pm) == pm[12:18], 'the parameter map\'s sizes do not follow its tables'
@@ -307,7 +309,7 @@ class Blob:
         ct = [pm[c + 4 * k: c + 4 * k + 4] for k in range(nc)]
         dt = [pm[d + 4 * k: d + 4 * k + 4] for k in range(nd)]
         et = [pm[e + 4 * k: e + 4 * k + 4] for k in range(ne)]
-        assert sorted(r[2] for r in dt) == list(range(1, slot)), f'slot map is not slots 1..{slot - 1}'
+        assert max(r[2] for r in dt) < slot, f'slot {slot} is not after the map\'s slots'  # ids may have gaps
         root = {r[0] for r in self.pins if r[3] == 1 and self.path(r[0]) == (0,)}
         assert len(root) == 1, 'no single root path among the init records'
         inp = len(nodes)
@@ -326,6 +328,23 @@ class Blob:
                 nodes.append([nodes[0][0], 0, src, 0x3, 1, 11, 0, 0, 0, 0])
                 bt.append([data, 0, src, 0, 9, 0])
                 ct.append([inp, src, 0, 0])
+            elif how is not None and how[0] == 'plus_curve':
+                # value + curve(parameter how[1]) through op 0x3 (how[2], 9 values) and op 0x14 (a + b)
+                assert len(how) == 3 and len(how[2]) == 9
+                other = [r[0] for r in dt if r[2] == how[1]]
+                assert len(other) == 1, f'no single input node for slot {how[1]}'
+                data = len(pm)
+                pm += [f2u(v) for v in how[2]]
+                cn = len(nodes)
+                nodes.append([nodes[0][0], 0, cn, 0x3, 1, 11, 0, 0, 0, 0])
+                bt.append([data, 0, cn, 0, 9, 0])
+                ct.append([other[0], cn, 0, 0])
+                data = len(pm)
+                pm += [0, 0]
+                src = len(nodes)
+                nodes.append([data, 0, src, 0x14, 1, 3, 2, 2, 0, 0])
+                ct.append([inp, src, 0, 0])
+                ct.append([cn, src, 0, 1])
             elif how is not None:
                 assert how[0] == 'select' and len(how) == 3
                 data = len(pm)

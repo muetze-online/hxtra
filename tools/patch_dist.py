@@ -11,6 +11,15 @@ T is the stock block, HP and LP a 4th-order Linkwitz-Riley crossover at Freq (tw
 Wet and Dry Level. The knobs follow the stock ones: Freq (20..1000 Hz), Dry Level (-60..+18 dB), Wet Level (-60..+9 dB),
 Mode (Full / Xover); the defaults (20 Hz, -60 dB, 0 dB, Full) sound like the stock block.
 
+Where the mixer goes (GROUPS; docs/research/sharc/cores/teemah.md, Rollout D3):
+  g1     right before the first member Level writes; after it only gain members (checked)
+  g2     the same, linear filters after Level allowed: they colour the dry signal too
+  g3     right before the out-port (a clipper follows Level); Level reaches the dry signal through the map:
+         dry dB = Dry Level + curve(Level) - curve(Level's default), the model's own Level curve shifted
+  g4     right before the out-port, no single Level knob; Level does not reach the dry signal
+  xover  Obsidian 7000, whose Blend mixes its own clean path: Freq and Mode only, HP on the drive path, LP on the
+         clean path right after the member that splits them; no tap, no mixer
+
   Entry 4  Blob 0: one copy of the composite table for all new composites, one new composite per stock root (models
            that share a root share it): the stock members, a tap of the input into a new buffer, two high-passes after
            the in-port, two low-passes on the tap and a 0x84 mixer [wet, dry] -> wet right before the first member the
@@ -40,10 +49,27 @@ import patch_gate  # noqa: E402
 import patch_teemah as pt  # noqa: E402
 import pmap  # noqa: E402
 
-# D2: Teemah! and Scream 808 (one stock root, 0x6000cb); D3 widens this to every core mono distortion
-MODELS = ('HD2_DistTeemahMono', 'HD2_DistScream808Mono')
-LEVEL_KNOBS = ('Level',)
+MODELS = None                                          # every core mono distortion (core_mono)
+LEVEL_KNOBS = ('Level', 'Volume')                      # Entry 3 names; Volume shows as "Level"
 GAIN_TYPES = {0x80}                                    # members that may follow Level in group G1
+GROUPS = {                                             # (group, Level knob) where not (g1, LEVEL_KNOBS)
+    'HD2_DistObsidian7000Mono': ('xover', None),
+    'HD2_DistZeroAmpBassDIMono': ('g2', 'Level'),
+    'HD2_DistHorizonDriveMono': ('g2', 'Level'),
+    'HD2_DistAlpacaRougeMono': ('g2', 'Volume'),
+    'HD2_DistLegendaryDriveMono': ('g2', 'Volume'),
+    'HD2_DistToneSovereignMono': ('g1', 'Level 2'),    # Level 2 is its last member
+    'HD2_DistAmpegScramblerODMono': ('g3', 'Level'),
+    'HD2_DistPrizeDriveMono': ('g3', 'Level'),
+    'HD2_DistClawthornDriveMono': ('g4', None),
+    'HD2_DistKinkyBoostMono': ('g4', None),
+    'HD2_DistVitalBoostMono': ('g4', None),
+}
+ALL_KNOBS, XOVER_KNOBS = ('freq', 'dry', 'wet', 'mode'), ('freq', 'mode')
+# (parameter, state) names of the Mode knob; the second (stock strings of the Split XOver) where the model has a Mode
+# of its own (Pillars), shown as "Crossover" / "Xover" there
+MODE_NAMES = ((pt.MODE_NAME, pt.MODE_NAME + 'State'), ('Xover', 'XoverState'))
+MODE_DISP2 = ('Crossover', 'Xover')
 FREQ, DRY, WET, MODE = 20.0, pt.LEVEL_MIN, 0.0, 0      # defaults: the stock sound
 HP_TYPE, LP_TYPE, Q = 4, 3, 0.7071                     # LR4: two 2nd-order sections a side (patch_teemah)
 N_KNOBS = 4
@@ -69,20 +95,65 @@ def _knobs(e, acc):
     return acc
 
 
-def plan_model(fw, m):
-    """(stock root, slot of the first member Level writes) of a group G1 model, else a SystemExit."""
+def core_mono(info, rows=None):
+    """Entry 3 names of the core mono distortions (the legacy ones are HD2_DM4* and two others). With rows (the name
+    string indices that have a Static Model Table row, table1_names) only those: an HXtra build removes Xenomorph Fuzz
+    Mono's row for NAM A2 Lite (preset_id 555), so the model is no longer reachable."""
+    return tuple(m['name'] for m in info['models'] if m['name'].startswith('HD2_Dist') and m['name'].endswith('Mono')
+                 and (rows is None or m['words'][2] in rows))
+
+
+def table1_names(e0):
+    """Set of the name string indices in Entry 0's Static Model Table (Table 1)."""
+    segs = kp._parse_e0_segments(e0)
+    A = kp.e0_device(segs)
+    fo = lambda va, ln=4: kp._e0_vaddr_to_foff(segs, va, ln)
+    t1 = struct.unpack_from('<I', e0, fo(A.TAB1_BASE_PTRS[0]))[0]
+    _, cnt = kp._decode_thumb_movw(e0[fo(A.TAB1_CNT_INSN): fo(A.TAB1_CNT_INSN) + 4])
+    return {struct.unpack_from('<I', e0, fo(t1 + 12 * i))[0] for i in range(cnt)}
+
+
+def plan_model(fw, m, group=None):
+    """{'group', 'root', 'at', 'knobs', 'level'} of a model: `at` the slot the mixer goes before (g1..g4) or the
+    member that splits drive and clean path (xover); 'level' (g3) = (Level's parameter slot, its curve shifted to
+    0 dB at its default). A model that does not fit its group (GROUPS, else g1): SystemExit."""
+    group, lname = (group, None) if group else GROUPS.get(m['name'], ('g1', None))
     r = pmap.model_report(fw, m)
-    level = [p['disp'] for p in r['params'] if p['name'] in LEVEL_KNOBS]
+    top = [c for c in r['chain'] if c['depth'] == 0]
+    plan = {'group': group, 'root': int(r['root'], 16), 'knobs': XOVER_KNOBS if group == 'xover' else ALL_KNOBS,
+            'level': None}
+    assert top[0]['type'] == 'in-port' and top[-1]['type'] == 'out-port', f"{m['name']}: ports"
+    if group == 'xover':
+        wet_in = top[0]['out']
+        split = [c for c in top[1:-1] if c['in'] == wet_in and c['out'] != wet_in]
+        if not split or len(split[0]['out']) != 1:
+            raise SystemExit(f"{m['name']}: no member splits a drive path off the in-port's buffer")
+        plan['at'] = split[0]['path'][0]
+        return plan
+    if group == 'g4':
+        plan['at'] = top[-1]['path'][0]
+        return plan
+    level = [p for p in r['params'] if (p['name'] == lname if lname else p['name'] in LEVEL_KNOBS)]
     if len(level) != 1:
-        raise SystemExit(f"{m['name']}: no single Level knob ({[p['name'] for p in r['params']]}): not group G1")
-    slots = sorted({w['path'][0] for w in r['writes'] if w['path'] and level[0] in _knobs(w['expr'], set())})
+        raise SystemExit(f"{m['name']}: no single Level knob ({[p['name'] for p in r['params']]}): not group {group}")
+    lw = [w for w in r['writes'] if w['path'] and level[0]['disp'] in _knobs(w['expr'], set())]
+    slots = sorted({w['path'][0] for w in lw})
     if not slots:
         raise SystemExit(f"{m['name']}: its Level knob writes no member")
-    top = [c for c in r['chain'] if c['depth'] == 0]
     after = [c['type'] for c in top if c['path'][0] > slots[-1] and c['type'] != 'out-port']
-    if any(int(t, 16) not in GAIN_TYPES for t in after if t.startswith('0x')) or 'tap' in after:
+    if group == 'g1' and (any(int(t, 16) not in GAIN_TYPES for t in after if t.startswith('0x')) or 'tap' in after):
         raise SystemExit(f"{m['name']}: after Level come {after}: not group G1")
-    return int(r['root'], 16), slots[0]
+    if group == 'g3':
+        e = lw[0]['expr']
+        if len(lw) != 1 or e.get('op') != '0x3' or e['ins'].get('0', {}).get('knob') != level[0]['disp']:
+            raise SystemExit(f"{m['name']}: Level does not write one member through one curve: not group G3")
+        assert (level[0]['min'], level[0]['max']) == (0.0, 1.0), f"{m['name']}: Level is not a 0..1 knob"
+        ref = pt.curve_at(e['table'], level[0]['default'])
+        plan['level'] = (level[0]['slot'], [v - ref for v in e['table']])
+        plan['at'] = top[-1]['path'][0]
+    else:
+        plan['at'] = slots[0]
+    return plan
 
 
 def _composite(b0, cid):
@@ -98,19 +169,20 @@ def _composite(b0, cid):
     return h, old
 
 
-def build_members(b0, root, level_slot):
-    """(members, slot map old -> new, {'hp': slots, 'lp': slots, 'mix': slot, 'buffers': n}) of the new composite."""
+def build_members(b0, root, plan):
+    """(members, slot map old -> new, {'hp': slots, 'lp': slots, 'mix': slot or None, 'buffers': n}) of the new
+    composite for plan_model's plan."""
     h, old = _composite(b0, root)
     _, tmpl = _composite(b0, pt.STOCK_COMP)                 # Teemah!'s: in-port, 0x102, 0x80 records to copy
     assert [t[0][6] for t in tmpl][:2] == [0, 0x102] and tmpl[5][0][6] == 0x80
     assert old[0][0][4] == 4 and old[-1][0][4] == 8, f'{root:#x}: no in-port first and out-port last'
     assert all(o[0][4] not in (4, 8) for o in old[1:-1]), f'{root:#x}: a port inside'
     assert len(old[0][2]) == 1, f'{root:#x}: in-port writes {old[0][2]}: not mono'
-    L = level_slot
-    assert 2 <= L < len(old), f'{root:#x}: Level slot {L}'
+    L = plan['at']
+    assert 2 <= L <= len(old), f'{root:#x}: mixer slot {L}'
     wet_in, dry = old[0][2][0], h[1]
     lvl = old[L - 1]
-    assert len(lvl[1]) == 1, f'{root:#x}: Level member reads {lvl[1]}'
+    assert len(lvl[1]) == 1, f'{root:#x}: the member at slot {L} reads {lvl[1]}'
     wet_at = lvl[1][0]
 
     def prim(rec, ins, outs, init, typ=None, flags=0):
@@ -124,6 +196,15 @@ def build_members(b0, root, level_slot):
         return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
 
     lp_t = LP_TYPE if MODE else 0
+    if plan['group'] == 'xover':                            # after the splitter: HP on its output, LP on its input
+        drive, clean = lvl[2], lvl[1]
+        assert len(drive) == 1 and clean == [wet_in] and drive != clean, f'{root:#x}: splitter {lvl[1]} -> {lvl[2]}'
+        members = (old[:L] + [biquad(HP_TYPE, drive[0]), biquad(HP_TYPE, drive[0]),
+                              biquad(lp_t, wet_in), biquad(lp_t, wet_in)] + old[L:])
+        smap = {s: s if s <= L else s + 4 for s in range(1, len(old) + 1)}
+        slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1]}
+        assert len(members) == len(old) + 4 and all(members[s - 1][0][6] == 0x102 for s in slots['hp'] + slots['lp'])
+        return members, smap, slots
     tap = prim(tmpl[0][0], [wet_in], [dry], [], flags=1)
     tap[0][6] = 0
     mix = prim(tmpl[5][0], [wet_at, dry], [wet_at], [(1, f2u(WET)), (2, f2u(DRY))], typ=0x84)
@@ -168,16 +249,17 @@ def append_composites(b0, composites):
     return b0, ids
 
 
-def mode_meta(e3):
+def mode_meta(e3, disp=pt.MODE_NAME, short=pt.MODE_NAME):
     """Entry 3 with the Mode list's meta table appended once, for every model's Mode record. (Entry 3, offset, S)"""
     e3 = bytearray(e3)
     _, _, _, S = patch_comp.e3_strings(e3)
-    keys = ['displayName', 'displayNameShort', 'displayType', 'list', pt.MODE_NAME, pt.MODE_NAME + 'State']
+    keys = ['displayName', 'displayNameShort', 'displayType', 'list', disp, short]
+    keys += [n for pair in MODE_NAMES for n in pair]
     keys += [str(k) for k in range(len(pt.D_MODE_LABELS))] + list(pt.D_MODE_LABELS)
     missing = [s for s in keys if s not in S]
     assert not missing, f'Entry 3 lacks the strings {missing}'
     e3 += bytes((-len(e3)) % 4)
-    meta = [('displayName', pt.MODE_NAME), ('displayNameShort', pt.MODE_NAME)]
+    meta = [('displayName', disp), ('displayNameShort', short)]
     meta += [(str(k), v) for k, v in enumerate(pt.D_MODE_LABELS)] + [('displayType', 'list')]
     off = len(e3)
     e3 += b''.join(struct.pack('<3I', S[k], 7, S[v]) for k, v in meta)
@@ -185,47 +267,50 @@ def mode_meta(e3):
     return bytes(e3), (off, len(meta)), S
 
 
-def e3_add_params(e3, model_name, meta, S):
-    """Entry 3 with Freq, Dry Level, Wet Level and Mode appended to model_name's parameters and states, its tables
-    copied once (patch_comp.e3_add_knobs's layout); records as patch_teemah.e3_add_param / e3_add_list write them.
-    Returns (Entry 3, first new slot)."""
+def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAMES[0]):
+    """Entry 3 with Freq, Dry Level, Wet Level and Mode (those of `knobs`, in this order, Mode last; Mode named
+    mode_names) appended to model_name's parameters and states, its tables copied once (patch_comp.e3_add_knobs's
+    layout); records as patch_teemah.e3_add_param / e3_add_list write them. Returns (Entry 3, first new slot)."""
+    assert knobs in (ALL_KNOBS, XOVER_KNOBS)
     e3 = bytearray(e3)
     info = kp.parse_entry3_full(bytes(e3))
     m = kp.find_model(info, model_name)
     assert m['name'] == model_name
     d = list(m['words'])
     n_par, n_st = d[7], d[6]
-    assert n_par == n_st and [p['slot'] for p in m['params']] == list(range(1, n_par + 1)), \
-        f'{model_name}: parameters and states are not one per slot 1..{n_par}'
-    new = [n for n in (pt.FREQ_SRC[1], pt.DRY_SRC[1], pt.WET_SRC[1], pt.MODE_NAME)]
+    old = [p['slot'] for p in m['params']]
+    assert n_par == n_st == len(old) and old == sorted(set(old)), f'{model_name}: parameters and states are not one per slot'
+    first = old[-1] + 1                                     # slot ids may have gaps (252 stock models): after the last
+    new = [n for n in (pt.FREQ_SRC[1], pt.DRY_SRC[1], pt.WET_SRC[1], mode_names[0])]
     assert not {p['name'] for p in m['params']} & set(new), f'{model_name} has {new} already'
     params, states = [], []
-    for k, (src_model, src_param, dflt, top) in enumerate((pt.FREQ_SRC + (FREQ, None), pt.DRY_SRC + (DRY, pt.DRY_MAX),
-                                                           pt.WET_SRC + (WET, None))):
+    floats = {'freq': pt.FREQ_SRC + (FREQ, None), 'dry': pt.DRY_SRC + (DRY, pt.DRY_MAX), 'wet': pt.WET_SRC + (WET, None)}
+    n_new = len(knobs)
+    for k, (src_model, src_param, dflt, top) in enumerate(floats[x] for x in knobs if x != 'mode'):
         src = kp.find_model(info, src_model)
         j = [p['name'] for p in src['params']].index(src_param)
         prec = list(struct.unpack_from('<8I', e3, src['words'][11] + 32 * j))
         srec = list(struct.unpack_from('<5I', e3, src['words'][10] + 20 * j))
         assert prec[3] == 3 and srec[3] == 3 and srec[4] == j, f'{src_model}.{src_param} is not a float of state {j}'
-        prec[4], prec[7] = n_par + 1 + k, f2u(dflt)
+        prec[4], prec[7] = first + k, f2u(dflt)
         if top is not None:
             prec[6] = f2u(top)
         srec[4] = n_st + k
         params.append(struct.pack('<8I', *prec))
         states.append(struct.pack('<5I', *srec))
     meta_off, n_meta = meta
-    params.append(struct.pack('<5I3i', n_meta, meta_off, S[pt.MODE_NAME], 2, n_par + 4, 0, len(pt.D_MODE_LABELS) - 1,
-                              MODE))
-    states.append(struct.pack('<5I', 0, 0x80b98, S[pt.MODE_NAME + 'State'], 2, n_st + 3))
+    params.append(struct.pack('<5I3i', n_meta, meta_off, S[mode_names[0]], 2, first + n_new - 1, 0,
+                              len(pt.D_MODE_LABELS) - 1, MODE))
+    states.append(struct.pack('<5I', 0, 0x80b98, S[mode_names[1]], 2, n_st + n_new - 1))
     e3 += bytes((-len(e3)) % 4)
     d[10] = len(e3)
     e3 += bytes(e3[m['words'][10]: m['words'][10] + 20 * n_st]) + b''.join(states)
     d[11] = len(e3)
     e3 += bytes(e3[m['words'][11]: m['words'][11] + 32 * n_par]) + b''.join(params)
-    d[6], d[7] = n_st + N_KNOBS, n_par + N_KNOBS
+    d[6], d[7] = n_st + n_new, n_par + n_new
     struct.pack_into('<14I', e3, m['off'], *d)
     struct.pack_into('<I', e3, 8, len(e3))
-    return bytes(e3), n_par + 1
+    return bytes(e3), first
 
 
 def e4_write(e4, b0_new, blobs):
@@ -277,44 +362,63 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
     fw = Fw(e3, w4)
     b0 = fw.b0
     info = fw.e3
+    if models is None:
+        models = core_mono(info, table1_names(e0))
+        for name in sorted(set(core_mono(info)) - set(models)):
+            log(f'[ ] {name}: no Static Model Table row (removed by this build), left as it is')
     ms = [kp.find_model(info, name) for name in models]
     assert [m['name'] for m in ms] == list(models)
     plans = {m['name']: plan_model(fw, m) for m in ms}
     roots = {}
-    for name, (root, lvl) in plans.items():
-        assert roots.setdefault(root, lvl) == lvl, f'{name}: Level at {lvl}, its root {root:#x} has it at {roots[root]}'
-    built = {root: build_members(b0, root, lvl) for root, lvl in roots.items()}
+    for name, p in plans.items():
+        key = (p['group'] == 'xover', p['at'])
+        assert roots.setdefault(p['root'], (key, p)) [0] == key, \
+            f"{name}: {key} on root {p['root']:#x}, which another model has at {roots[p['root']][0]}"
+    built = {root: build_members(b0, root, p) for root, (_, p) in roots.items()}
     b0_new, ids = append_composites(b0, [(mem, sl['buffers']) for mem, _, sl in built.values()])
     new_comp = dict(zip(built, ids))
     e3, meta, S = mode_meta(e3)
+    meta2 = None
     blobs = {}
     for m in ms:
-        root = plans[m['name']][0]
-        _, smap, sl = built[root]
-        members = built[root][0]
+        p = plans[m['name']]
+        root = p['root']
+        members, smap, sl = built[root]
         n = len(m['params'])
-        e3, first = e3_add_params(e3, m['name'], meta, S)
-        s_freq, s_dry, s_wet, s_mode = range(first, first + N_KNOBS)
+        if MODE_NAMES[0][0] in {q['name'] for q in m['params']}:
+            if meta2 is None:
+                e3, meta2, _ = mode_meta(e3, *MODE_DISP2)
+            e3, first = e3_add_params(e3, m['name'], meta2, S, p['knobs'], MODE_NAMES[1])
+        else:
+            e3, first = e3_add_params(e3, m['name'], meta, S, p['knobs'])
+        s = dict(zip(p['knobs'], range(first, first + len(p['knobs']))))
         blob = pt.Blob(eb.blob(w4, m['blob_index']))
         blob.renumber(smap, new_comp[root], old_comp=root)
-        blob.add_param(s_freq, f2u(FREQ), [(s, 2, None) for s in sl['hp'] + sl['lp']])
-        blob.add_param(s_dry, f2u(DRY), [(sl['mix'], 2, None)])
-        blob.add_param(s_wet, f2u(WET), [(sl['mix'], 1, None)])
-        blob.add_param(s_mode, MODE, [(s, 1, ('select', 0, LP_TYPE)) for s in sl['lp']],
+        blob.add_param(s['freq'], f2u(FREQ), [(k, 2, None) for k in sl['hp'] + sl['lp']])
+        if 'dry' in s:
+            how = None if p['level'] is None else ('plus_curve',) + tuple(p['level'])
+            blob.add_param(s['dry'], f2u(DRY), [(sl['mix'], 2, how)])
+            blob.add_param(s['wet'], f2u(WET), [(sl['mix'], 1, None)])
+        blob.add_param(s['mode'], MODE, [(k, 1, ('select', 0, LP_TYPE)) for k in sl['lp']],
                        input_op=patch_comp.INT_INPUT_OP)
-        blob.register({s: members[s - 1][3] for s in sl['hp'] + sl['lp'] + (sl['mix'],)})
+        new = sl['hp'] + sl['lp'] + ((sl['mix'],) if sl['mix'] else ())
+        blob.register({k: members[k - 1][3] for k in new})
         assert blob.sub_map() == blob.positions(), f"{m['name']}: sub-bindings do not match the node tree"
         blobs[m['blob_index']] = blob.assemble()
-        e0 = patch_comp.e0_set_param_counts(e0, m['words'][2], n, n + N_KNOBS)
+        e0 = patch_comp.e0_set_param_counts(e0, m['words'][2], n, n + len(p['knobs']))
         e0, old_cost = patch_gate.e0_add_cost(e0, m['words'][2], cost)
-        log(f"[+] {m['displayName']}: composite {new_comp[root]:#x} on {root:#x} ({len(members)} members), mixer before "
-            f"slot {smap[plans[m['name']][1]]}; Freq, Dry Level, Wet Level, Mode on slots {first}..{s_mode}; "
+        where = (f"crossover after slot {p['at']}" if sl['mix'] is None
+                 else f"mixer before slot {smap[p['at']]}" + (' (dry follows Level)' if p['level'] else ''))
+        log(f"[+] {m['displayName']} ({p['group']}): composite {new_comp[root]:#x} on {root:#x} ({len(members)} "
+            f"members), {where}; {len(p['knobs'])} knobs on slots {first}..{first + len(p['knobs']) - 1}; "
             f"DSP cost {old_cost} -> {old_cost + cost}")
     e4 = e4_write(e4, b0_new, blobs)
     chk = kp.parse_entry3_full(e3)
     for m in ms:
         c = kp.find_model(chk, m['name'])
-        assert [p['slot'] for p in c['params']] == list(range(1, len(m['params']) + N_KNOBS + 1))
+        old = [p['slot'] for p in m['params']]
+        k = len(plans[m['name']]['knobs'])
+        assert [p['slot'] for p in c['params']] == old + list(range(old[-1] + 1, old[-1] + 1 + k)), m['name']
         assert not kp.pmap_slots_without_param(e4, m['blob_index'], c['params']), f"{m['name']}: a slot without param"
     entries = l6ia.parse(l6ia_bytes)
     e2_raw = l6ia_bytes[entries[2]['payload_off']: entries[2]['payload_off'] + entries[2]['payload_len']]

@@ -38,9 +38,10 @@ def _params(l6, name):
 
 @pytest.fixture(scope='module')
 def built():
+    """Stock, rollout D2 (Teemah! and Scream 808 alone), test build D3 (verified on the unit)."""
     stock = firmware.stock()
-    return (stock, pdist.patch_dist(stock, log=lambda *_: None),
-            pt.patch_teemah_d(stock, log=lambda *_: None))       # test build D3, verified on the unit
+    return (stock, pdist.patch_dist(stock, (TEEMAH, SCREAM), log=lambda *_: None),
+            pt.patch_teemah_d(stock, log=lambda *_: None))
 
 
 @pytest.mark.firmware
@@ -120,7 +121,156 @@ def test_entry_3_grows_once_per_model(built):
 def test_g1_rule_rejects_a_model_with_a_member_after_level():
     with pytest.raises(SystemExit, match='not group G1'):
         fw = pdist.Fw(kp.get_entry_swapped(firmware.stock(), 3), _w4(firmware.stock()))
-        pdist.plan_model(fw, kp.find_model(fw.e3, 'HD2_DistPrizeDriveMono'))
+        pdist.plan_model(fw, kp.find_model(fw.e3, 'HD2_DistPrizeDriveMono'), group='g1')
+
+
+# Rollout D3: every core mono distortion (docs/research/sharc/cores/teemah.md, Rollout D3)
+
+CORE = (
+    'HD2_DistMegaphoneMono', 'HD2_DistValveDriverMono', 'HD2_DistHedgehogD9Mono', 'HD2_DistIndustrialFuzzMono',
+    'HD2_DistTriangleFuzzMono', 'HD2_DistMinotaurMono', 'HD2_DistCompulsiveDriveMono', 'HD2_DistTopSecretODMono',
+    'HD2_DistVerminDistMono', 'HD2_DistArbitratorFuzzMono', 'HD2_DistTycoctaviaFuzzMono', 'HD2_DistScream808Mono',
+    'HD2_DistBitcrusherMono', 'HD2_DistKWBMono', 'HD2_DistTeemahMono', 'HD2_DistWringerFuzzMono',
+    'HD2_DistStuporODMono', 'HD2_DistObsidian7000Mono', 'HD2_DistClawthornDriveMono', 'HD2_DistThrifterFuzzMono',
+    'HD2_DistKinkyBoostMono', 'HD2_DistDerangedMasterMono', 'HD2_DistDeezOneVintageMono', 'HD2_DistDeezOneModMono',
+    'HD2_DistDhyanaDriveMono', 'HD2_DistAmpegScramblerODMono', 'HD2_DistZeroAmpBassDIMono',
+    'HD2_DistToneSovereignMono', 'HD2_DistHeirApparentMono', 'HD2_DistXenomorphFuzzMono', 'HD2_DistAlpacaRougeMono',
+    'HD2_DistLegendaryDriveMono', 'HD2_DistRamsHeadMono', 'HD2_DistSwedishChainsawMono', 'HD2_DistHorizonDriveMono',
+    'HD2_DistBallisticFuzzMono', 'HD2_DistPocketFuzzMono', 'HD2_DistRatatouilleDistMono', 'HD2_DistVitalDistMono',
+    'HD2_DistVitalBoostMono', 'HD2_DistPillarsMono', 'HD2_DistDarkDoveFuzzMono', 'HD2_DistPrizeDriveMono',
+    'HD2_DistRegalBassDIMono')
+NAMES = {'freq': 'Frequency', 'dry': 'Dry Level', 'wet': 'Wet Level', 'mode': 'Mode'}
+
+
+@pytest.fixture(scope='module')
+def full():
+    import pmap
+    stock = firmware.stock()
+    new = pdist.patch_dist(stock, log=lambda *_: None)
+    fs, fn = (pdist.Fw(kp.get_entry_swapped(x, 3), _w4(x)) for x in (stock, new))
+    plans = {n: pdist.plan_model(fs, kp.find_model(fs.e3, n)) for n in CORE}
+    reports = {n: (pmap.model_report(fs, kp.find_model(fs.e3, n)), pmap.model_report(fn, kp.find_model(fn.e3, n)))
+               for n in CORE}
+    return stock, new, plans, reports
+
+
+@pytest.mark.firmware
+def test_the_core_mono_distortions_are_these_44():
+    assert pdist.core_mono(kp.parse_entry3_full(firmware.stock_entry(3))) == CORE and len(CORE) == 44
+
+
+def test_a_model_without_a_static_model_table_row_is_left_out():
+    """An HXtra build removes Xenomorph Fuzz Mono's Table 1 row for NAM A2 Lite; patch_dist then skips it."""
+    info = kp.parse_entry3_full(firmware.stock_entry(3))
+    rows = pdist.table1_names(firmware.stock_e0())
+    assert pdist.core_mono(info, rows) == CORE, 'stock: every core mono distortion has its row'
+    xeno = kp.find_model(info, 'HD2_DistXenomorphFuzzMono')['words'][2]
+    assert pdist.core_mono(info, rows - {xeno}) == tuple(n for n in CORE if n != 'HD2_DistXenomorphFuzzMono')
+
+
+def _mode_disp(r_stock):
+    """The new Mode knob's display name: "Crossover" where the model has a Mode of its own (Pillars)."""
+    return pdist.MODE_DISP2[0] if 'Mode' in [q['name'] for q in r_stock['params']] else 'Mode'
+
+
+def _writes(r, knob):
+    return {(tuple(w['path']), w['pid']): w for w in r['writes'] if knob in pdist._knobs(w['expr'], set())}
+
+
+def _type(r, path):
+    return next(c['type'] for c in r['chain'] if tuple(c['path']) == path)
+
+
+@pytest.mark.firmware
+@pytest.mark.parametrize('name', CORE)
+def test_each_model_gets_its_knobs_after_its_own(full, name):
+    stock, new, plans, _ = full
+    knobs = plans[name]['knobs']
+    old, ps = _params(stock, name), _params(new, name)
+    assert ps[:len(old)] == old and len(ps) == len(old) + len(knobs)
+    mode = 'Xover' if 'Mode' in [p[0] for p in old] else 'Mode'
+    assert [p[0] for p in ps[len(old):]] == [NAMES[k] for k in knobs[:-1]] + [mode]
+    assert [p[2] for p in ps[len(old):]] == list(range(old[-1][2] + 1, old[-1][2] + 1 + len(knobs)))
+    assert [p[6] for p in ps[len(old):]] == [{'freq': 20.0, 'dry': -60.0, 'wet': 0.0, 'mode': 0}[k] for k in knobs]
+
+
+@pytest.mark.firmware
+@pytest.mark.parametrize('name', CORE)
+def test_each_models_knobs_write_crossover_and_mixer(full, name):
+    import pmap
+    _, _, plans, reports = full
+    p, (ro, rn) = plans[name], reports[name]
+    freq, mode = _writes(rn, 'Frequency'), _writes(rn, _mode_disp(ro))
+    assert len(freq) == 4 and {pid for _, pid in freq} == {2} and all(_type(rn, k[0]) == '0x102' for k in freq)
+    assert len(mode) == 2 and {pid for _, pid in mode} == {1} and {k[0] for k in mode} < {k[0] for k in freq}
+    dry, wet = _writes(rn, 'Dry Level'), _writes(rn, 'Wet Level')
+    if p['group'] == 'xover':
+        assert not dry and not wet
+        return
+    (dpath, dpid), = dry
+    (wpath, wpid), = wet
+    assert dpath == wpath and (dpid, wpid) == (2, 1) and _type(rn, dpath) == '0x84'
+    top = [c for c in rn['chain'] if c['depth'] == 0]
+    if p['group'] in ('g3', 'g4'):                       # the mixer feeds the out-port
+        assert dpath[0] == top[-1]['path'][0] - 1
+    else:                                                # the mixer feeds the member Level writes first
+        lname = pdist.GROUPS.get(name, (None, None))[1]
+        (lv,) = [q for q in ro['params'] if (q['name'] == lname if lname else q['name'] in pdist.LEVEL_KNOBS)]
+        assert dpath[0] == min(k[0][0] for k in _writes(rn, lv['disp']) if k[0][0] != dpath[0]) - 1
+    e = dry[(dpath, dpid)]['expr']
+    if p['group'] == 'g3':                               # Level reaches the dry signal, 0 dB at its default
+        knobs = {q['slot']: q['default'] for q in rn['params']}
+        assert pmap.evaluate(e, knobs) == pytest.approx(-60.0, abs=1e-4)
+        knobs[p['level'][0]] = 1.0
+        top_db = p['level'][1][-1]
+        assert pmap.evaluate(e, knobs) == pytest.approx(-60.0 + top_db, abs=1e-3) and top_db > 0
+    else:
+        assert pdist._knobs(e, set()) == {'Dry Level'}
+
+
+@pytest.mark.firmware
+@pytest.mark.parametrize('name', CORE)
+def test_each_models_stock_writes_survive_renumbered(full, name):
+    _, _, plans, reports = full
+    ro, rn = reports[name]
+    p = plans[name]
+    shift = (lambda s: s if s <= p['at'] else s + 4) if p['group'] == 'xover' else \
+        (lambda s: s if s <= 1 else s + 3 if s < p['at'] else s + 6)          # path [0]: the root itself
+    stock = sorted((tuple([shift(w['path'][0])] + w['path'][1:]), w['pid'], repr(w['expr'])) for w in ro['writes'])
+    mine = {'Frequency', 'Dry Level', 'Wet Level', _mode_disp(ro)}
+    new = sorted((tuple(w['path']), w['pid'], repr(w['expr'])) for w in rn['writes']
+                 if not pdist._knobs(w['expr'], set()) & mine)
+    assert new == stock
+
+
+@pytest.mark.firmware
+def test_full_build_keeps_every_other_model_and_blob_stock(full):
+    stock, new, plans, _ = full
+    e3o, e3n = (kp.parse_entry3_full(kp.get_entry_swapped(x, 3)) for x in (stock, new))
+    view = lambda info: [(m['name'], m['meta'], [(p['name'], p['type'], p['slot'], p['meta'], p['min'], p['max'])
+                                                 for p in m['params']])
+                         for m in info['models'] if m['name'] not in CORE]
+    assert repr(view(e3o)) == repr(view(e3n))
+    wo, wn = _w4(stock), _w4(new)
+    changed = {_model(stock, n)['blob_index'] for n in CORE}
+    assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
+    bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
+    roots = {p['root'] for p in plans.values()}
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 40
+
+
+@pytest.mark.firmware
+def test_full_build_fits_with_room_to_spare(full):
+    stock, new, plans, _ = full
+    b0 = eb.blob(_w4(new), 0)
+    assert kp.sharc_blob0_check(list(b0), kp.SHARC_BLOB0_MAX_WORDS) is None
+    assert len(b0) - len(eb.blob(_w4(stock), 0)) < 33000                 # plan: about 33 000 words
+    grow = len(kp.get_entry_swapped(new, 3)) - len(kp.get_entry_swapped(stock, 3))
+    assert grow <= sum(52 * (len(_model(stock, n)['params']) + len(plans[n]['knobs'])) for n in CORE) + 2 * 64
+    assert len(kp.get_entry_swapped(new, 4)) <= kp.E4_MAX
+    for n in CORE:
+        assert not kp.pmap_slots_without_param(kp.get_entry_swapped(new, 4), _model(new, n)['blob_index'],
+                                               _model(new, n)['params']), n
 
 
 # e4_write on synthetic Entry 4 images: the two layouts, stock and HXtra's (directory relocated)
