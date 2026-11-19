@@ -1,4 +1,5 @@
 """Label color: HXtra settings' and block parameters' labels in Teal, so they read apart from the stock white ones (src/m4/label_color.s)."""
+import os
 import struct
 
 import patch_amp as pa
@@ -33,6 +34,10 @@ def hxtra_params(e0_read, e0_u32, segs, e3):
         out.append((pid[models[NAM]['words'][2]], 0))
     if METRONOME not in pid.values():
         out.append((METRONOME, 0))
+    if os.environ.get('HX_DIST_XOVER'):              # tools/patch_dist.py runs later: these counts are still stock
+        import patch_dist
+        out += [(pid[models[n]['words'][2]], len(models[n]['params'])) for n in patch_dist.MODELS
+                if n in models and models[n]['words'][2] in pid]
     return out
 
 

@@ -157,3 +157,15 @@ def test_builds_alongside_every_other_feature():
     env = {f: '1' for m in MODS for f in features.flags(m)}
     _, on = built(env)
     assert {'label_color', 'tuner', 'gr', 'tap_color'} <= set(on)
+
+
+@pytest.mark.firmware
+def test_with_dist_xover_the_distortions_follow_with_their_stock_counts(monkeypatch):
+    import patch_amp as pa
+    import patch_dist
+    base = stock_params()
+    monkeypatch.setenv('HX_DIST_XOVER', '1')
+    params = stock_params()
+    assert params[:len(base)] == base and len(params) == len(base) + len(patch_dist.MODELS)
+    models = {m['name']: m for m in pa.parse_entry3_full(stock_entry(3))['models']}
+    assert [n for _, n in params[len(base):]] == [len(models[n]['params']) for n in patch_dist.MODELS] == [5, 3]
