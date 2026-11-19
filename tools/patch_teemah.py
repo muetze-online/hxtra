@@ -59,7 +59,8 @@ OFF_DB = -120.0
 D_MIX = 11                                            # the 0x84 [0, 1] -> 0: pid 1 wet, pid 2 dry, in dB
 DRY_SRC = ('HD2_DelayDoubleDoubleMono', 'Dry Level')  # float -60..+9 dB, displayType db
 WET_SRC = ('HD2_DelayDoubleDoubleMono', 'Wet Level')
-LEVEL_MIN, LEVEL_MAX = -60.0, 9.0
+LEVEL_MIN, LEVEL_MAX = -60.0, 9.0                     # Double Double's range
+DRY_MAX = 18.0                                        # Dry Level's top raised (bass): the drive is ~9..19 dB louder
 
 
 def curve_at(table, x):
@@ -420,9 +421,9 @@ def e4_with(e4, b0_new, blob_idx, blob_new):
     return out
 
 
-def e3_add_param(e3, model_name, src_model, src_param, default):
+def e3_add_param(e3, model_name, src_model, src_param, default, top=None):
     """Entry 3 with a copy of src_model's parameter src_param (its record, meta and strings shared, so the string
-    section stays as it is) appended to model_name's parameters and states, default changed; the model's parameter
+    section stays as it is) appended to model_name's parameters and states, default (and top, the maximum) changed; the model's parameter
     and state tables are rewritten past the end (patch_comp.e3_add_knobs's layout). (Entry 3, new slot)."""
     e3 = bytearray(e3)
     info = kp.parse_entry3_full(bytes(e3))
@@ -437,6 +438,8 @@ def e3_add_param(e3, model_name, src_model, src_param, default):
     assert prec[3] == 3 and srec[3] == 3 and srec[4] == k, f'{src_model}.{src_param} is not a float of state {k}'
     assert all(p['name'] != src_param for p in m['params']), f'{model_name} has a {src_param} already'
     prec[4], prec[7] = n_par + 1, f2u(default)
+    if top is not None:
+        prec[6] = f2u(top)
     srec[4] = n_st
     base = len(e3) + (-len(e3)) % 4
     e3 += bytes(base - len(e3))
@@ -528,18 +531,18 @@ def patch_teemah_c(l6ia_bytes, freq=400.0, mix=1.0, mode=1, hp_type=4, lp_type=3
     return new
 
 
-def patch_teemah_d(l6ia_bytes, freq=250.0, dry_db=LEVEL_MIN, wet_db=0.0, mode=0, hp_type=4, lp_type=3, sections=2,
+def patch_teemah_d(l6ia_bytes, freq=FREQ_MIN, dry_db=LEVEL_MIN, wet_db=0.0, mode=0, hp_type=4, lp_type=3, sections=2,
                    cost=100, log=print):
     """Test build D: test build A's composite (build_members) with four knobs, every member they write registered:
 
       Full      (mode 0): y = Level * (w * T(HP(x)) + d * x)        (the low-passes type 0)
       Crossover (mode 1): y = Level * (w * T(HP(x)) + d * LP(x))
 
-    slot 6 Frequency (pid 2 of the HPs and LPs), slot 7 Dry Level d and slot 8 Wet Level w (Double Double's records,
-    -60..+9 dB, straight to the mixer's pids 2 and 1, which take dB), slot 9 Mode (int list Full / Crossover, op 0x2a
+    slot 6 Frequency (pid 2 of the HPs and LPs), slot 7 Dry Level d (-60..+18 dB) and slot 8 Wet Level w (-60..+9 dB),
+    Double Double's records, straight to the mixer's pids 2 and 1, which take dB; slot 9 Mode (int list Full / Crossover, op 0x2a
     selects of the LPs' types {0, lp_type}). Level (slot 5) stays the block's last member, after the mixer."""
     assert FREQ_MIN <= freq <= FREQ_MAX and mode in (0, 1)
-    assert LEVEL_MIN <= dry_db <= LEVEL_MAX and LEVEL_MIN <= wet_db <= LEVEL_MAX
+    assert LEVEL_MIN <= dry_db <= DRY_MAX and LEVEL_MIN <= wet_db <= LEVEL_MAX
     e0 = kp.get_entry_swapped(l6ia_bytes, 0)
     e3 = kp.get_entry_swapped(l6ia_bytes, 3)
     e4 = kp.get_entry_swapped(l6ia_bytes, 4)
@@ -551,7 +554,7 @@ def patch_teemah_d(l6ia_bytes, freq=250.0, dry_db=LEVEL_MIN, wet_db=0.0, mode=0,
     b0_new, comp = append_composite(b0, members)
     blob = renumber_blob(entry4_blob.blob(w4, m['blob_index']), comp)
     e3, s_freq = e3_add_param(e3, MODEL, *FREQ_SRC, freq)
-    e3, s_dry = e3_add_param(e3, MODEL, *DRY_SRC, dry_db)
+    e3, s_dry = e3_add_param(e3, MODEL, *DRY_SRC, dry_db, top=DRY_MAX)
     e3, s_wet = e3_add_param(e3, MODEL, *WET_SRC, wet_db)
     e3, s_mode = e3_add_list(e3, MODEL, MODE_NAME, MODE_LABELS, mode)
     assert (s_freq, s_dry, s_wet, s_mode) == (6, 7, 8, 9)
@@ -625,11 +628,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('input', help='stock .hxf or L6IA')
     ap.add_argument('output')
-    ap.add_argument('--freq', type=float, help='crossover frequency, Hz (default 400; --levels 250)')
+    ap.add_argument('--freq', type=float, help='crossover frequency, Hz (default 400; --levels 20)')
     ap.add_argument('--hp-type', type=int, default=4, help='0x102 type of the high-pass (default 4: 2nd order)')
     ap.add_argument('--lp-type', type=int, default=3, help='0x102 type of the low-pass (default 3: 2nd order)')
     ap.add_argument('--dry-db', type=float, help='gain of the dry path at the mixer, dB (default 0, -120: off; '
-                                                  f'--levels: Dry Level default, {LEVEL_MIN:g}..{LEVEL_MAX:g}, default {LEVEL_MIN:g})')
+                                                  f'--levels: Dry Level default, {LEVEL_MIN:g}..{DRY_MAX:g}, default {LEVEL_MIN:g})')
     ap.add_argument('--wet-db', type=float, help='gain of the drive path at the mixer, dB (default 0)')
     ap.add_argument('--split', action='store_true', help='dry path full band (low-passes bypassed)')
     ap.add_argument('--cost', type=int, default=100)
@@ -651,7 +654,7 @@ def main():
     data, is_hxf = kp.load_l6ia_from_any(a.input)
     if a.levels:
         assert not (a.knobs or a.freq_knob or a.split or a.unbound), '--levels replaces the other builds\' options'
-        out = patch_teemah_d(data, 250.0 if a.freq is None else a.freq, LEVEL_MIN if a.dry_db is None else a.dry_db,
+        out = patch_teemah_d(data, FREQ_MIN if a.freq is None else a.freq, LEVEL_MIN if a.dry_db is None else a.dry_db,
                              a.wet_db or 0.0, MODE_LABELS.index(a.mode or 'Full'), a.hp_type, a.lp_type, a.sections,
                              a.cost)
     elif a.knobs:

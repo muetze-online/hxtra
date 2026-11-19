@@ -317,7 +317,7 @@ def test_curve_at_interpolates_linearly():
 
 # Test build D (--levels): Freq, Dry Level, Wet Level, Mode on test build A's composite
 
-@pytest.fixture(scope='module', params=[(250.0, -60.0, 0.0, 0), (400.0, 3.0, -20.0, 1)], ids=['full', 'crossover'])
+@pytest.fixture(scope='module', params=[(20.0, -60.0, 0.0, 0), (400.0, 15.0, -20.0, 1)], ids=['full', 'crossover'])
 def levels(request):
     stock = firmware.stock()
     freq, dry, wet, mode = request.param
@@ -345,8 +345,8 @@ def test_d_knobs_are_slots_6_to_9(levels):
     assert [q['slot'] for q in m['params']] == list(range(1, 10)) and m['words'][6:8] == [9, 9]
     f, d, w, md = m['params'][5:]
     assert (f['name'], f['min'], f['max'], f['meta']['displayType']) == ('Frequency', 20.0, 1000.0, 'hz')
-    for p, name, short, v in ((d, 'Dry Level', 'Dry Lvl', dry), (w, 'Wet Level', 'Wet Lvl', wet)):
-        assert (p['name'], p['type'], p['min'], p['max'], p['meta']['displayType']) == (name, 3, -60.0, 9.0, 'db')
+    for p, name, short, v, top in ((d, 'Dry Level', 'Dry Lvl', dry, 18.0), (w, 'Wet Level', 'Wet Lvl', wet, 9.0)):
+        assert (p['name'], p['type'], p['min'], p['max'], p['meta']['displayType']) == (name, 3, -60.0, top, 'db')
         assert p['displayNameShort'] == short or p['meta'].get('displayNameShort') == short
         assert p['default'] == pytest.approx(v)
     assert (md['name'], md['type']) == ('Mode', 2)
