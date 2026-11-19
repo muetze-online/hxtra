@@ -9,9 +9,11 @@ pid k feeds slot k of that member's map. Layout and ops: docs/research/sharc/mod
 
     python3 tools/sharc/pmap.py [--hxf F] MODEL...            text, MODEL = name or display name
     python3 tools/sharc/pmap.py [--hxf F] --category distortion,eq [--sub mono] --json OUT
+    python3 tools/sharc/pmap.py [--hxf F] --sweep MODEL...    values each knob gives its writers
 """
 import argparse
 import json
+import math
 import os
 import struct
 import sys
@@ -195,6 +197,111 @@ def model_report(fw, m):
     return out
 
 
+# Node ops (registry rows with small ids; docs/research/sharc/model-blobs.md). Two-input ops whose
+# data words fill ports 0, 1 and that recompute on either input; the "hot" ones recompute only on
+# port 0 and take one data word as port 1. Selects take their data as ports 1...
+BIN = {0x14: lambda a, b: a + b, 0x1b: lambda a, b: a + b, 0x15: lambda a, b: int(a) + int(b),
+       0x1c: lambda a, b: int(a) + int(b), 0x18: lambda a, b: a * b, 0x1d: lambda a, b: a * b,
+       0x19: lambda a, b: int(a) * int(b), 0x1e: lambda a, b: int(a) * int(b),
+       0x45: lambda a, b: a / b if b else None, 0x46: lambda a, b: a / b if b else None,
+       0x47: lambda a, b: b ** a, 0x48: lambda a, b: b ** a, 0x2c: min, 0x2d: max,
+       0x3d: lambda a, b: int(a > b), 0x3e: lambda a, b: int(a > b), 0x3f: lambda a, b: int(a > b),
+       0x40: lambda a, b: int(a > b), 0x41: lambda a, b: int(a == b), 0x42: lambda a, b: int(a == b),
+       0x43: lambda a, b: int(a == b), 0x44: lambda a, b: int(a == b),
+       0x57: lambda a, b: int(bool(a) and bool(b)), 0x58: lambda a, b: int(bool(a) or bool(b))}
+HOT = {0x1b, 0x1c, 0x1d, 0x1e, 0x46, 0x48, 0x3f, 0x40, 0x43, 0x44}
+UNARY = {0x23: float, 0x24: int, 0x25: lambda x: int(x != 0), 0x26: lambda x: x, 0x4e: lambda x: int(x == 0),
+         0x27: lambda x: 10 ** (x / 20) if x > -120 else 0.0,
+         0x28: lambda x: 20 * math.log10(x) if x > 0 else -120.0,
+         0x3a: lambda x: x}          # 0x3a: a smoother, its settled value is its input [hypothesis]
+SELECT = {0x2a: 2, 0x2b: 2, 0x35: 4, 0x36: 4, 0x37: 8, 0x38: 8}
+
+
+def evaluate(e, knobs):
+    """The value an expression (model_report's 'expr') settles to with knob slot -> value.
+    None where an op is not modelled (0x2 readers, 0x17, 0x39 and other rare ones)."""
+    if e is None:
+        return None
+    if 'knob' in e:
+        return knobs.get(e['slot'])
+    if 'const' in e:
+        return e['const']
+    op = int(e['op'], 16)
+    data = [v - (1 << 32) if isinstance(v, int) and v >= 1 << 31 else v for v in e.get('data') or []]
+    ins = {int(k): evaluate(v, knobs) for k, v in e['ins'].items()}
+    if op == 0x3:                                   # 9-point curve over 0..1, linear between points
+        x = ins.get(0)
+        if x is None:
+            return None
+        t = min(max(8 * x, 0.0), 8.0)
+        i = min(int(t), 7)
+        return e['table'][i] + (e['table'][i + 1] - e['table'][i]) * (t - i)
+    if op == 0x6:                                   # [hypothesis] two knobs into a 3 x 3 table, bilinear
+        x, y = ins.get(0), ins.get(1)
+        if x is None or y is None:
+            return None
+        tx, ty = min(max(2 * x, 0.0), 2.0), min(max(2 * y, 0.0), 2.0)
+        i, j = min(int(tx), 1), min(int(ty), 1)
+        fx, fy, T = tx - i, ty - j, e['table']
+        g = lambda a, b: T[3 * b + a]
+        return ((g(i, j) * (1 - fx) + g(i + 1, j) * fx) * (1 - fy)
+                + (g(i, j + 1) * (1 - fx) + g(i + 1, j + 1) * fx) * fy)
+    if op in SELECT:
+        ports = {k + 1: v for k, v in enumerate(data)}
+        ports.update(ins)
+        c = ports.get(0)
+        if c is None:
+            return None
+        if SELECT[op] == 2:
+            return ports.get(2 if c else 1)
+        return ports.get(1 + min(int(c), SELECT[op] - 1))
+    if op in BIN:
+        ports = {1: data[0]} if op in HOT and data else dict(enumerate(data))
+        ports.update(ins)
+        a, b = ports.get(0, 0), ports.get(1, 0)
+        return None if a is None or b is None else BIN[op](a, b)
+    if op in UNARY:
+        x = ins.get(0, data[0] if data else None)
+        return None if x is None else UNARY[op](x)
+    return None
+
+
+def knobs_of(e, out=None):
+    out = set() if out is None else out
+    if isinstance(e, dict):
+        if 'knob' in e:
+            out.add(e['slot'])
+        for v in (e.get('ins') or {}).values():
+            knobs_of(v, out)
+    return out
+
+
+def sweep(r, steps=(0, 0.25, 0.5, 0.75, 1)):
+    """Per knob: each writer it reaches and the value at the knob's positions (list knobs: every
+    entry), the other knobs at their defaults."""
+    dflt = {p['slot']: p['default'] for p in r['params']}
+    out = []
+    for p in r['params']:
+        if p['type'] == 1:                          # switch
+            pos = [0, 1]
+        elif p['type'] == 2:                        # list; an unlabelled one gets 0..8
+            pos = [int(k) for k in sorted(p['list'], key=int)] if p['list'] else list(range(9))
+        else:
+            pos = [p['min'] + s * (p['max'] - p['min']) for s in steps]
+        rows = []
+        for w in r['writes']:
+            if p['slot'] in knobs_of(w['expr']):
+                vals = []
+                for v in pos:
+                    k = dict(dflt)
+                    k[p['slot']] = v
+                    x = evaluate(w['expr'], k)
+                    vals.append(round(x, 4) if isinstance(x, float) else x)
+                rows.append({'path': w['path'], 'type': w['type'], 'pid': w['pid'], 'values': vals})
+        out.append({'slot': p['slot'], 'knob': p['disp'], 'positions': [round(v, 4) for v in pos], 'writes': rows})
+    return out
+
+
 def show(r):
     print(f"== {r['display']} ({r['name']}, model {r['model']}, blob {r['blob']}, root {r['root']})")
     for p in r['params']:
@@ -206,12 +313,22 @@ def show(r):
         print('  W', w['path'], w['type'], 'pid', w['pid'], '=', json.dumps(w['expr']))
 
 
+def show_sweep(r):
+    print(f"== {r['display']} ({r['name']})")
+    for k in r['sweep']:
+        print(f"  slot {k['slot']:2d} {k['knob']:14s} at {k['positions']}")
+        for w in k['writes']:
+            print('     ', w['path'], w['type'], 'pid', w['pid'], '->', w['values'])
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--hxf', default=os.environ.get('HX_STOMP_HXF'))
     ap.add_argument('--category', help='comma-separated Entry 3 categories')
     ap.add_argument('--sub', default='mono', help="subcategory with --category ('' for all)")
     ap.add_argument('--json', help='write the reports here instead of printing them')
+    ap.add_argument('--sweep', action='store_true',
+                    help="each knob's effect: the values its writers get at min, 1/4 .. max (switches 0/1, lists every entry)")
     ap.add_argument('model', nargs='*')
     a = ap.parse_args(argv)
     if not a.hxf:
@@ -224,12 +341,15 @@ def main(argv=None):
     else:
         ms = [kp.find_model(fw.e3, q) for q in a.model]
     reports = [model_report(fw, m) for m in ms]
+    if a.sweep:
+        for r in reports:
+            r['sweep'] = sweep(r)
     if a.json:
         json.dump(reports, open(a.json, 'w'), indent=1)
         print(f'{len(reports)} models -> {a.json}')
     else:
         for r in reports:
-            show(r)
+            (show_sweep if a.sweep else show)(r)
 
 
 if __name__ == '__main__':
