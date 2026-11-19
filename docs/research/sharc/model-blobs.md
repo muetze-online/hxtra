@@ -34,6 +34,15 @@ Found 2026-11-19. The ops are SHARC registry rows like the primitives (DM `0x200
 
 - **A model blob's node tree overrides member primitives** [verified offline, and on unit by the Kinky-knobs and Kinky-2710 images in the [GR meter log](../features/gr-meter-log.md)]: entries `{slot, type, child_off, child_cnt}` after the root, `type` `0xffffffff` for none; slot k is path [k], member k − 1. The Kinky Comp's core (slot 14; stereo 23 and 33) is **`0x2710`** there, not blob 0's `0x2719`; slot 9 is `0x2711`. The LA Studio Comp overrides slot 13 to `0x239e` only. `0x2710` (registry `0x200180`) shares the process code `0x8d342` with `0x2719` but has its own control function `0x60cf8e`; the Sweep Echo delay (composites `0x6000d4`, `0x600024`) uses it too. The LA Studio Comp and the Red Squeeze share composites (`0x6000ca` mono, `0x60001d` stereo).
 
+## Sub-bindings and table F [verified offline]
+
+Checked on all 863 stock model blobs (2026-11-19, `tools/patch_teemah.py`'s `Blob`, `tests/test_teemah_xover.py`).
+- Blob layout, always in this order: header (12 words: 3, a word kept as is, node tree offset and count, init-record relocations offset and count, parameter map offset and length, sub-bindings offset and count, init records offset and count), path and value area, node tree, parameter map, init records, relocations, sub-bindings. The node tree puts each node's children in one block and lays the blocks out depth first. Taking a blob apart and laying it out again this way gives every stock blob back word for word.
+- **Sub-bindings** (header words 8, 9) are pairs `{member path, position path}`, one per node-tree node under the root. The position is where the node sits in the tree: `[i]` is the root's i-th child, `[i, j]` that child's j-th child (Teemah!: `[1, 3]` → `[1]`, the drive's `[2, 3, 6]` → `[1, 1]`). Writers name member paths. 16 564 of 16 566 top-level writers go to a slot that is a root child; the two others are in the Loopers.
+- In 836 blobs some path words serve as both a member path and a position path. So renumbering member paths in place moves positions too.
+- **Table F** has one 8-word row per root child (`nF` = their number in 863 of 863), in tree order.
+- Relocations cover every init record and every writer's path word, nested maps' included; sub-bindings and init-record values are not relocated.
+
 ## Tempo sync in a parameter map [verified offline]
 
 - Stock Simple Delay (blob 50) gets its delay time from the tempo inside its parameter map, with no M4 code of its own. Its Time knob comes as three Entry 3 parameters: the float `Time` (slot 1; meta `sync` 1, `coupledIndex` 10, `toggleSelectIndex` 11), the int note list `SyncSelect1` (slot 10, values 1..19 = 1/1 .. 1/64 Triplet, 6 = 1/4; meta `persistent` note) and the bool `TempoSync1` (slot 11). Entry 0's Table 2 row counts them (4, 6, 6): the last two are hidden, as `displayParamCount` 4 says.
