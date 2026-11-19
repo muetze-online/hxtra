@@ -60,6 +60,7 @@ D_MIX = 11                                            # the 0x84 [0, 1] -> 0: pi
 DRY_SRC = ('HD2_DelayDoubleDoubleMono', 'Dry Level')  # float -60..+9 dB, displayType db
 WET_SRC = ('HD2_DelayDoubleDoubleMono', 'Wet Level')
 LEVEL_MIN, LEVEL_MAX = -60.0, 9.0                     # Double Double's range
+D_MODE_LABELS = ('Full', 'Xover')                     # "Crossover" is cut short on the display; "Xover" is stock
 DRY_MAX = 18.0                                        # Dry Level's top raised (bass): the drive is ~9..19 dB louder
 
 
@@ -539,7 +540,7 @@ def patch_teemah_d(l6ia_bytes, freq=FREQ_MIN, dry_db=LEVEL_MIN, wet_db=0.0, mode
       Crossover (mode 1): y = Level * (w * T(HP(x)) + d * LP(x))
 
     slot 6 Frequency (pid 2 of the HPs and LPs), slot 7 Dry Level d (-60..+18 dB) and slot 8 Wet Level w (-60..+9 dB),
-    Double Double's records, straight to the mixer's pids 2 and 1, which take dB; slot 9 Mode (int list Full / Crossover, op 0x2a
+    Double Double's records, straight to the mixer's pids 2 and 1, which take dB; slot 9 Mode (int list Full / Xover, op 0x2a
     selects of the LPs' types {0, lp_type}). Level (slot 5) stays the block's last member, after the mixer."""
     assert FREQ_MIN <= freq <= FREQ_MAX and mode in (0, 1)
     assert LEVEL_MIN <= dry_db <= DRY_MAX and LEVEL_MIN <= wet_db <= LEVEL_MAX
@@ -556,7 +557,7 @@ def patch_teemah_d(l6ia_bytes, freq=FREQ_MIN, dry_db=LEVEL_MIN, wet_db=0.0, mode
     e3, s_freq = e3_add_param(e3, MODEL, *FREQ_SRC, freq)
     e3, s_dry = e3_add_param(e3, MODEL, *DRY_SRC, dry_db, top=DRY_MAX)
     e3, s_wet = e3_add_param(e3, MODEL, *WET_SRC, wet_db)
-    e3, s_mode = e3_add_list(e3, MODEL, MODE_NAME, MODE_LABELS, mode)
+    e3, s_mode = e3_add_list(e3, MODEL, MODE_NAME, D_MODE_LABELS, mode)
     assert (s_freq, s_dry, s_wet, s_mode) == (6, 7, 8, 9)
     blob.add_param(s_freq, f2u(freq), [(s, 2, None) for s in FREQ_HP_SLOTS + FREQ_LP_SLOTS])
     blob.add_param(s_dry, f2u(dry_db), [(D_MIX, 2, None)])
@@ -577,7 +578,7 @@ def patch_teemah_d(l6ia_bytes, freq=FREQ_MIN, dry_db=LEVEL_MIN, wet_db=0.0, mode
     replaced[0], old_cost = patch_gate.e0_add_cost(e0, m['words'][2], cost)
     log(f"[+] {MODEL}: composite {comp:#x} ({len(members)} members, 2 buffers), crossover x{sections} HP type "
         f"{hp_type} LP type {lp_type}; knobs Freq (slot 6, default {freq:g} Hz), Dry Level (slot 7, {dry_db:g} dB), "
-        f"Wet Level (slot 8, {wet_db:g} dB), Mode (slot 9, {'/'.join(MODE_LABELS)}, default {MODE_LABELS[mode]}); "
+        f"Wet Level (slot 8, {wet_db:g} dB), Mode (slot 9, {'/'.join(D_MODE_LABELS)}, default {D_MODE_LABELS[mode]}); "
         f"Blob 0 {len(b0):#x} -> {len(b0_new):#x} words; DSP cost {old_cost} -> {old_cost + cost}")
     new, _, _ = l6ia.rebuild_archive(l6ia_bytes, replaced)
     return new
@@ -648,14 +649,14 @@ def main():
     ap.add_argument('--mix', type=float, default=1.0, help='with --knobs: Mix default, 0..1 (default 1: all drive)')
     ap.add_argument('--levels', action='store_true',
                     help='test build D: Freq, Dry Level, Wet Level and Mode knobs, slots 6..9, on build A\'s composite')
-    ap.add_argument('--mode', choices=MODE_LABELS, help='with --knobs / --levels: Mode default (Crossover / Full)')
+    ap.add_argument('--mode', choices=MODE_LABELS + D_MODE_LABELS[1:], help='with --knobs / --levels: Mode default (Crossover / Full)')
     ap.add_argument('--donor', help='stock .hxf, when input is a raw L6IA and output a .hxf')
     a = ap.parse_args()
     data, is_hxf = kp.load_l6ia_from_any(a.input)
     if a.levels:
         assert not (a.knobs or a.freq_knob or a.split or a.unbound), '--levels replaces the other builds\' options'
         out = patch_teemah_d(data, FREQ_MIN if a.freq is None else a.freq, LEVEL_MIN if a.dry_db is None else a.dry_db,
-                             a.wet_db or 0.0, MODE_LABELS.index(a.mode or 'Full'), a.hp_type, a.lp_type, a.sections,
+                             a.wet_db or 0.0, int((a.mode or 'Full') != 'Full'), a.hp_type, a.lp_type, a.sections,
                              a.cost)
     elif a.knobs:
         assert not (a.freq_knob or a.split or a.unbound), '--knobs replaces --freq-knob, --split and --unbound'

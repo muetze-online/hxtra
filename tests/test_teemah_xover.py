@@ -350,7 +350,7 @@ def test_d_knobs_are_slots_6_to_9(levels):
         assert p['displayNameShort'] == short or p['meta'].get('displayNameShort') == short
         assert p['default'] == pytest.approx(v)
     assert (md['name'], md['type']) == ('Mode', 2)
-    assert {k: v for k, v in md['meta'].items() if k.isdigit()} == {'0': 'Full', '1': 'Crossover'}
+    assert {k: v for k, v in md['meta'].items() if k.isdigit()} == {'0': 'Full', '1': 'Xover'}
     assert struct.unpack_from('<8i', kp.get_entry_swapped(new, 3), m['words'][11] + 32 * 8)[3:] == (2, 9, 0, 1, mode)
     assert not kp.pmap_slots_without_param(kp.get_entry_swapped(new, 4), m['blob_index'], m['params'])
 
