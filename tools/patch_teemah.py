@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""patch_teemah.py IN OUT [--freq HZ] [--hp-type T] [--lp-type T] [--dry-db DB] [--wet-db DB] [--split] [--cost N]
+"""patch_teemah.py IN OUT [--knobs [--mix X] [--mode Full|Crossover]] [--freq HZ] [--hp-type T] [--lp-type T] [--dry-db DB] [--wet-db DB] [--split] [--cost N]
                          [--freq-knob [--unbound]]
 
 Test builds for a Teemah! crossover (docs/research/sharc/cores/teemah.md), with stock primitives only.
 A (default): fixed values, no new knobs. B (--freq-knob): a Freq knob on the four crossover filters.
+C (--knobs): Freq, Mix and Mode knobs (patch_teemah_c, build_members_c).
 
   y = Level * (Teemah(HP(x)) + g_dry * LP(x))      (--split: g_dry * x, the LPs bypassed)
 
@@ -44,6 +45,22 @@ FREQ_MIN, FREQ_MAX = 20.0, 1000.0
 FREQ_HP_SLOTS, FREQ_LP_SLOTS = (3, 4), (9, 10)        # members 2, 3 and 8, 9 of build_members
 f2u = lambda x: struct.unpack('<I', struct.pack('<f', x))[0]
 
+# Test build C (--knobs): Freq, Mix, Mode on a three-buffer composite (build_members_c)
+C_SLOT_MAP = {2: 6, 3: 7, 4: 8, 5: 9, 6: 16}
+C_HP, C_LP, C_HPD, C_MIX, C_LPMIX = (4, 5), (10, 11), (12, 13), 14, 15   # top-level slots (member index + 1)
+MIX_SRC = ('HD2_DistMegaphoneMono', 'Mix')            # float 0..1, shown in percent (Chorus's has hidden sync slots)
+MODE_NAME, MODE_LABELS = 'Mode', ('Full', 'Crossover')  # both strings exist in stock Entry 3; "Split" does not
+LINE6_DRY = (0.0, 0.0, 0.0, 0.0, -3.0, -6.0, -12.0, -21.0, -120.0)   # the stock Mix law (docs/research/sharc/mix-laws.md)
+LINE6_WET = LINE6_DRY[::-1]
+OFF_DB = -120.0
+
+
+def curve_at(table, x):
+    """op 0x3: the 9-point table at x (0..1), linear between the points."""
+    t = min(max(x, 0.0), 1.0) * 8
+    i = min(int(t), 7)
+    return table[i] + (table[i + 1] - table[i]) * (t - i)
+
 
 def build_members(b0, freq, hp_type, lp_type, dry_db, wet_db, split, sections=2):
     """[(rec template (20 words, offsets to be filled), ins, outs, init pairs)] of the new composite."""
@@ -83,6 +100,26 @@ def build_members(b0, freq, hp_type, lp_type, dry_db, wet_db, split, sections=2)
                mix,                                          # 10 [0, 1] -> 0
                old[5],                                       # 11 Level
                (old[6][0], [0], [], [])]                     # 12 out-port
+    return members
+
+
+def build_members_c(b0, freq, hp_type, lp_type, mix, mode, sections=2):
+    """Test build C's composite, three buffers: 0 the drive path, 1 the low band, 2 the dry path.
+
+      Crossover (mode 1): y = Level * (g_w(mix) * T(HP(x)) + g_d(mix) * HPd(x) + LP(x))
+      Full      (mode 0): y = Level * (g_w(mix) * T(HP(x)) + g_d(mix) * x)      (HPd type 0, the low band off)
+
+    g_w, g_d: LINE6_WET, LINE6_DRY. HP, HPd, LP: the same crossover filters (sections each) at freq."""
+    a = build_members(b0, freq, hp_type, lp_type, 0.0, 0.0, False, sections)
+    tap, hp1, hp2, old1, old2, old3, old4, lp1, lp2, mix_rec, level, out = a[1:]
+    tap2 = (list(tap[0]), [0], [2], [])
+    hpd = [(list(r[0]), [2], [2], [(1, (hp_type if k < sections else 0) if mode else 0)] + r[3][1:])
+           for k, r in enumerate((hp1, hp2))]
+    g_w, g_d = curve_at(LINE6_WET, mix), curve_at(LINE6_DRY, mix)
+    mixer = (list(mix_rec[0]), [0, 2], [0], [(1, f2u(g_w)), (2, f2u(g_d))])
+    lpmix = (list(mix_rec[0]), [0, 1], [0], [(1, f2u(0.0)), (2, f2u(0.0 if mode else OFF_DB))])
+    members = [a[0], tap, tap2, hp1, hp2, old1, old2, old3, old4, lp1, lp2, hpd[0], hpd[1], mixer, lpmix, level, out]
+    assert [m[0][6] for m in members][C_MIX - 1] == 0x84 and len(members) == 17
     return members
 
 
@@ -239,16 +276,25 @@ class Blob:
             else:
                 assert p == (0,), f'path at {w}: {p}'
 
-    def add_knob(self, slot, default, targets, pid, input_op=0xa, bind=None):
-        """A float input node for parameter `slot` (its state index the next) with a root default, feeding one writer
-        per top-level slot of `targets` as pid. bind = {slot: [(pid, value word), ..]}: also register those members
-        as stock bound members are: a root child each, a sub-binding to its position, a table F row and these init
-        records. The parameter map's tables A, C, D, E (and F) are rebuilt at its end, the old ones left unused."""
+    def slot_path(self, s):
+        """The area offset of path [s] for new writers and sub-bindings, one per slot."""
+        paths = self.__dict__.setdefault('_paths', {})
+        if s not in paths:
+            paths[s] = self.add(1, s)
+        return paths[s]
+
+    def add_param(self, slot, default, outs, input_op=0xa):
+        """An input node for parameter `slot` (op 0xa float, 0xb int; its state index the next) with a root default
+        (a float word, or an int for 0xb), feeding a writer per (top-level slot, pid, how) of `outs`. how: None the
+        value itself, ('curve', 9 values) through an op 0x3 node (a table B row), ('select', word if 0, word if not)
+        through an op 0x2a node (port 0 ? port 2 : port 1, as Regal Bass DI switches its 0x102 types). Tables A, C,
+        D, E (and B when a curve is added) are rebuilt at the map's end, the old ones left unused."""
         pm = self.pm
         assert patch_comp.pmap_sizes(pm) == pm[12:18], 'the parameter map\'s sizes do not follow its tables'
-        a, c, d, e = pm[0], pm[4], pm[6], pm[8]
-        na, nc, nd, ne = pm[18], pm[20], pm[21], pm[22]
+        a, b, c, d, e = pm[0], pm[2], pm[4], pm[6], pm[8]
+        na, nb, nc, nd, ne = pm[18], pm[19], pm[20], pm[21], pm[22]
         nodes = [pm[a + 10 * k: a + 10 * k + 10] for k in range(na)]
+        bt = [pm[b + 6 * k: b + 6 * k + 6] for k in range(nb)]
         ct = [pm[c + 4 * k: c + 4 * k + 4] for k in range(nc)]
         dt = [pm[d + 4 * k: d + 4 * k + 4] for k in range(nd)]
         et = [pm[e + 4 * k: e + 4 * k + 4] for k in range(ne)]
@@ -259,33 +305,63 @@ class Blob:
         nodes.append([nodes[0][0], 0, inp, input_op, 1, 2, 0, 0, 1, 0])
         dt.append([inp, ne, slot, 0])
         et.append([inp, ne, ne, 0])
-        paths = {s: self.add(1, s) for s in targets}
-        for s in targets:
+        for s, _, _ in outs:
+            self.slot_path(s)
+        for s, pid, how in outs:
+            src = inp
+            if how is not None and how[0] == 'curve':
+                assert len(how[1]) == 9
+                data = len(pm)
+                pm += [f2u(v) for v in how[1]]
+                src = len(nodes)
+                nodes.append([nodes[0][0], 0, src, 0x3, 1, 11, 0, 0, 0, 0])
+                bt.append([data, 0, src, 0, 9, 0])
+                ct.append([inp, src, 0, 0])
+            elif how is not None:
+                assert how[0] == 'select' and len(how) == 3
+                data = len(pm)
+                pm += [how[1], how[2]]
+                src = len(nodes)
+                nodes.append([data, 0, src, 0x2a, 1, 4, 2, 2, 0, 0])
+                ct.append([inp, src, 0, 0])
             data = len(pm)
-            pm += [paths[s], pid, 1]
+            pm += [self.slot_path(s), pid, 1]
             nodes.append([data, 0, len(nodes), 1, 0, 3, 3, 3, 0, 0])
-            ct.append([inp, len(nodes) - 1, 0, 0])
+            ct.append([src, len(nodes) - 1, 0, 0])
             self.reloc.append((1, 'pm', data))
-        for k, rows in ((0, nodes), (4, ct), (6, dt), (8, et)):     # D right before E: pmap_slots_without_param
+        tables = ((0, nodes),) + (((2, bt),) if len(bt) > nb else ()) + ((4, ct), (6, dt), (8, et))
+        for k, rows in tables:                                       # D right before E: pmap_slots_without_param
             pm[k] = len(pm)
             pm += [w for r in rows for w in r]
-        pm[18], pm[20], pm[21], pm[22] = len(nodes), len(ct), len(dt), len(et)
-        self.pins.append([root.pop(), slot, self.add(1, f2u(default)), 1])
+        pm[18], pm[19], pm[20], pm[21], pm[22] = len(nodes), len(bt), len(ct), len(dt), len(et)
+        self.pins.append([root.pop(), slot, self.add(1, default), 1])
         self.reloc.append((1, 'pins', 4 * (len(self.pins) - 1)))
-        if bind:
-            f, nf = pm[10], pm[23]
-            assert nf == len(self.root[2]), 'table F does not have a row per root child'
-            for s in targets:
-                self.root[2].append([s, 0xffffffff, []])
-                self.sub.append([paths[s], self.add(1, len(self.root[2]))])
-                for p, v in bind[s]:
-                    self.pins.append([paths[s], p, self.add(1, v), 1])
-                    self.reloc.append((1, 'pins', 4 * (len(self.pins) - 1)))
-            rows = pm[f: f + 8 * nf] + [0] * (8 * len(targets))
-            pm[10] = len(pm)
-            pm += rows
-            pm[23] = nf + len(targets)
         pm[12:18] = patch_comp.pmap_sizes(pm)
+
+    def register(self, inits):
+        """Register new top-level members as stock bound members are: per {slot: [(pid, value word), ..]} a root
+        child, a sub-binding to its position, these init records, and a table F row (table F rebuilt at the end)."""
+        pm = self.pm
+        f, nf = pm[10], pm[23]
+        assert nf == len(self.root[2]), 'table F does not have a row per root child'
+        for s, vals in inits.items():
+            self.root[2].append([s, 0xffffffff, []])
+            self.sub.append([self.slot_path(s), self.add(1, len(self.root[2]))])
+            for p, v in vals:
+                self.pins.append([self.slot_path(s), p, self.add(1, v), 1])
+                self.reloc.append((1, 'pins', 4 * (len(self.pins) - 1)))
+        rows = pm[f: f + 8 * nf] + [0] * (8 * len(inits))
+        pm[10] = len(pm)
+        pm += rows
+        pm[23] = nf + len(inits)
+        pm[12:18] = patch_comp.pmap_sizes(pm)
+
+    def add_knob(self, slot, default, targets, pid, input_op=0xa, bind=None):
+        """Test build B: a float knob straight to pid of each top-level slot in `targets`; bind = {slot: inits}
+        registers those members (register)."""
+        self.add_param(slot, f2u(default), [(s, pid, None) for s in targets], input_op)
+        if bind:
+            self.register({s: bind[s] for s in targets})
 
 
 def renumber_blob(b, comp_id):
@@ -368,6 +444,83 @@ def e3_add_param(e3, model_name, src_model, src_param, default):
     return bytes(e3), n_par + 1
 
 
+def e3_add_list(e3, model_name, name, labels, default):
+    """Entry 3 with an integer list parameter appended to model_name (patch_comp.e3_add_knobs's records), built from
+    strings Entry 3 already has, so its string section stays as it is: name (also its display names), name + 'State',
+    the labels. (Entry 3, new slot)."""
+    e3 = bytearray(e3)
+    _, _, _, S = patch_comp.e3_strings(e3)
+    keys = ['displayName', 'displayNameShort', 'displayType', 'list', name, name + 'State']
+    keys += [str(k) for k in range(len(labels))] + list(labels)
+    missing = [s for s in keys if s not in S]
+    assert not missing, f'Entry 3 lacks the strings {missing}'
+    info = kp.parse_entry3_full(bytes(e3))
+    m = kp.find_model(info, model_name)
+    d = list(m['words'])
+    n_par, n_st = d[7], d[6]
+    assert n_par == n_st and [p['slot'] for p in m['params']] == list(range(1, n_par + 1))
+    assert all(p['name'] != name for p in m['params']), f'{model_name} has a {name} already'
+    base = len(e3) + (-len(e3)) % 4
+    e3 += bytes(base - len(e3))
+    meta = [('displayName', name), ('displayNameShort', name)] + [(str(k), v) for k, v in enumerate(labels)]
+    meta += [('displayType', 'list')]
+    meta_off = len(e3)
+    e3 += b''.join(struct.pack('<3I', S[k], 7, S[v]) for k, v in meta)
+    d[10] = len(e3)
+    e3 += bytes(e3[m['words'][10]: m['words'][10] + 20 * n_st]) + struct.pack('<5I', 0, 0x80b98, S[name + 'State'], 2,
+                                                                            n_st)
+    d[11] = len(e3)
+    e3 += bytes(e3[m['words'][11]: m['words'][11] + 32 * n_par]) + struct.pack(
+        '<5I3i', len(meta), meta_off, S[name], 2, n_par + 1, 0, len(labels) - 1, default)
+    d[6], d[7] = n_st + 1, n_par + 1
+    struct.pack_into('<14I', e3, m['off'], *d)
+    struct.pack_into('<I', e3, 8, len(e3))
+    assert len(e3) <= kp.E3_MAX, f'Entry 3 {len(e3):#x} bytes > {kp.E3_MAX:#x}'
+    return bytes(e3), n_par + 1
+
+
+def patch_teemah_c(l6ia_bytes, freq=400.0, mix=1.0, mode=1, hp_type=4, lp_type=3, sections=2, cost=150, log=print):
+    """Test build C: Freq (slot 6), Mix (slot 7, the Line 6 law) and Mode (slot 8, Full / Crossover) on
+    build_members_c's composite; every new member a knob writes is registered (Blob.register)."""
+    assert FREQ_MIN <= freq <= FREQ_MAX and 0.0 <= mix <= 1.0 and mode in (0, 1)
+    e0 = kp.get_entry_swapped(l6ia_bytes, 0)
+    e3 = kp.get_entry_swapped(l6ia_bytes, 3)
+    e4 = kp.get_entry_swapped(l6ia_bytes, 4)
+    m = kp.find_model(kp.parse_entry3_full(e3), MODEL)
+    w4 = struct.unpack('<%dI' % (len(e4) // 4), e4)
+    b0 = entry4_blob.blob(w4, 0)
+    members = build_members_c(b0, freq, hp_type, lp_type, mix, mode, sections)
+    b0_new, comp = append_composite(b0, members, n_buf=3)
+    blob = Blob(entry4_blob.blob(w4, m['blob_index']))
+    blob.renumber(C_SLOT_MAP, comp)
+    e3, s_freq = e3_add_param(e3, MODEL, *FREQ_SRC, freq)
+    e3, s_mix = e3_add_param(e3, MODEL, *MIX_SRC, mix)
+    e3, s_mode = e3_add_list(e3, MODEL, MODE_NAME, MODE_LABELS, mode)
+    assert (s_freq, s_mix, s_mode) == (6, 7, 8)
+    blob.add_param(s_freq, f2u(freq), [(s, 2, None) for s in C_HP + C_LP + C_HPD])
+    blob.add_param(s_mix, f2u(mix), [(C_MIX, 1, ('curve', LINE6_WET)), (C_MIX, 2, ('curve', LINE6_DRY))])
+    blob.add_param(s_mode, mode, [(s, 1, ('select', 0, hp_type if k < sections else 0)) for k, s in enumerate(C_HPD)]
+                   + [(C_LPMIX, 2, ('select', f2u(OFF_DB), f2u(0.0)))], input_op=patch_comp.INT_INPUT_OP)
+    blob.register({s: members[s - 1][3] for s in C_HP + C_LP + C_HPD + (C_MIX, C_LPMIX)})
+    assert blob.sub_map() == blob.positions(), 'sub-bindings do not match the node tree'
+    blob = blob.assemble()
+    replaced = {3: e3, 4: e4_with(e4, b0_new, m['blob_index'], blob)}
+    assert not kp.pmap_slots_without_param(replaced[4], m['blob_index'],
+                                           kp.find_model(kp.parse_entry3_full(e3), MODEL)['params'])
+    e0 = patch_comp.e0_set_param_counts(e0, m['words'][2], 5, s_mode)
+    entries = l6ia.parse(l6ia_bytes)
+    e2_raw = l6ia_bytes[entries[2]['payload_off']: entries[2]['payload_off'] + entries[2]['payload_len']]
+    e2_exp, _ = kp.expand_sharc_blob0_buffer(e2_raw)
+    replaced[2] = l6ia.swap32(e2_exp)
+    replaced[0], old_cost = patch_gate.e0_add_cost(e0, m['words'][2], cost)
+    log(f"[+] {MODEL}: composite {comp:#x} ({len(members)} members, 3 buffers), crossover x{sections} HP type "
+        f"{hp_type} LP type {lp_type}; knobs Freq (slot 6, default {freq:g} Hz), Mix (slot 7, default {mix:.0%}), "
+        f"Mode (slot 8, {'/'.join(MODE_LABELS)}, default {MODE_LABELS[mode]}); Blob 0 {len(b0):#x} -> "
+        f"{len(b0_new):#x} words; DSP cost {old_cost} -> {old_cost + cost}")
+    new, _, _ = l6ia.rebuild_archive(l6ia_bytes, replaced)
+    return new
+
+
 def patch_teemah(l6ia_bytes, freq=400.0, hp_type=4, lp_type=3, dry_db=0.0, wet_db=0.0, split=False, cost=100,
                  sections=2, freq_knob=False, bind=True, log=print):
     e0 = kp.get_entry_swapped(l6ia_bytes, 0)
@@ -427,11 +580,20 @@ def main():
                          'crossover filters\' frequency')
     ap.add_argument('--unbound', action='store_true',
                     help='with --freq-knob: writers only, the filters not registered in the node tree')
+    ap.add_argument('--knobs', action='store_true',
+                    help='test build C: Freq, Mix (Line 6 law) and Mode (Full / Crossover) knobs, slots 6..8')
+    ap.add_argument('--mix', type=float, default=1.0, help='with --knobs: Mix default, 0..1 (default 1: all drive)')
+    ap.add_argument('--mode', choices=MODE_LABELS, default='Crossover', help='with --knobs: Mode default')
     ap.add_argument('--donor', help='stock .hxf, when input is a raw L6IA and output a .hxf')
     a = ap.parse_args()
     data, is_hxf = kp.load_l6ia_from_any(a.input)
-    out = patch_teemah(data, a.freq, a.hp_type, a.lp_type, a.dry_db, a.wet_db, a.split, a.cost, a.sections,
-                       freq_knob=a.freq_knob, bind=not a.unbound)
+    if a.knobs:
+        assert not (a.freq_knob or a.split or a.unbound), '--knobs replaces --freq-knob, --split and --unbound'
+        out = patch_teemah_c(data, a.freq, a.mix, MODE_LABELS.index(a.mode), a.hp_type, a.lp_type, a.sections,
+                             a.cost if a.cost != 100 else 150)
+    else:
+        out = patch_teemah(data, a.freq, a.hp_type, a.lp_type, a.dry_db, a.wet_db, a.split, a.cost, a.sections,
+                           freq_knob=a.freq_knob, bind=not a.unbound)
     kp.save_l6ia_to_any(out, a.output, donor_hxf=a.input if is_hxf else a.donor)
     print(f'[+] Wrote {a.output}')
 

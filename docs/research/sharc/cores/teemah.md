@@ -65,3 +65,10 @@ Paths as `[1, k]` = top-level slot k (table above: k = 2 is the first `0x102`), 
   - **unbound** (`--unbound`, `…_freqknob_unbound.hxf`, MD5 `f0ab4777…`): writers only.
 - On the unit (RAM run on stock 3.80, bass, by ear): both builds play, the knob shows as "Freq" in Hz from 400, turning it moves the split (20 Hz: almost all distorted; 1000 Hz: a large clean part), no clicks, and the value survives saving and switching presets.
 - So new members can be registered once the node-tree positions and table F are right, and writers to unregistered members work too. Blend and Mode follow the bound build, as stock blocks do.
+
+## Test build C: Freq, Mix and Mode, `--knobs` [verified offline, untested on the unit]
+
+- Composite (17 members, 3 buffers): two taps of the input (buffer 1, the low band; buffer 2, the dry path), the two high-passes before the drive, two low-passes on 1, two high-passes HPd on 2, a `0x84` [0, 2] → 0 (Mix), a `0x84` [0, 1] → 0 (the low band), then Level. Crossover: y = L·(g_w·T(HP(x)) + g_d·HPd(x) + LP(x)); Full: HPd type 0 and the low band at −120 dB, y = L·(g_w·T(HP(x)) + g_d·x). g_w, g_d: the Line 6 Mix law ([mix-laws.md](../mix-laws.md)).
+- Knobs: slot 6 Frequency (as B, now on six filters), slot 7 Mix (the Megaphone's record, 0..1 in percent; the Chorus's has hidden sync slots, so its state index is not its slot) through two op `0x3` curves, slot 8 Mode (int list Full / Crossover, op `0xb`) through op `0x2a` selects: HPd types {0, 4} (as Regal Bass DI switches its `0x102` types by Low Cut) and the low band's gain {−120, 0} dB. The labels are strings stock Entry 3 has; "Split" is not one, and adding strings moves the 54 KB section.
+- All eight new members a knob writes are registered as in B (root children, sub-bindings, table F, init records). `Blob.add_param` and `Blob.register` replace B's `add_knob` body; A and B rebuild bit for bit (MD5s above).
+- DSP cost +150 (a guess). Entry 3 grows 0x480 bytes. `teemah_lr4_freq_mix_mode.hxf`, MD5 `c1cd5dbd…`; `pmap.py --sweep`: Mix 0/¼/½/¾/1 → wet −120/−12/−3/0/0 dB, dry 0/0/−3/−12/−120 dB; Mode → HPd type 0/4, low band −120/0 dB.

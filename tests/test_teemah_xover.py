@@ -181,3 +181,135 @@ def test_freq_knob_leaves_every_other_model_alone(knob):
 
 def test_without_freq_knob_entry_3_is_stock(built):
     assert kp.get_entry_swapped(built[0], 3) == kp.get_entry_swapped(built[1], 3)
+
+
+# Test build C (--knobs): Freq, Mix, Mode
+
+@pytest.fixture(scope='module', params=[(1.0, 1), (0.3, 0)], ids=['crossover', 'full'])
+def knobs(request):
+    stock = firmware.stock()
+    mix, mode = request.param
+    return stock, pt.patch_teemah_c(stock, freq=400.0, mix=mix, mode=mode, log=lambda *_: None), mix, mode
+
+
+def _feeds(blob):
+    """{(member path, pid): (knob slot, how)} of the top-level map: how None (the knob's value), ('curve', 9 values)
+    or ('select', 2 data words), one node between knob and writer at most."""
+    pm = blob.pm
+    a, b, c, d = pm[0], pm[2], pm[4], pm[6]
+    nodes = [pm[a + 10 * k: a + 10 * k + 10] for k in range(pm[18])]
+    slot = {r[0]: r[2] for r in (pm[d + 4 * k: d + 4 * k + 4] for k in range(pm[21]))}
+    tables = {r[2]: [struct.unpack('<f', struct.pack('<I', w))[0] for w in pm[r[0]: r[0] + r[4]]]
+              for r in (pm[b + 6 * k: b + 6 * k + 6] for k in range(pm[19]))}
+    into = {}
+    for r in (pm[c + 4 * k: c + 4 * k + 4] for k in range(pm[20])):
+        into.setdefault(r[1], []).append(r[0])
+    out = {}
+    for i, n in enumerate(nodes):
+        if n[3] != 1 or len(into.get(i, [])) != 1:
+            continue
+        src = into[i][0]
+        if src in slot:
+            how, knob = None, slot[src]
+        elif len(into.get(src, [])) == 1 and into[src][0] in slot:
+            knob = slot[into[src][0]]
+            s = nodes[src]
+            how = ('curve', tables[src]) if s[3] == 0x3 else ('select', pm[s[0]: s[0] + s[6]]) if s[3] == 0x2a else s[3]
+        else:
+            continue
+        out[(blob.path(pm[n[0]]), pm[n[0] + 1])] = (knob, how)
+    return out
+
+
+def test_c_composite_has_three_buffers_and_two_mixers_before_level(knobs):
+    _, new, mix, mode = knobs
+    b0, _ = _blob0_and_teemah(new)
+    h, ms = _members(b0, 0x600000 + b0[0xf] - 1)
+    assert h[1] == 3 and h[2] == 17
+    assert [t for t, *_ in ms] == [0, 0, 0, 0x102, 0x102, 0x102, 0x6000c2, 0x102, 0x102, 0x102, 0x102, 0x102, 0x102,
+                                   0x84, 0x84, 0x80, 0]
+    assert ms[1][1:4] == (1, [0], [1]) and ms[2][1:4] == (1, [0], [2])          # taps: low band, dry path
+    hp, lp, hpd = (pt.C_HP, pt.C_LP, pt.C_HPD)
+    assert [ms[s - 1][2:4] for s in hp + lp + hpd] == [([0], [0])] * 2 + [([1], [1])] * 2 + [([2], [2])] * 2
+    assert [ms[s - 1][4][1] for s in hp + lp + hpd] == [4, 4, 3, 3] + [4 if mode else 0] * 2
+    assert all(ms[s - 1][4][2] == pt.f2u(400.0) for s in hp + lp + hpd)
+    assert ms[pt.C_MIX - 1][2:4] == ([0, 2], [0]) and ms[pt.C_LPMIX - 1][2:4] == ([0, 1], [0])
+    assert ms[pt.C_MIX - 1][4] == {1: pt.f2u(pt.curve_at(pt.LINE6_WET, mix)), 2: pt.f2u(pt.curve_at(pt.LINE6_DRY, mix))}
+    assert ms[pt.C_LPMIX - 1][4] == {1: pt.f2u(0.0), 2: pt.f2u(0.0 if mode else pt.OFF_DB)}
+    assert kp.sharc_blob0_check(b0, kp.SHARC_BLOB0_MAX_WORDS) is None
+
+
+def test_c_knobs_are_slots_6_to_8(knobs):
+    _, new, mix, mode = knobs
+    m = kp.find_model(kp.parse_entry3_full(kp.get_entry_swapped(new, 3)), pt.MODEL)
+    assert [q['slot'] for q in m['params']] == list(range(1, 9)) and m['words'][6:8] == [8, 8]
+    f, x, md = m['params'][5:]
+    assert (f['name'], f['type'], f['min'], f['max'], f['meta']['displayType']) == ('Frequency', 3, 20.0, 1000.0, 'hz')
+    assert (x['name'], x['type'], x['min'], x['max']) == ('Mix', 3, 0.0, 1.0) and x['default'] == pytest.approx(mix)
+    assert (md['name'], md['type']) == ('Mode', 2)
+    assert {k: v for k, v in md['meta'].items() if k.isdigit()} == {'0': 'Full', '1': 'Crossover'}
+    rec = struct.unpack_from('<8i', kp.get_entry_swapped(new, 3), m['words'][11] + 32 * 7)
+    assert rec[3:] == (2, 8, 0, 1, mode)
+    assert not kp.pmap_slots_without_param(kp.get_entry_swapped(new, 4), m['blob_index'], m['params'])
+
+
+def test_c_entry_3_strings_are_stock(knobs):
+    import patch_comp
+    assert patch_comp.e3_strings(kp.get_entry_swapped(knobs[0], 3))[1:] == \
+        patch_comp.e3_strings(kp.get_entry_swapped(knobs[1], 3))[1:]
+
+
+def test_c_knobs_write_filters_mixers_and_types(knobs):
+    _, new, mix, mode = knobs
+    _, blob = _blob0_and_teemah(new)
+    blob = pt.Blob(blob)
+    w = {k: v for k, v in _feeds(blob).items() if v[0] >= 6}
+    want = {((s,), 2): (6, None) for s in pt.C_HP + pt.C_LP + pt.C_HPD}
+    want[((pt.C_MIX,), 1)] = (7, ('curve', list(pt.LINE6_WET)))
+    want[((pt.C_MIX,), 2)] = (7, ('curve', list(pt.LINE6_DRY)))
+    want.update({((s,), 1): (8, ('select', [0, 4])) for s in pt.C_HPD})
+    want[((pt.C_LPMIX,), 2)] = (8, ('select', [pt.f2u(pt.OFF_DB), pt.f2u(0.0)]))
+    assert w == want
+    dflt = {r[1]: blob.area[r[2] + 1] for r in blob.pins if blob.path(r[0]) == (0,)}
+    assert (dflt[6], dflt[7], dflt[8]) == (pt.f2u(400.0), pt.f2u(mix), mode)
+
+
+def test_c_new_members_are_registered(knobs):
+    b0, blob = _blob0_and_teemah(knobs[1])
+    blob = pt.Blob(blob)
+    new = pt.C_HP + pt.C_LP + pt.C_HPD + (pt.C_MIX, pt.C_LPMIX)
+    assert [c[0] for c in blob.root[2]] == [pt.C_SLOT_MAP[s] for s in (3, 6, 2, 4, 5)] + list(new)   # stock's, moved
+    assert blob.sub_map() == blob.positions() and blob.pm[23] == 5 + len(new)
+    _, ms = _members(b0, 0x600000 + b0[0xf] - 1)
+    for s in new:
+        assert {p: blob.area[v + 1] for path, p, v, _ in blob.pins if blob.path(path) == (s,)} == ms[s - 1][4]
+
+
+def test_c_leaves_every_other_model_alone(knobs):
+    stock, new, _, _ = knobs
+    e3o, e3n = (kp.parse_entry3_full(kp.get_entry_swapped(x, 3)) for x in (stock, new))
+    view = lambda info: [(m['name'], m['meta'], [(p['name'], p['type'], p['slot'], p['meta'], p['min'], p['max'])
+                                                 for p in m['params']])
+                         for m in info['models'] if m['name'] != pt.MODEL]
+    assert repr(view(e3o)) == repr(view(e3n))
+    wo, wn = (struct.unpack('<%dI' % (len(e) // 4), e) for e in
+              (kp.get_entry_swapped(x, 4) for x in (stock, new)))
+    teemah = kp.find_model(e3o, pt.MODEL)['blob_index']
+    assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i != teemah)
+
+
+def test_line6_law_is_the_megaphones():
+    """The Mix curves are the stock Megaphone's (and Chorus's, docs/research/sharc/mix-laws.md)."""
+    stock = firmware.stock()
+    e4 = kp.get_entry_swapped(stock, 4)
+    w4 = struct.unpack('<%dI' % (len(e4) // 4), e4)
+    m = kp.find_model(kp.parse_entry3_full(kp.get_entry_swapped(stock, 3)), 'HD2_DistMegaphoneMono')
+    curves = {v[1][1] and tuple(round(x, 4) for x in v[1][1])
+              for k, v in _feeds(pt.Blob(list(eb.blob(w4, m['blob_index'])))).items()
+              if v[0] == 5 and v[1] and v[1][0] == 'curve' and k[0] == (12,)}
+    assert curves == {pt.LINE6_WET, pt.LINE6_DRY}
+
+
+def test_curve_at_interpolates_linearly():
+    assert pt.curve_at(pt.LINE6_DRY, 0.0) == 0.0 and pt.curve_at(pt.LINE6_DRY, 1.0) == -120.0
+    assert pt.curve_at(pt.LINE6_DRY, 0.5) == -3.0 and pt.curve_at(pt.LINE6_WET, 7 / 16) == pytest.approx(-4.5)
