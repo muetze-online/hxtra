@@ -53,6 +53,7 @@ Before writing anything, read [conventions.md](conventions.md): the status tags,
 | [sharc/cores/gates.md](sharc/cores/gates.md) | the gate core `0x2720` and the return reader `0x2618`; the composite format (buffers, member records), sub-bindings and the node tree, op `0x2b`; why a new bound member kills a block; the FX Loop gate's wrapper | adding a gate or any member to a block, wrapping a primitive |
 | [sharc/usb-routing.md](sharc/usb-routing.md) | the app graph `HelixStomp_App`: input/output select, USB trim, phones and volume routing parameters; the M4's load-time rewrite of Output select; what reaches USB; blob 1 cannot change; how parameter maps turn values into DSP calls; the app's members in blob 0 | anything about where audio goes: outputs, Send, USB channels, monitoring; before touching blob 1 or the app's parameters |
 | [sharc/cores/compressors.md](sharc/cores/compressors.md) | the compressor cores `0x271a`, `0x2719`, `0x2710`: which block uses which, wiring, pids, init values, the Deluxe core's loop | metering or changing a compressor |
+| [sharc/cores/filters.md](sharc/cores/filters.md) | the filter primitives `0x102` (biquad) and `0x11c` (biquad with mix and feedback): every type number with its order, slope and how frequency, gain and Q act; the Split crossover's slope (LR4, 24 dB/oct) | reading or building a block's filters, a crossover or an EQ |
 
 ## Features
 
