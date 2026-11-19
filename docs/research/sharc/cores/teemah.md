@@ -27,7 +27,11 @@ Paths as `[1, k]` = top-level slot k (table above: k = 2 is the first `0x102`), 
 - Gain (slot 1) → writer `[1, 3]` pid 1 (drive), no curve node. Bass (2) → `[1, 3]` pid 2. Clipping (4, int) → `[1, 3]` pid 3. Treble (3) → an op `0x3` node → `[1, 4]` pid 2, the frequency of the filter after the drive. Level (5) → an op `0x3` node → `[1, 6]` pid 1 (`0x80` gain).
 - The blob's init records override the composite's: `[1, 2]` type 2, 6 Hz, Q 0.707; `[1, 4]` type 1, 723.43 Hz; `[1, 5]` type 2, 15.92 Hz; `[1, 6]` −60 dB until Level writes; drive `[1, 3]` pids 1..3 = 0.264, 0, 0.
 - Inside the drive: `[2, 3, 3]` type 2, 50 Hz; `[2, 3, 4]` type 5, 18 kHz; `[2, 3, 5]` type 1, 1000 Hz; `[2, 3, 7]` `0x832` pids 2..5 = −7.5, −13.3, −7.5, −13.3 (two threshold pairs), 7 = 20, 8 = 10 000, 14 = 60; `[2, 3, 9]` `0x89` pid 1 = −7 dB (clipped path), pid 2 = 0 dB (buffer 1 from `0x103`).
-- **[hypothesis]** How the drive's pids 1..3 reach its members is not in the member records. Treble's curve (op `0x3`) is not decoded, so which way the knob moves the frequency is not known.
+- **The drive's pids 1..3 reach its members through the drive's nested map** (table F, [model-blobs.md](../model-blobs.md#map-tables-b-and-f-curves-and-nested-maps-verified-offline)) [verified offline, `tools/sharc/pmap.py Teemah`]. Values as 9-point curves over knob 0..1 (op `0x3`), first → last point:
+  - Gain → `[2, 3, 6]` `0x80` 0 → 48.75 dB (pre-clipper gain) and `[2, 3, 5]` `0x102` frequency 22 000 → 1700 Hz.
+  - Bass Cut → `[2, 3, 4]` `0x102` (type 5) frequency 2900 → 1320 Hz with gain 0 → −23.8 dB, and `[2, 3, 3]` `0x102` (type 2) 46.4 → 3 Hz.
+  - Clipping → `[2, 3, 7]` `0x832` pids 3 and 5 through op `0x43` (== 2, == 1) and `0x2b` with the constants −11.1 / −17.4.
+  - Treble Cut → `[1, 4]` frequency 10 610 → 309 Hz: the knob lowers the cutoff. Level → `[1, 6]` −60 → +9 dB (0 dB at 0.625).
 
 ## Stock primitives for a crossover
 
