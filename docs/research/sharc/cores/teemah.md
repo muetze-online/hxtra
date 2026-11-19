@@ -21,6 +21,14 @@ The Teemah! model, its node tree and its stock primitives, as groundwork for a B
 
 Drive `0x6000c2`: `0x103` (0 → 1, nine init words) puts a second signal into buffer 1; three `0x102` (type 0, 1000 Hz, Q 0.707), `0x80`, `0x832` (clipper, 32 DM words), `0x225`, then `0x89` mixes [0, 1] into 0 (pid 1 = −7 dB, pid 2 = 0). So the stock block already sums a second path into the clipped one.
 
+## Parameter map and blob init (blob 92) [verified offline]
+
+Paths as `[1, k]` = top-level slot k (table above: k = 2 is the first `0x102`), `[2, 3, k]` = slot k inside the drive.
+- Gain (slot 1) → writer `[1, 3]` pid 1 (drive), no curve node. Bass (2) → `[1, 3]` pid 2. Clipping (4, int) → `[1, 3]` pid 3. Treble (3) → an op `0x3` node → `[1, 4]` pid 2, the frequency of the filter after the drive. Level (5) → an op `0x3` node → `[1, 6]` pid 1 (`0x80` gain).
+- The blob's init records override the composite's: `[1, 2]` type 2, 6 Hz, Q 0.707; `[1, 4]` type 1, 723.43 Hz; `[1, 5]` type 2, 15.92 Hz; `[1, 6]` −60 dB until Level writes; drive `[1, 3]` pids 1..3 = 0.264, 0, 0.
+- Inside the drive: `[2, 3, 3]` type 2, 50 Hz; `[2, 3, 4]` type 5, 18 kHz; `[2, 3, 5]` type 1, 1000 Hz; `[2, 3, 7]` `0x832` pids 2..5 = −7.5, −13.3, −7.5, −13.3 (two threshold pairs), 7 = 20, 8 = 10 000, 14 = 60; `[2, 3, 9]` `0x89` pid 1 = −7 dB (clipped path), pid 2 = 0 dB (buffer 1 from `0x103`).
+- **[hypothesis]** How the drive's pids 1..3 reach its members is not in the member records. Treble's curve (op `0x3`) is not decoded, so which way the knob moves the frequency is not known.
+
 ## Stock primitives for a crossover
 
 - `0x102` biquad: pid 1 type, 2 frequency (Hz), 3 gain (dB), 4 Q; 9 DM words. Init values across all 454 composites: type 0 ×1236 (mostly placeholders 1000 Hz / Q 0.1, set later by the map), 2 ×78 (1–300 Hz), 3 ×50 (800–18 000 Hz), 4 ×146 (3–40 Hz), 5 ×64 (with gain), 6, 7, 10 with gain. **[hypothesis]** 2 = 2nd-order high-pass, 3 = 2nd-order low-pass, 4 = 1st-order high-pass, 5–7, 10 = shelves/peak. To be confirmed from its control function or in `ssim.py`.
