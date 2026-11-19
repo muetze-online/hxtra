@@ -313,3 +313,87 @@ def test_line6_law_is_the_megaphones():
 def test_curve_at_interpolates_linearly():
     assert pt.curve_at(pt.LINE6_DRY, 0.0) == 0.0 and pt.curve_at(pt.LINE6_DRY, 1.0) == -120.0
     assert pt.curve_at(pt.LINE6_DRY, 0.5) == -3.0 and pt.curve_at(pt.LINE6_WET, 7 / 16) == pytest.approx(-4.5)
+
+
+# Test build D (--levels): Freq, Dry Level, Wet Level, Mode on test build A's composite
+
+@pytest.fixture(scope='module', params=[(250.0, -60.0, 0.0, 0), (400.0, 3.0, -20.0, 1)], ids=['full', 'crossover'])
+def levels(request):
+    stock = firmware.stock()
+    freq, dry, wet, mode = request.param
+    new = pt.patch_teemah_d(stock, freq=freq, dry_db=dry, wet_db=wet, mode=mode, log=lambda *_: None)
+    return stock, new, freq, dry, wet, mode
+
+
+def test_d_composite_is_a_with_the_defaults(levels):
+    _, new, freq, dry, wet, mode = levels
+    b0, _ = _blob0_and_teemah(new)
+    h, ms = _members(b0, 0x600000 + b0[0xf] - 1)
+    assert h[1] == 2 and h[2] == 13
+    assert [t for t, *_ in ms] == [0, 0, 0x102, 0x102, 0x102, 0x6000c2, 0x102, 0x102, 0x102, 0x102, 0x84, 0x80, 0]
+    lp = pt.FREQ_LP_SLOTS
+    assert [ms[s - 1][4][1] for s in pt.FREQ_HP_SLOTS + lp] == [4, 4] + [3 if mode else 0] * 2
+    assert all(ms[s - 1][4][2] == pt.f2u(freq) for s in pt.FREQ_HP_SLOTS + lp)
+    assert ms[pt.D_MIX - 1][2:4] == ([0, 1], [0]) and ms[pt.D_MIX - 1][4] == {1: pt.f2u(wet), 2: pt.f2u(dry)}
+    assert ms[pt.D_MIX][0] == 0x80                                                  # Level after the mixer
+    assert kp.sharc_blob0_check(b0, kp.SHARC_BLOB0_MAX_WORDS) is None
+
+
+def test_d_knobs_are_slots_6_to_9(levels):
+    _, new, freq, dry, wet, mode = levels
+    m = kp.find_model(kp.parse_entry3_full(kp.get_entry_swapped(new, 3)), pt.MODEL)
+    assert [q['slot'] for q in m['params']] == list(range(1, 10)) and m['words'][6:8] == [9, 9]
+    f, d, w, md = m['params'][5:]
+    assert (f['name'], f['min'], f['max'], f['meta']['displayType']) == ('Frequency', 20.0, 1000.0, 'hz')
+    for p, name, short, v in ((d, 'Dry Level', 'Dry Lvl', dry), (w, 'Wet Level', 'Wet Lvl', wet)):
+        assert (p['name'], p['type'], p['min'], p['max'], p['meta']['displayType']) == (name, 3, -60.0, 9.0, 'db')
+        assert p['displayNameShort'] == short or p['meta'].get('displayNameShort') == short
+        assert p['default'] == pytest.approx(v)
+    assert (md['name'], md['type']) == ('Mode', 2)
+    assert {k: v for k, v in md['meta'].items() if k.isdigit()} == {'0': 'Full', '1': 'Crossover'}
+    assert struct.unpack_from('<8i', kp.get_entry_swapped(new, 3), m['words'][11] + 32 * 8)[3:] == (2, 9, 0, 1, mode)
+    assert not kp.pmap_slots_without_param(kp.get_entry_swapped(new, 4), m['blob_index'], m['params'])
+
+
+def test_d_entry_3_strings_are_stock(levels):
+    import patch_comp
+    assert patch_comp.e3_strings(kp.get_entry_swapped(levels[0], 3))[1:] == \
+        patch_comp.e3_strings(kp.get_entry_swapped(levels[1], 3))[1:]
+
+
+def test_d_knobs_write_filters_mixer_and_types(levels):
+    _, new, freq, dry, wet, mode = levels
+    _, blob = _blob0_and_teemah(new)
+    blob = pt.Blob(blob)
+    w = {k: v for k, v in _feeds(blob).items() if v[0] >= 6}
+    want = {((s,), 2): (6, None) for s in pt.FREQ_HP_SLOTS + pt.FREQ_LP_SLOTS}
+    want[((pt.D_MIX,), 2)] = (7, None)
+    want[((pt.D_MIX,), 1)] = (8, None)
+    want.update({((s,), 1): (9, ('select', [0, 3])) for s in pt.FREQ_LP_SLOTS})
+    assert w == want
+    dflt = {r[1]: blob.area[r[2] + 1] for r in blob.pins if blob.path(r[0]) == (0,)}
+    assert (dflt[6], dflt[7], dflt[8], dflt[9]) == (pt.f2u(freq), pt.f2u(dry), pt.f2u(wet), mode)
+
+
+def test_d_new_members_are_registered(levels):
+    b0, blob = _blob0_and_teemah(levels[1])
+    blob = pt.Blob(blob)
+    new = pt.FREQ_HP_SLOTS + pt.FREQ_LP_SLOTS + (pt.D_MIX,)
+    assert [c[0] for c in blob.root[2]] == [pt.SLOT_MAP[s] for s in (3, 6, 2, 4, 5)] + list(new)
+    assert blob.sub_map() == blob.positions() and blob.pm[23] == 5 + len(new)
+    _, ms = _members(b0, 0x600000 + b0[0xf] - 1)
+    for s in new:
+        assert {p: blob.area[v + 1] for path, p, v, _ in blob.pins if blob.path(path) == (s,)} == ms[s - 1][4]
+
+
+def test_d_leaves_every_other_model_alone(levels):
+    stock, new = levels[:2]
+    e3o, e3n = (kp.parse_entry3_full(kp.get_entry_swapped(x, 3)) for x in (stock, new))
+    view = lambda info: [(m['name'], m['meta'], [(p['name'], p['type'], p['slot'], p['meta'], p['min'], p['max'])
+                                                 for p in m['params']])
+                         for m in info['models'] if m['name'] != pt.MODEL]
+    assert repr(view(e3o)) == repr(view(e3n))
+    wo, wn = (struct.unpack('<%dI' % (len(e) // 4), e) for e in
+              (kp.get_entry_swapped(x, 4) for x in (stock, new)))
+    teemah = kp.find_model(e3o, pt.MODEL)['blob_index']
+    assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i != teemah)
