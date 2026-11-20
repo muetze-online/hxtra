@@ -244,6 +244,25 @@ def test_each_models_stock_writes_survive_renumbered(full, name):
 
 
 @pytest.mark.firmware
+@pytest.mark.parametrize('name', CORE)
+def test_each_models_composite_keeps_its_connections(full, name):
+    """Stock members keep their connection words (record words 1/2: [2, offset, 0] then [id, 0], the offset pointing
+    right after), the header keeps word 0; new members have none. A build that dropped them hung the unit on Alpaca
+    Rouge (2026-11-20): word 1 stayed 3 while word 2 pointed at the next member's data."""
+    stock, new, plans, reports = full
+    p = plans[name]
+    shift = (lambda s: s if s <= p['at'] else s + 4) if p['group'] == 'xover' else \
+        (lambda s: s if s <= 1 else s + 3 if s < p['at'] else s + 6)
+    bo, bn = eb.blob(_w4(stock), 0), eb.blob(_w4(new), 0)
+    ho, old = pdist._composite(bo, p['root'])
+    hn, mem = pdist._composite(bn, int(reports[name][1]['root'], 16))      # asserts the form of every connection
+    assert hn[0] == ho[0]
+    assert [mem[shift(k + 1) - 1][4] for k in range(len(old))] == [o[4] for o in old]
+    kept = {shift(k + 1) - 1 for k in range(len(old))}
+    assert all(m[4] is None and m[0][1] == 0 for k, m in enumerate(mem) if k not in kept)
+
+
+@pytest.mark.firmware
 def test_full_build_keeps_every_other_model_and_blob_stock(full):
     stock, new, plans, _ = full
     e3o, e3n = (kp.parse_entry3_full(kp.get_entry_swapped(x, 3)) for x in (stock, new))

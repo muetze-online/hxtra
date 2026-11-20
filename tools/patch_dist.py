@@ -157,15 +157,26 @@ def plan_model(fw, m, group=None):
 
 
 def _composite(b0, cid):
+    """(header, [(record, inputs, outputs, init pairs, connection)]) of composite cid. A member's connection (record
+    word 1 its length, word 2 its offset) is either none or, in every core mono distortion that has one (Alpaca Rouge,
+    Bitcrusher, Clawthorn, KWB, Obsidian 7000, Pocket Fuzz, Swedish Chainsaw), the 3 words [2, offset of the next two,
+    0] and those two words [id, 0]; it is returned as the two words. The ids are the composite's own (header word 0
+    counts them), not member slots, so they are copied as they are."""
     ct = b0[0x10]
     h = b0[ct + 7 * (cid - 0x600000): ct + 7 * (cid - 0x600000) + 7]
     old = []
     for k in range(h[2]):
         r = list(b0[h[3] + 20 * k: h[3] + 20 * k + 20])
         assert r[2] == r[12] + 2 * r[11] or r[2] == max(r[8] + r[7], r[10] + r[9], r[12] + 2 * r[11]), \
-            f'{cid:#x} member {k} has connection records'
+            f'{cid:#x} member {k}: connection list not after its data'
+        conn = None
+        if r[1]:
+            w = list(b0[r[2]: r[2] + 5])
+            assert r[1] == 3 and w[0] == 2 and w[1] == r[2] + 3 and w[2] == 0, \
+                f'{cid:#x} member {k}: connection {r[1]} words {w}, not the one form patch_dist copies'
+            conn = w[3:5]
         old.append((r, list(b0[r[8]: r[8] + r[7]]), list(b0[r[10]: r[10] + r[9]]),
-                    [tuple(b0[r[12] + 2 * j: r[12] + 2 * j + 2]) for j in range(r[11])]))
+                    [tuple(b0[r[12] + 2 * j: r[12] + 2 * j + 2]) for j in range(r[11])], conn))
     return h, old
 
 
@@ -190,7 +201,7 @@ def build_members(b0, root, plan):
         r[4], r[1], r[3] = flags, 0, 0
         if typ is not None:
             r[6] = typ
-        return (r, ins, outs, init)
+        return (r, ins, outs, init, None)                  # no connection, as Teemah!'s members
 
     def biquad(typ, buf):
         return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
@@ -202,7 +213,7 @@ def build_members(b0, root, plan):
         members = (old[:L] + [biquad(HP_TYPE, drive[0]), biquad(HP_TYPE, drive[0]),
                               biquad(lp_t, wet_in), biquad(lp_t, wet_in)] + old[L:])
         smap = {s: s if s <= L else s + 4 for s in range(1, len(old) + 1)}
-        slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1]}
+        slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1], 'head': h[0]}
         assert len(members) == len(old) + 4 and all(members[s - 1][0][6] == 0x102 for s in slots['hp'] + slots['lp'])
         return members, smap, slots
     tap = prim(tmpl[0][0], [wet_in], [dry], [], flags=1)
@@ -212,14 +223,15 @@ def build_members(b0, root, plan):
     members = ([old[0], tap, biquad(HP_TYPE, wet_in), biquad(HP_TYPE, wet_in)] + old[1:L - 1]
                + [biquad(lp_t, dry), biquad(lp_t, dry), mix] + old[L - 1:])
     smap = {s: s if s == 1 else s + 3 if s < L else s + 6 for s in range(1, len(old) + 1)}
-    slots = {'hp': (3, 4), 'lp': (L + 3, L + 4), 'mix': L + 5, 'buffers': h[1] + 1}
+    slots = {'hp': (3, 4), 'lp': (L + 3, L + 4), 'mix': L + 5, 'buffers': h[1] + 1, 'head': h[0]}
     assert members[slots['mix'] - 1][0][6] == 0x84 and members[smap[L] - 1] is lvl and len(members) == len(old) + 6
     return members, smap, slots
 
 
 def append_composites(b0, composites):
     """Blob 0 with one copy of the composite table, len(composites) entries longer, and the new composites after it;
-    composites = [(members, n_buf)]. Returns (Blob 0, [new composite ids])."""
+    composites = [(members, n_buf, header word 0)], members as _composite's (a connection is written after the
+    member's init, its offset word pointing at its two words). Returns (Blob 0, [new composite ids])."""
     b0 = list(b0)
     n_comp, ctab = b0[0xf], b0[0x10]
     new_ctab = len(b0)
@@ -227,20 +239,22 @@ def append_composites(b0, composites):
     hdrs = len(b0)
     b0.extend([0] * (7 * len(composites)))
     ids = []
-    for c, (members, n_buf) in enumerate(composites):
+    for c, (members, n_buf, head) in enumerate(composites):
         mem_off = len(b0)
         b0.extend([0] * (20 * len(members)))
-        for k, (rec, ins, outs, init) in enumerate(members):
+        for k, (rec, ins, outs, init, conn) in enumerate(members):
             r = list(rec)
             r[0] = r[5] = k
             r[7], r[8] = len(ins), len(b0); b0.extend(ins)
             r[9], r[10] = len(outs), len(b0); b0.extend(outs)
             r[11], r[12] = len(init), len(b0); b0.extend(w for p in init for w in p)
-            r[2] = len(b0)                                 # no connection records
+            r[1], r[2] = (3 if conn else 0), len(b0)
+            if conn:
+                b0.extend([2, len(b0) + 3, 0] + list(conn))
             if not ins:
                 r[8] = r[10]
             b0[mem_off + 20 * k: mem_off + 20 * k + 20] = r
-        b0[hdrs + 7 * c: hdrs + 7 * c + 7] = [0, n_buf, len(members), mem_off, 0, len(b0), 0]
+        b0[hdrs + 7 * c: hdrs + 7 * c + 7] = [head, n_buf, len(members), mem_off, 0, len(b0), 0]
         ids.append(0x600000 + n_comp + c)
     b0[0xf], b0[0x10] = n_comp + len(composites), new_ctab
     err = kp.sharc_blob0_check(b0, kp.SHARC_BLOB0_MAX_WORDS)
@@ -375,7 +389,7 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
         assert roots.setdefault(p['root'], (key, p)) [0] == key, \
             f"{name}: {key} on root {p['root']:#x}, which another model has at {roots[p['root']][0]}"
     built = {root: build_members(b0, root, p) for root, (_, p) in roots.items()}
-    b0_new, ids = append_composites(b0, [(mem, sl['buffers']) for mem, _, sl in built.values()])
+    b0_new, ids = append_composites(b0, [(mem, sl['buffers'], sl['head']) for mem, _, sl in built.values()])
     new_comp = dict(zip(built, ids))
     e3, meta, S = mode_meta(e3)
     meta2 = None
