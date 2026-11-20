@@ -368,3 +368,44 @@ def test_e4_write_rewrites_a_blob_of_the_same_length_in_place():
     wo = struct.unpack('<%dI' % (len(e4) // 4), e4)
     out, w = _blobs_of(pdist.e4_write(e4, blobs[0], {2: [5] * 4}))
     assert out[2] == [5] * 4 and w[w[3] + 5] == wo[wo[3] + 5]
+
+
+# ---- build.py, the web page and the feature switch
+
+def test_build_runs_it_after_every_step_that_adds_a_model_and_before_the_gr_knobs(tmp_path, monkeypatch):
+    from test_gate import build_steps
+    for k in ('HX_DIST_XOVER', 'HX_GATE_SC', 'HX_USB_MONITOR'):
+        monkeypatch.delenv(k, raising=False)
+    flags = ('HX_CLICK', 'HX_FX_GATE', 'HX_GATE_SC', 'HX_USB_MONITOR', 'HX_DIST_XOVER', 'HX_GR')
+    ran = build_steps(tmp_path, monkeypatch, 'HX_Stomp', {k: '1' for k in flags})
+    adders = ('tools/patch_click.py', 'tools/patch_gate.py', 'tools/patch_sidechain.py', 'tools/patch_usbmon.py')
+    assert max(ran.index(s) for s in adders) < ran.index('tools/patch_dist.py') < ran.index('tools/patch_comp.py')
+
+
+def test_build_without_the_flag_has_no_crossover(tmp_path, monkeypatch):
+    from test_gate import build_steps
+    monkeypatch.delenv('HX_DIST_XOVER', raising=False)
+    assert 'tools/patch_dist.py' not in build_steps(tmp_path, monkeypatch, 'HX_Stomp', {})
+
+
+def test_web_worker_runs_it_where_build_py_does():
+    # the same order as build.py: after the USB monitor (the last step that adds a model), before the GR knobs
+    from pathlib import Path
+    js = (Path(__file__).resolve().parent.parent / 'web/firmware-worker.js').read_text()
+    at = lambda s: js.index(s, js.index('step(5,'))
+    assert at('"tools/patch_usbmon.py", "build/') < at('"tools/patch_dist.py", "build/') < at('"tools/patch_comp.py", "build/')
+    assert 'flags.indexOf("HX_DIST_XOVER")' in js
+    for f in ('tools/patch_dist.py', 'tools/features/dist_xover.py', 'tools/patch_teemah.py', 'tools/sharc/pmap.py'):
+        assert f'"{f}"' in js
+
+
+def test_off_unless_asked_for_and_a_box_on_the_page():
+    import features
+    import m4cache
+    from features import dist_xover
+    mods = features.load()
+    assert dist_xover.FLAG == 'HX_DIST_XOVER'
+    assert dist_xover.FLAG in m4cache.web_options() and dist_xover.FLAG not in m4cache.web_flags() + m4cache.web_dsp()
+    assert dist_xover not in features.enabled(mods, {})
+    assert dist_xover in features.enabled(mods, {'HX_DIST_XOVER': '1'})
+    assert not hasattr(dist_xover, 'apply') and not hasattr(dist_xover, 'SETTINGS')

@@ -219,17 +219,21 @@ def test_site_root_keeps_the_anchor():
     assert 'location.replace("web/" + location.hash)' in site
 
 
-def page_combo(slots, leave_out=()):
-    """The flags of the page's combination with every feature and DSP feature that fits but leave_out, at slots NAM slots."""
+def page_combo(slots, leave_out=(), options=()):
+    """The flags of the page's combination with every feature and DSP feature that fits but leave_out, and the opt-in
+    options ticked, at slots NAM slots."""
     dsp = [f for f in m4cache.web_dsp() if f not in leave_out]
     while not block3.fits(slots, dsp):
         dsp.pop(0)
-    return m4cache.web_flags() + dsp + [m4cache.slots_flag(slots)]
+    return m4cache.web_flags() + dsp + list(options) + [m4cache.slots_flag(slots)]
 
 
 # the default selection, then one of each kind the v1.2.0 cache lacked a module for (issue #163)
 PAGE_COMBOS = {"default": (2, ()), "no GR": (2, ("HX_GR",)), "no Metronome": (2, ("HX_CLICK",)),
-               "no USB Monitor": (2, ("HX_USB_MONITOR",)), "3 NAM slots": (3, ()), "no NAM, no DSP": (0, tuple(m4cache.web_dsp()))}
+               "no USB Monitor": (2, ("HX_USB_MONITOR",)), "3 NAM slots": (3, ()), "no NAM, no DSP": (0, tuple(m4cache.web_dsp())),
+               # Label Color's table reads HX_DIST_XOVER, so its module differs with the box ticked
+               "Distortion Crossover": (2, (), ("HX_DIST_XOVER",)),
+               "Distortion Crossover, no NAM": (0, tuple(m4cache.web_dsp()), ("HX_DIST_XOVER",))}
 
 
 def test_page_combos_are_offered():

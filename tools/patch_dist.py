@@ -31,7 +31,7 @@ Where the mixer goes (GROUPS; docs/research/sharc/cores/teemah.md, Rollout D3):
            Freq is the Auto Filter's record, Dry and Wet Double Double's, Mode a list of stock strings sharing one
            meta table.
   Entry 2  the SHARC's Blob 0 buffer enlarged (kit_patch_amp.expand_sharc_blob0_buffer, a no-op when done before).
-  Entry 0  per model the UI row counts n + 4 and the Static Model Table cost + --cost (a guess until measured).
+  Entry 0  per model the UI row counts n + 4 and the Static Model Table cost + --cost (100: fits 8 Pocket Fuzz or 6 Dark Dove on the unit).
 
 Run it after every step that adds models and before patch_comp.py (build.py, HX_DIST_XOVER)."""
 import argparse
@@ -461,7 +461,7 @@ def main():
     ap.add_argument('input', help='.hxf or L6IA')
     ap.add_argument('output')
     ap.add_argument('--models', help='comma-separated Entry 3 names (default: MODELS)')
-    ap.add_argument('--cost', type=int, default=COST, help=f'DSP cost added per model (default {COST}, a guess)')
+    ap.add_argument('--cost', type=int, default=COST, help=f'DSP cost added per model (default {COST}, 8 Pocket Fuzz or 6 Dark Dove fit on the unit)')
     ap.add_argument('--donor', help='Stock .hxf of the unit, when input is a raw L6IA and output a .hxf')
     a = ap.parse_args()
     data, is_hxf = kp.load_l6ia_from_any(a.input)

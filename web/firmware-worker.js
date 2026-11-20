@@ -72,6 +72,7 @@ var SOURCES = [
   "tools/features/__init__.py",
   "tools/features/bpm.py",
   "tools/features/breathing_line.py",
+  "tools/features/dist_xover.py",
   "tools/features/dsp_meter.py",
   "tools/features/fx_gate.py",
   "tools/features/gate_sidechain.py",
@@ -267,6 +268,11 @@ async function build(stock, flags, slots) {
       step(5, "Adding the kernel to the DSP program…",
            ["tools/patch_usbmon.py", "build/nam_lite.l6ia", "build/nam_lite_usbmon.l6ia"]);
       p.FS.rename("/repo/build/nam_lite_usbmon.l6ia", "/repo/build/nam_lite.l6ia");
+    }
+    if (flags.indexOf("HX_DIST_XOVER") >= 0) {      // as in build.py: after every step that adds a model, before patch_comp
+      step(5, "Adding the distortions' crossover knobs…",
+           ["tools/patch_dist.py", "build/nam_lite.l6ia", "build/nam_lite_dist.l6ia"]);
+      p.FS.rename("/repo/build/nam_lite_dist.l6ia", "/repo/build/nam_lite.l6ia");
     }
     if (flags.indexOf("HX_GR") >= 0) {      // last, as in build.py: every step that adds a model rebuilds the tails its knobs live in
       step(5, "Adding the kernel to the DSP program…",

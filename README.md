@@ -197,6 +197,16 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 <a href="https://wisemandenny.github.io/hxtra/web/features.html#real-block-names"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
+### <img src="docs/assets/icons/dist-xover.svg" width="28" height="28" align="top" alt=""> Distortion Crossover
+
+*Frequency, Dry Level, Wet Level and Mode knobs on the mono distortions*
+
+- The drive hears only the input above Frequency, and Dry Level mixes the clean input back in: full range (Mode Full) or only below Frequency (Mode Xover), so the lows of a bass stay clean under a distorted top. At their defaults a block sounds as on stock firmware.
+- Every mono distortion but the legacy ones, Clawthorn Drive and Bitcrusher; Obsidian 7000 gets Frequency and Mode only.
+- Each of these blocks then counts 1% more toward the DSP limit.
+
+[More in the feature guide](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover)
+
 ### <img src="docs/assets/icons/fx-gate.svg" width="28" height="28" align="top" alt=""> FX Loop Noise Gate
 
 *Gate, Threshold and Decay knobs on the FX Loop and Return blocks*
@@ -359,7 +369,7 @@ If you hear crackling, leave those out on the setup page.
 <td valign="top">
 
 ### <img src="docs/assets/icons/faq-choose.svg" width="28" height="28" align="top" alt=""> Can I choose which features I get?
-Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite blocks (3, 2, 1 or none), the gain reduction meter, the Metronome, the FX Loop gate, USB & Send Routing and Input Sidechain. They share the HX Stomp's spare DSP memory, so the page shows what's left as you tick, and fewer NAM blocks leave room for more of the others. Real block names is a box too. Every other feature is always in; to leave one of those out, [build it yourself](docs/building.md).
+Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite blocks (3, 2, 1 or none), the gain reduction meter, the Metronome, the FX Loop gate, USB & Send Routing and Input Sidechain. They share the HX Stomp's spare DSP memory, so the page shows what's left as you tick, and fewer NAM blocks leave room for more of the others. Real block names and Distortion crossover are boxes too. Every other feature is always in; to leave one of those out, [build it yourself](docs/building.md).
 
 &nbsp;
 

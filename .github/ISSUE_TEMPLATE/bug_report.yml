@@ -64,6 +64,7 @@ body:
         - label: Input Sidechain on the Noise Gate block (HX_GATE_SC)
         - label: "USB monitoring: Path A Out (HX_USB_MONITOR)"
         - label: Real block names (HX_REAL_NAMES)
+        - label: "Distortion crossover: Frequency, Dry/Wet Level and Mode on the mono distortions (HX_DIST_XOVER)"
   - type: dropdown
     id: features
     attributes:
