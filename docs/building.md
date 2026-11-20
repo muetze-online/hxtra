@@ -51,7 +51,7 @@ To add features, set their switches (the [features page](https://wisemandenny.gi
 | [Metronome](https://wisemandenny.github.io/hxtra/web/features.html#metronome) | `HX_CLICK=1` |
 | [USB & Send Routing](https://wisemandenny.github.io/hxtra/web/features.html#usb-monitoring) | `HX_USB_MONITOR=1` |
 | [Compressor Gain Reduction Meter](https://wisemandenny.github.io/hxtra/web/features.html#gr-meter) | `HX_GR=1` |
-| [Distortion Crossover](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover) (Freq, Dry Level, Wet Level, Mode on the core mono distortions but Clawthorn Drive, Bitcrusher and Pocket Fuzz: 41 on stock, 40 with NAM A2 Lite, which takes Xenomorph Fuzz's place; [how it works](research/sharc/cores/teemah.md#rollout-d3-every-core-mono-distortion-2026-11-19)) | `HX_DIST_XOVER=1` |
+| [Distortion Crossover](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover) (Freq, Dry Level, Wet Level, Mode on the core mono distortions but Clawthorn Drive, Bitcrusher, Pocket Fuzz, KWB, Swedish Chainsaw and Alpaca Rouge: 38 on stock, 37 with NAM A2 Lite, which takes Xenomorph Fuzz's place; [how it works](research/sharc/cores/teemah.md#rollout-d3-every-core-mono-distortion-2026-11-19)) | `HX_DIST_XOVER=1` |
 | [NAM A2 Lite](https://wisemandenny.github.io/hxtra/web/features.html#nam-a2-lite) | `HX_NAM_SLOTS=3`, `2`, `1`, `0` (off); unset, the most that fit |
 | [Boot screen](#boot-screen) | `--splash`, `--splash-text` |
 
