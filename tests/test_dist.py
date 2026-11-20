@@ -180,9 +180,11 @@ def test_a_model_without_a_static_model_table_row_is_left_out():
 @pytest.mark.firmware
 def test_the_skipped_models_stay_stock(full):
     """Clawthorn Drive and Bitcrusher: on the unit their dry path carried the block's own output, with a tap and with
-    a low-pass reading the in-port's buffer alike (2026-11-20); they keep their stock parameters and blob."""
+    a low-pass reading the in-port's buffer alike (2026-11-20); Pocket Fuzz's dry path followed its Drive knob (clean,
+    louder with Drive, silent at 0; 2026-11-20). They keep their stock parameters and blob."""
     stock, new, _, _ = full
-    assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono'} and len(PATCHED) == 42
+    assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono',
+                               'HD2_DistPocketFuzzMono'} and len(PATCHED) == 41
     for n in pdist.SKIP:
         i = _model(stock, n)['blob_index']
         assert repr(_params(new, n)) == repr(_params(stock, n))
@@ -297,7 +299,7 @@ def test_full_build_keeps_every_other_model_and_blob_stock(full):
     assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
     bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
     roots = {p['root'] for p in plans.values()}
-    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 38
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 37
 
 
 @pytest.mark.firmware

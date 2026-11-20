@@ -1,8 +1,8 @@
 """Distortion crossover: Freq, Dry Level, Wet Level and Mode on the core mono distortions (tools/patch_dist.py, after every
 step that adds a model and before the GR knobs; docs/research/sharc/cores/teemah.md, Rollout D3). The drive hears the input
 above Freq; Dry Level mixes in the clean input, full range (Mode Full) or below Freq (Mode Xover); the defaults sound like the
-stock block. Obsidian 7000, whose Blend mixes a clean path of its own, gets Freq and Mode only; Clawthorn Drive and
-Bitcrusher stay stock (patch_dist.SKIP), and so do the legacy and stereo distortions.
+stock block. Obsidian 7000, whose Blend mixes a clean path of its own, gets Freq and Mode only; Clawthorn Drive,
+Bitcrusher and Pocket Fuzz stay stock (patch_dist.SKIP), and so do the legacy and stereo distortions.
 A checkbox on the web page (WEB 'opt-in': its code is in the blocks, not in Block 3) and HX_DIST_XOVER for build.py. Each
 model's DSP cost rises by patch_dist.COST.
 

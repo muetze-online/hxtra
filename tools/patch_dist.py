@@ -53,6 +53,7 @@ MODELS = None                                          # every core mono distort
 SKIP = {                                               # core mono distortions left as they are, and why
     'HD2_DistClawthornDriveMono': 'dry path carries the block\'s own output on the unit (root on/off flags)',
     'HD2_DistBitcrusherMono': 'dry path carries the block\'s own output on the unit (root on/off flags)',
+    'HD2_DistPocketFuzzMono': 'dry path follows the Drive knob on the unit (a tap writes the in-port\'s buffer)',
 }
 LEVEL_KNOBS = ('Level', 'Volume')                      # Entry 3 names; Volume shows as "Level"
 GAIN_TYPES = {0x80}                                    # members that may follow Level in group G1
