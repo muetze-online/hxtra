@@ -45,19 +45,27 @@ def built():
 
 
 @pytest.mark.firmware
-def test_teemah_composite_is_test_build_d3s(built):
+def test_teemah_composite_is_test_build_d3s_with_the_dry_path_first(built):
+    """Test build D3's members, its tap gone: the two low-passes right after the in-port, the first reading the
+    in-port's buffer into the dry one (a tap carried the in-port buffer's final content in Clawthorn Drive and
+    Bitcrusher on the unit, 2026-11-20)."""
     _, new, d3 = built
     (bn, bd) = (eb.blob(_w4(x), 0) for x in (new, d3))
     hn, mn = _members(bn, eb.top_type(eb.blob(_w4(new), _model(new, TEEMAH)['blob_index'])))
     hd, md = _members(bd, 0x600000 + bd[0xf] - 1)
-    assert hn[1:3] == hd[1:3] and mn == md
+    tap = md[1]
+    assert tap[:2] == (0, 1)
+    mix = [k for k, m in enumerate(md) if m[0] == 0x84][0]
+    lp_a, lp_b = md[mix - 2], md[mix - 1]
+    assert lp_a[0] == lp_b[0] == 0x102 and lp_a[2] == tap[3]
+    want = [md[0], lp_a[:2] + (tap[2],) + lp_a[3:], lp_b, md[2], md[3]] + md[4: mix - 2] + md[mix:]
+    assert hn[1] == hd[1] and hn[2] == hd[2] - 1 and mn == want
+    assert all(m[1] != 1 for m in mn[1:5])
 
 
 @pytest.mark.firmware
-def test_teemah_blob_and_parameters_are_test_build_d3s(built):
+def test_teemah_parameters_are_test_build_d3s(built):
     _, new, d3 = built
-    i = _model(new, TEEMAH)['blob_index']
-    assert eb.blob(_w4(new), i) == eb.blob(_w4(d3), i)
     assert repr(_params(new, TEEMAH)) == repr(_params(d3, TEEMAH))
 
 
@@ -86,11 +94,11 @@ def test_scream_808_knobs_write_filters_mixer_and_types(built):
     fw = pdist.Fw(kp.get_entry_swapped(new, 3), _w4(new))
     r = pmap.model_report(fw, kp.find_model(fw.e3, SCREAM))
     writes = {(tuple(w['path']), w['pid']): pdist._knobs(w['expr'], set()) for w in r['writes']}
-    assert {k for k, v in writes.items() if 'Frequency' in v} == {((s,), 2) for s in (3, 4, 9, 10)}
-    assert {k for k, v in writes.items() if 'Dry Level' in v} == {((11,), 2)}
-    assert {k for k, v in writes.items() if 'Wet Level' in v} == {((11,), 1)}
-    assert {k for k, v in writes.items() if 'Mode' in v} == {((9,), 1), ((10,), 1)}
-    assert {k for k, v in writes.items() if 'Level' in v} == {((12,), 1)}
+    assert {k for k, v in writes.items() if 'Frequency' in v} == {((s,), 2) for s in (2, 3, 4, 5)}
+    assert {k for k, v in writes.items() if 'Dry Level' in v} == {((10,), 2)}
+    assert {k for k, v in writes.items() if 'Wet Level' in v} == {((10,), 1)}
+    assert {k for k, v in writes.items() if 'Mode' in v} == {((2,), 1), ((3,), 1)}
+    assert {k for k, v in writes.items() if 'Level' in v} == {((11,), 1)}
 
 
 @pytest.mark.firmware
@@ -139,6 +147,7 @@ CORE = (
     'HD2_DistBallisticFuzzMono', 'HD2_DistPocketFuzzMono', 'HD2_DistRatatouilleDistMono', 'HD2_DistVitalDistMono',
     'HD2_DistVitalBoostMono', 'HD2_DistPillarsMono', 'HD2_DistDarkDoveFuzzMono', 'HD2_DistPrizeDriveMono',
     'HD2_DistRegalBassDIMono')
+PATCHED = tuple(n for n in CORE if n not in pdist.SKIP)
 NAMES = {'freq': 'Frequency', 'dry': 'Dry Level', 'wet': 'Wet Level', 'mode': 'Mode'}
 
 
@@ -148,9 +157,9 @@ def full():
     stock = firmware.stock()
     new = pdist.patch_dist(stock, log=lambda *_: None)
     fs, fn = (pdist.Fw(kp.get_entry_swapped(x, 3), _w4(x)) for x in (stock, new))
-    plans = {n: pdist.plan_model(fs, kp.find_model(fs.e3, n)) for n in CORE}
+    plans = {n: pdist.plan_model(fs, kp.find_model(fs.e3, n)) for n in PATCHED}
     reports = {n: (pmap.model_report(fs, kp.find_model(fs.e3, n)), pmap.model_report(fn, kp.find_model(fn.e3, n)))
-               for n in CORE}
+               for n in PATCHED}
     return stock, new, plans, reports
 
 
@@ -168,6 +177,18 @@ def test_a_model_without_a_static_model_table_row_is_left_out():
     assert pdist.core_mono(info, rows - {xeno}) == tuple(n for n in CORE if n != 'HD2_DistXenomorphFuzzMono')
 
 
+@pytest.mark.firmware
+def test_the_skipped_models_stay_stock(full):
+    """Clawthorn Drive and Bitcrusher: on the unit their dry path carried the block's own output, with a tap and with
+    a low-pass reading the in-port's buffer alike (2026-11-20); they keep their stock parameters and blob."""
+    stock, new, _, _ = full
+    assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono'} and len(PATCHED) == 42
+    for n in pdist.SKIP:
+        i = _model(stock, n)['blob_index']
+        assert repr(_params(new, n)) == repr(_params(stock, n))
+        assert eb.blob(_w4(new), i) == eb.blob(_w4(stock), i)
+
+
 def _mode_disp(r_stock):
     """The new Mode knob's display name: "Crossover" where the model has a Mode of its own (Pillars)."""
     return pdist.MODE_DISP2[0] if 'Mode' in [q['name'] for q in r_stock['params']] else 'Mode'
@@ -182,7 +203,7 @@ def _type(r, path):
 
 
 @pytest.mark.firmware
-@pytest.mark.parametrize('name', CORE)
+@pytest.mark.parametrize('name', PATCHED)
 def test_each_model_gets_its_knobs_after_its_own(full, name):
     stock, new, plans, _ = full
     knobs = plans[name]['knobs']
@@ -195,7 +216,7 @@ def test_each_model_gets_its_knobs_after_its_own(full, name):
 
 
 @pytest.mark.firmware
-@pytest.mark.parametrize('name', CORE)
+@pytest.mark.parametrize('name', PATCHED)
 def test_each_models_knobs_write_crossover_and_mixer(full, name):
     import pmap
     _, _, plans, reports = full
@@ -229,13 +250,13 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
 
 
 @pytest.mark.firmware
-@pytest.mark.parametrize('name', CORE)
+@pytest.mark.parametrize('name', PATCHED)
 def test_each_models_stock_writes_survive_renumbered(full, name):
     _, _, plans, reports = full
     ro, rn = reports[name]
     p = plans[name]
     shift = (lambda s: s if s <= p['at'] else s + 4) if p['group'] == 'xover' else \
-        (lambda s: s if s <= 1 else s + 3 if s < p['at'] else s + 6)          # path [0]: the root itself
+        (lambda s: s if s <= 1 else s + 4 if s < p['at'] else s + 5)          # path [0]: the root itself
     stock = sorted((tuple([shift(w['path'][0])] + w['path'][1:]), w['pid'], repr(w['expr'])) for w in ro['writes'])
     mine = {'Frequency', 'Dry Level', 'Wet Level', _mode_disp(ro)}
     new = sorted((tuple(w['path']), w['pid'], repr(w['expr'])) for w in rn['writes']
@@ -244,7 +265,7 @@ def test_each_models_stock_writes_survive_renumbered(full, name):
 
 
 @pytest.mark.firmware
-@pytest.mark.parametrize('name', CORE)
+@pytest.mark.parametrize('name', PATCHED)
 def test_each_models_composite_keeps_its_connections(full, name):
     """Stock members keep their connection words (record words 1/2: [2, offset, 0] then [id, 0], the offset pointing
     right after), the header keeps word 0; new members have none. A build that dropped them hung the unit on Alpaca
@@ -252,7 +273,7 @@ def test_each_models_composite_keeps_its_connections(full, name):
     stock, new, plans, reports = full
     p = plans[name]
     shift = (lambda s: s if s <= p['at'] else s + 4) if p['group'] == 'xover' else \
-        (lambda s: s if s <= 1 else s + 3 if s < p['at'] else s + 6)
+        (lambda s: s if s <= 1 else s + 4 if s < p['at'] else s + 5)
     bo, bn = eb.blob(_w4(stock), 0), eb.blob(_w4(new), 0)
     ho, old = pdist._composite(bo, p['root'])
     hn, mem = pdist._composite(bn, int(reports[name][1]['root'], 16))      # asserts the form of every connection
@@ -260,6 +281,7 @@ def test_each_models_composite_keeps_its_connections(full, name):
     assert [mem[shift(k + 1) - 1][4] for k in range(len(old))] == [o[4] for o in old]
     kept = {shift(k + 1) - 1 for k in range(len(old))}
     assert all(m[4] is None and m[0][1] == 0 for k, m in enumerate(mem) if k not in kept)
+    assert all(m[0][4] != 1 for k, m in enumerate(mem) if k not in kept), 'a new copy member (tap)'
 
 
 @pytest.mark.firmware
@@ -268,14 +290,14 @@ def test_full_build_keeps_every_other_model_and_blob_stock(full):
     e3o, e3n = (kp.parse_entry3_full(kp.get_entry_swapped(x, 3)) for x in (stock, new))
     view = lambda info: [(m['name'], m['meta'], [(p['name'], p['type'], p['slot'], p['meta'], p['min'], p['max'])
                                                  for p in m['params']])
-                         for m in info['models'] if m['name'] not in CORE]
+                         for m in info['models'] if m['name'] not in PATCHED]
     assert repr(view(e3o)) == repr(view(e3n))
     wo, wn = _w4(stock), _w4(new)
-    changed = {_model(stock, n)['blob_index'] for n in CORE}
+    changed = {_model(stock, n)['blob_index'] for n in PATCHED}
     assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
     bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
     roots = {p['root'] for p in plans.values()}
-    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 40
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 38
 
 
 @pytest.mark.firmware
@@ -285,9 +307,9 @@ def test_full_build_fits_with_room_to_spare(full):
     assert kp.sharc_blob0_check(list(b0), kp.SHARC_BLOB0_MAX_WORDS) is None
     assert len(b0) - len(eb.blob(_w4(stock), 0)) < 33000                 # plan: about 33 000 words
     grow = len(kp.get_entry_swapped(new, 3)) - len(kp.get_entry_swapped(stock, 3))
-    assert grow <= sum(52 * (len(_model(stock, n)['params']) + len(plans[n]['knobs'])) for n in CORE) + 2 * 64
+    assert grow <= sum(52 * (len(_model(stock, n)['params']) + len(plans[n]['knobs'])) for n in PATCHED) + 2 * 64
     assert len(kp.get_entry_swapped(new, 4)) <= kp.E4_MAX
-    for n in CORE:
+    for n in PATCHED:
         assert not kp.pmap_slots_without_param(kp.get_entry_swapped(new, 4), _model(new, n)['blob_index'],
                                                _model(new, n)['params']), n
 

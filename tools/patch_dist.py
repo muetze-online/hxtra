@@ -21,8 +21,8 @@ Where the mixer goes (GROUPS; docs/research/sharc/cores/teemah.md, Rollout D3):
          clean path right after the member that splits them; no tap, no mixer
 
   Entry 4  Blob 0: one copy of the composite table for all new composites, one new composite per stock root (models
-           that share a root share it): the stock members, a tap of the input into a new buffer, two high-passes after
-           the in-port, two low-passes on the tap and a 0x84 mixer [wet, dry] -> wet right before the first member the
+           that share a root share it): the stock members, two low-passes from the in-port's buffer into a new one
+           (the dry path, no copy member), two high-passes after them and a 0x84 mixer [wet, dry] -> wet right before the first member the
            Level knob writes (group G1: after it only gain members). Model blobs rebuilt with patch_teemah.Blob (root on
            the new composite, slots renumbered, four input nodes, new members registered). Written by e4_write: Blob 0
            grows in place when it is Entry 4's last region (an HXtra image) or moves to the end (stock); a grown model
@@ -49,7 +49,11 @@ import patch_gate  # noqa: E402
 import patch_teemah as pt  # noqa: E402
 import pmap  # noqa: E402
 
-MODELS = None                                          # every core mono distortion (core_mono)
+MODELS = None                                          # every core mono distortion (core_mono) but SKIP
+SKIP = {                                               # core mono distortions left as they are, and why
+    'HD2_DistClawthornDriveMono': 'dry path carries the block\'s own output on the unit (root on/off flags)',
+    'HD2_DistBitcrusherMono': 'dry path carries the block\'s own output on the unit (root on/off flags)',
+}
 LEVEL_KNOBS = ('Level', 'Volume')                      # Entry 3 names; Volume shows as "Level"
 GAIN_TYPES = {0x80}                                    # members that may follow Level in group G1
 GROUPS = {                                             # (group, Level knob) where not (g1, LEVEL_KNOBS)
@@ -216,15 +220,19 @@ def build_members(b0, root, plan):
         slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1], 'head': h[0]}
         assert len(members) == len(old) + 4 and all(members[s - 1][0][6] == 0x102 for s in slots['hp'] + slots['lp'])
         return members, smap, slots
-    tap = prim(tmpl[0][0], [wet_in], [dry], [], flags=1)
-    tap[0][6] = 0
+    # The dry path starts with its first low-pass reading the in-port's buffer into the new one: no copy member. A
+    # copy (tap) of the in-port's buffer carried that buffer's final content in Clawthorn Drive and Bitcrusher, the
+    # two with root on/off flags (on the unit 2026-11-20, docs/research/sharc/cores/teemah.md, Rollout D3).
+    lp1 = biquad(lp_t, dry)
+    lp1 = (lp1[0], [wet_in], [dry], lp1[3], None)
     mix = prim(tmpl[5][0], [wet_at, dry], [wet_at], [(1, f2u(WET)), (2, f2u(DRY))], typ=0x84)
     mix[0][13], mix[0][14] = 2, 2                          # 0x84: DM 2, PM 2 (registry row 0x200340)
-    members = ([old[0], tap, biquad(HP_TYPE, wet_in), biquad(HP_TYPE, wet_in)] + old[1:L - 1]
-               + [biquad(lp_t, dry), biquad(lp_t, dry), mix] + old[L - 1:])
-    smap = {s: s if s == 1 else s + 3 if s < L else s + 6 for s in range(1, len(old) + 1)}
-    slots = {'hp': (3, 4), 'lp': (L + 3, L + 4), 'mix': L + 5, 'buffers': h[1] + 1, 'head': h[0]}
-    assert members[slots['mix'] - 1][0][6] == 0x84 and members[smap[L] - 1] is lvl and len(members) == len(old) + 6
+    members = ([old[0], lp1, biquad(lp_t, dry), biquad(HP_TYPE, wet_in), biquad(HP_TYPE, wet_in)] + old[1:L - 1]
+               + [mix] + old[L - 1:])
+    smap = {s: s if s == 1 else s + 4 if s < L else s + 5 for s in range(1, len(old) + 1)}
+    slots = {'hp': (4, 5), 'lp': (2, 3), 'mix': L + 4, 'buffers': h[1] + 1, 'head': h[0]}
+    assert members[slots['mix'] - 1][0][6] == 0x84 and members[smap[L] - 1] is lvl and len(members) == len(old) + 5
+    assert all(m[0][4] != 1 for m in members[1:5]), 'a copy member among the new ones'
     return members, smap, slots
 
 
@@ -377,9 +385,12 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
     b0 = fw.b0
     info = fw.e3
     if models is None:
-        models = core_mono(info, table1_names(e0))
-        for name in sorted(set(core_mono(info)) - set(models)):
+        reachable = core_mono(info, table1_names(e0))
+        for name in sorted(set(core_mono(info)) - set(reachable)):
             log(f'[ ] {name}: no Static Model Table row (removed by this build), left as it is')
+        models = tuple(n for n in reachable if n not in SKIP)
+        for name in (n for n in reachable if n in SKIP):
+            log(f'[ ] {name}: {SKIP[name]}, left as it is')
     ms = [kp.find_model(info, name) for name in models]
     assert [m['name'] for m in ms] == list(models)
     plans = {m['name']: plan_model(fw, m) for m in ms}
