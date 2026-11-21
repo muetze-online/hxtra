@@ -24,9 +24,9 @@ Where the mixer goes (GROUPS; docs/research/sharc/cores/teemah.md, Rollout D3):
            that share a root share it): the stock members, two low-passes from the in-port's buffer into a new one
            (the dry path, no copy member), two high-passes after them and a 0x84 mixer [wet, dry] -> wet right before the first member the
            Level knob writes (group G1: after it only gain members). Model blobs rebuilt with patch_teemah.Blob (root on
-           the new composite, slots renumbered, four input nodes, new members registered). Written by e4_write: Blob 0
-           grows in place when it is Entry 4's last region (an HXtra image) or moves to the end (stock); a grown model
-           blob is laid out again in that region or appended; no other blob moves or is lost.
+           the new composite, slots renumbered, four input nodes, new members registered). Written by e4_write: the
+           whole Entry 4 laid out again without gaps (directory at word 6, blobs in index order), so no dead copy takes
+           room in the partition; no blob is lost.
   Entry 3  per model the four parameters in one pass (e3_add_params): the parameter and state tables are copied once;
            Freq is the Auto Filter's record, Dry and Wet Double Double's, Mode a list of stock strings sharing one
            meta table.
@@ -414,44 +414,26 @@ def e3_show_all(e3, model_name, k, S):
 
 
 def e4_write(e4, b0_new, blobs):
-    """Entry 4 with Blob 0 replaced by b0_new and each {index: words} of blobs replaced. Blob 0 and the blobs laid out
-    after it (an HXtra image: the relocated directory's tail) are laid out again from Blob 0's offset; on stock, where
-    Blob 0 sits before the model blobs, Blob 0 goes to the end. A replaced blob before Blob 0 that keeps its length is
-    rewritten in place, else appended. The directory stays where it is (its blob count does not change)."""
-    w = list(struct.unpack('<%dI' % (len(e4) // 4), e4))
+    """Entry 4 with Blob 0 replaced by b0_new and each {index: words} of blobs replaced, laid out without gaps as
+    e4_compact.compact does: the 6-word header, the directory at word 6, every blob in index order. Writing it compact
+    keeps no dead copies (on a compact Entry 4 the old Blob 0 alone would leave ~2 MiB behind), so the partition check
+    sees only live words; the build's last e4_compact changes nothing the blobs hold."""
+    w = struct.unpack('<%dI' % (len(e4) // 4), e4)
     assert w[0] == 0x28267e5e and w[1] == 4 and w[5] == len(w)
     n, d = w[2], w[3]
-    pairs = [[w[d + 2 * k], w[d + 2 * k + 1]] for k in range(n)]
-    content = {k: list(blobs.get(k, w[o: o + ln])) for k, (ln, o) in enumerate(pairs)}
-    content[0] = list(b0_new)
-    b0_off = pairs[0][1]
-    tail = sorted((k for k, (_, o) in enumerate(pairs) if o > b0_off), key=lambda k: pairs[k][1])
-    if d > 6 and b0_off > d:
-        region = [0] + tail                               # HXtra: Blob 0 and everything after it laid out again
-        end = b0_off
-        w = w[:b0_off]
-    else:
-        region = [0]                                      # stock: Blob 0 to the end
-        end = len(w)
-    for k, words in blobs.items():
-        if k in region:
-            continue
-        ln, o = pairs[k]
-        if len(words) == ln:
-            w[o: o + ln] = words
-        else:
-            region.append(k)
-    for k in region:
-        pairs[k] = [len(content[k]), end]
-        w.extend(content[k])
-        end += len(content[k])
-    for k, (ln, o) in enumerate(pairs):
-        w[d + 2 * k], w[d + 2 * k + 1] = ln, o
-    w[4], w[5] = pairs[0][1], len(w)
-    out = struct.pack('<%dI' % len(w), *w)
-    if len(out) > kp.E4_MAX:
-        raise SystemExit(f'Entry 4 would be {len(out):#x} bytes; its partition holds {kp.E4_MAX:#x}')
-    return out
+    pairs = [(w[d + 2 * k], w[d + 2 * k + 1]) for k in range(n)]
+    assert all(o + ln <= len(w) for ln, o in pairs), 'a blob reaches past the end of Entry 4'
+    content = {k: blobs.get(k, w[o: o + ln]) for k, (ln, o) in enumerate(pairs)}
+    content[0] = b0_new
+    out = [0x28267e5e, 4, n, 6, 0, 0] + [0] * (2 * n)
+    for k in range(n):
+        out[6 + 2 * k: 8 + 2 * k] = [len(content[k]), len(out)]
+        out.extend(content[k])
+    out[4], out[5] = out[7], len(out)
+    b = struct.pack('<%dI' % len(out), *out)
+    if len(b) > kp.E4_MAX:
+        raise SystemExit(f'Entry 4 would be {len(b):#x} bytes; its partition holds {kp.E4_MAX:#x}')
+    return b
 
 
 def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):

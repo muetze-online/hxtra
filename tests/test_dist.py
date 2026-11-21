@@ -453,27 +453,21 @@ def _blobs_of(e4):
 
 @pytest.mark.parametrize('relocated', [False, True], ids=['stock', 'hxtra'])
 def test_e4_write_replaces_blob_0_and_grown_blobs_and_keeps_the_rest(relocated):
+    import e4_compact
     blobs = [[100 + k] * (3 + k) for k in range(6)]
     e4 = _e4(blobs, relocated)
     new0, new2, new5 = [7] * 9, [8] * 20, [9] * 8
-    out, w = _blobs_of(pdist.e4_write(e4, new0, {2: new2, 5: new5}))
+    e = pdist.e4_write(e4, new0, {2: new2, 5: new5})
+    out, w = _blobs_of(e)
     assert out == [new0, blobs[1], new2, blobs[3], blobs[4], new5]
-    wo = struct.unpack('<%dI' % (len(e4) // 4), e4)
-    offs = lambda x, ks: [x[x[3] + 2 * k + 1] for k in ks]
-    assert w[3] == wo[3]
-    if relocated:                                        # Blob 0 grows where it was, nothing piles up behind
-        assert offs(w, [0]) == offs(wo, [0])
-        assert offs(w, [1, 3, 4]) == offs(wo, [1, 3, 4])
-    else:                                                # stock: Blob 0 to the end, the model blobs stay put
-        assert offs(w, [1, 3, 4, 5]) == offs(wo, [1, 3, 4, 5]) and offs(w, [0])[0] >= len(wo)
+    assert e4_compact.compact(e) == e, 'written without gaps: no dead copy left behind'
+    assert len(w) == 6 + 2 * len(blobs) + sum(map(len, out))
 
 
-def test_e4_write_rewrites_a_blob_of_the_same_length_in_place():
+def test_e4_write_rewrites_a_blob_of_the_same_length():
     blobs = [[100 + k] * 4 for k in range(4)]
-    e4 = _e4(blobs, False)
-    wo = struct.unpack('<%dI' % (len(e4) // 4), e4)
-    out, w = _blobs_of(pdist.e4_write(e4, blobs[0], {2: [5] * 4}))
-    assert out[2] == [5] * 4 and w[w[3] + 5] == wo[wo[3] + 5]
+    out, _ = _blobs_of(pdist.e4_write(_e4(blobs, False), blobs[0], {2: [5] * 4}))
+    assert out == [blobs[0], blobs[1], [5] * 4, blobs[3]]
 
 
 # ---- tools/e4_compact.py: Entry 4 without dead copies, the last step on it
@@ -502,14 +496,13 @@ def test_compact_leaves_a_compact_entry_4_as_it_is():
 
 
 @pytest.mark.firmware
-def test_compact_keeps_stock_and_shrinks_the_full_build(full):
+def test_compact_keeps_stock_and_patch_dist_writes_compact(full):
     import e4_compact
     stock, new, _, _ = full
     s4 = kp.get_entry_swapped(stock, 4)
     assert e4_compact.compact(s4) == s4
     n4 = kp.get_entry_swapped(new, 4)
-    c = e4_compact.compact(n4)
-    assert _blobs_of(c)[0] == _blobs_of(n4)[0] and len(c) < len(n4)
+    assert e4_compact.compact(n4) == n4, 'patch_dist leaves no dead copy'
 
 
 def test_build_compacts_entry_4_last_with_or_without_features(tmp_path, monkeypatch):
@@ -568,3 +561,25 @@ def test_off_unless_asked_for_and_a_box_on_the_page():
     assert dist_xover not in features.enabled(mods, {})
     assert dist_xover in features.enabled(mods, {'HX_DIST_XOVER': '1'})
     assert not hasattr(dist_xover, 'apply') and not hasattr(dist_xover, 'SETTINGS')
+
+
+# ---- tools/space_report.py: the space each limited part of the finished image uses
+
+@pytest.mark.firmware
+def test_space_report_reads_blob_0_entry_3_and_entry_4():
+    import space_report
+    stock = firmware.stock()
+    rows = {name: (used, limit) for name, used, limit, _ in space_report.rows(stock, 0xf10f0)}
+    assert rows['Blob 0'] == (490_156, kp.SHARC_BLOB0_MAX_WORDS)
+    assert rows['Entry 3'] == (len(kp.get_entry_swapped(stock, 3)), 0xf10f0)
+    assert rows['Entry 4'] == (len(kp.get_entry_swapped(stock, 4)), kp.E4_MAX)
+    text = space_report.report(stock, 0xf10f0)
+    assert text.count('[=] ') == 3 and 'Blob 0: 490,156 of 585,216 words' in text
+
+
+def test_build_and_worker_report_the_space_after_the_last_compaction():
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    assert 'run(py, "tools/e4_compact.py", image, titled, "--report", hex(E3_MAX))' in (root / 'build.py').read_text()
+    js = (root / 'web/firmware-worker.js').read_text()
+    assert '"--report", "0x" + E3_MAX.toString(16)' in js and '"tools/space_report.py",\n' in js

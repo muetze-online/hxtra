@@ -6,13 +6,15 @@ copies where they were: a full HXtra image carries some 2 MiB of dead words, mos
 The M4 reads Entry 4 blob by blob and never its length (docs/research/formats/containers.md), so the dead words cost
 only room in the partition (kp.E4_MAX). The image ends with Entry 4 as stock has it: the 6-word header, the directory at word 6, then every blob in index order, each word for word.
 Blobs hold no Entry 4 offsets (their relocations are blob-relative, docs/research/sharc/model-blobs.md); earlier steps
-move them already. On a compact Entry 4, stock's among them, this changes nothing.
+move them already. On a compact Entry 4, stock's among them, this changes nothing. --report E3_MAX prints
+space_report.py's rows for the result.
 """
 import argparse
 import struct
 
 import kit_patch_amp as kp
 import l6ia
+import space_report
 
 MAGIC = 0x28267e5e
 
@@ -52,10 +54,15 @@ def main():
     ap.add_argument('input', help='.hxf or L6IA')
     ap.add_argument('output')
     ap.add_argument('--donor', help='Stock .hxf of the unit, when input is a raw L6IA and output a .hxf')
+    ap.add_argument('--report', type=lambda s: int(s, 0), metavar='E3_MAX',
+                    help="print the space each limited part uses, Entry 3 against this (build.py's E3_MAX)")
     a = ap.parse_args()
     data, is_hxf = kp.load_l6ia_from_any(a.input)
-    kp.save_l6ia_to_any(patch_e4(data), a.output, donor_hxf=a.input if is_hxf else a.donor)
+    new = patch_e4(data)
+    kp.save_l6ia_to_any(new, a.output, donor_hxf=a.input if is_hxf else a.donor)
     print(f'[+] Wrote {a.output}')
+    if a.report is not None:
+        print(space_report.report(new, a.report))
 
 
 if __name__ == '__main__':

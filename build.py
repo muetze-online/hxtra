@@ -29,7 +29,7 @@ Steps:
      the FX Loop and Return blocks; with HX_GATE_SC=1, tools/patch_sidechain.py: the Noise Gate's Input Sidechain;
      with HX_DIST_XOVER=1, tools/patch_dist.py: Freq, Dry Level, Wet Level and Mode on the mono distortions;
      with HX_GR=1, tools/patch_comp.py: the GR meter's compressor knobs and DSP code;
-     last, tools/e4_compact.py: Entry 4 without the dead copies those steps leave)
+     last, tools/e4_compact.py: Entry 4 without the dead copies those steps leave, and the space each limited part uses)
   4. tools/l6ia_verify.py: every checksum of the result
   5. tools/hxf.py pack: the .hxf
 """
@@ -155,8 +155,9 @@ def main():
         # after every step that adds a model: each rebuilds the Entry 3 and 4 tails the knobs live in
         run(py, "tools/patch_comp.py", image, titled)
         os.replace(titled, image)
-    # last of all that touch Entry 4: drops the dead copies the steps before leave (room in its partition)
-    run(py, "tools/e4_compact.py", image, titled)
+    # last of all that touch Entry 4: drops the dead copies the steps before leave (room in its partition), and reports
+    # the space Blob 0, Entry 3 and Entry 4 use (tools/space_report.py)
+    run(py, "tools/e4_compact.py", image, titled, "--report", hex(E3_MAX))
     os.replace(titled, image)
     report = run(py, "tools/l6ia_verify.py", image, "--e3-max", hex(E3_MAX))
     if "ALL OK" not in report:

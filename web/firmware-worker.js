@@ -63,6 +63,7 @@ var SOURCES = [
   "tools/patch_dist.py",
   "tools/patch_teemah.py",
   "tools/e4_compact.py",
+  "tools/space_report.py",
   "tools/m4asm.py",
   "tools/image_store.py",
   "tools/patch_splash.py",
@@ -280,8 +281,10 @@ async function build(stock, flags, slots) {
            ["tools/patch_comp.py", "build/nam_lite.l6ia", "build/nam_lite_comp.l6ia"]);
       p.FS.rename("/repo/build/nam_lite_comp.l6ia", "/repo/build/nam_lite.l6ia");
     }
-    // as in build.py: last of all that touch Entry 4, whose dead copies the DSP would hold too
-    step(5, "Packing the model library…", ["tools/e4_compact.py", "build/nam_lite.l6ia", "build/nam_lite_e4.l6ia"]);
+    // as in build.py: last of all that touch Entry 4, whose dead copies take room in its partition; the log gets the
+    // space Blob 0, Entry 3 and Entry 4 use
+    step(5, "Packing the model library…", ["tools/e4_compact.py", "build/nam_lite.l6ia", "build/nam_lite_e4.l6ia",
+                                           "--report", "0x" + E3_MAX.toString(16)]);
     p.FS.rename("/repo/build/nam_lite_e4.l6ia", "/repo/build/nam_lite.l6ia");
     var report = step(6, "Checking every checksum and packing the file…",
                       ["tools/l6ia_verify.py", "build/nam_lite.l6ia", "--e3-max", "0x" + E3_MAX.toString(16)]);
