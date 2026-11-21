@@ -2,7 +2,7 @@
 """patch_dist.py IN OUT [--models NAME,...] [--cost N] [--donor STOCK.hxf]
 
 Mono distortions with test build D's four knobs (docs/research/sharc/cores/teemah.md, Test build D), every model in
-one pass:
+one pass: the core mono distortions, the legacy ones and Bronze Master (candidates), but SKIP:
 
   Full      (Mode 0): y = Level * (w * T(HP(x)) + d * x)        (the low-passes type 0)
   Crossover (Mode 1): y = Level * (w * T(HP(x)) + d * LP(x))
@@ -49,8 +49,20 @@ import patch_gate  # noqa: E402
 import patch_teemah as pt  # noqa: E402
 import pmap  # noqa: E402
 
-MODELS = None                                          # every core mono distortion (core_mono) but SKIP
-SKIP = {                                               # core mono distortions left as they are, and why
+MODELS = None                                          # every candidate (candidates) but SKIP
+# The legacy distortions, all mono, in the order of the unit's Distortion > Legacy browser list (Entry 0 list 10):
+# fifteen HD2_DM4*, Bronze Master (its own Blend "mixture") and Killer Z, the last two on one root with a hidden
+# Smart (slot 10000, no state, writes nothing); not Bass Octaver (pitch) nor Boost Comp and the other DM4 compressors
+# (dynamics). Their volume knob is Output, Level (Bronze Master) or Gain (Killer Z, shown as "Level"), so GROUPS
+# names it per model. Their Entry 3
+# meta carries displayParamCount (Bronze Master, Killer Z also presetParamCount, without Smart); e3_show_all raises
+# both by the new knobs, as Entry 0's row (rollout D5, docs/research/sharc/cores/teemah.md).
+BRONZE, KILLER_Z = 'Line6BronzeMaster', 'KillerZ'
+LEGACY = (
+    'HD2_DM4TubeDrive', 'HD2_DM4Screamer', 'HD2_DM4Overdrive', 'HD2_DM4ClassicDistortion', 'HD2_DM4HeavyDistortion',
+    'HD2_DM4ColorDrive', 'HD2_DM4BuzzSaw', 'HD2_DM4FacialFuzz', 'HD2_DM4JumboFuzz', 'HD2_DM4FuzzPi', 'HD2_DM4JetFuzz',
+    'HD2_DM4Line6Drive', 'HD2_DM4Line6Distortion', 'HD2_DM4SubOctFuzz', 'HD2_DM4OctaveFuzz', BRONZE, KILLER_Z)
+SKIP = {                                               # candidates left as they are, and why
     'HD2_DistClawthornDriveMono': 'dry path carries the block\'s own output on the unit (root on/off flags)',
     'HD2_DistBitcrusherMono': 'dry path carries the block\'s own output on the unit (root on/off flags)',
     'HD2_DistPocketFuzzMono': 'dry path follows the gain knob on the unit (a tap writes the in-port\'s buffer)',
@@ -76,7 +88,10 @@ GROUPS = {                                             # (group, Level knob) whe
     'HD2_DistClawthornDriveMono': ('g4', None),
     'HD2_DistKinkyBoostMono': ('g4', None),
     'HD2_DistVitalBoostMono': ('g4', None),
+    BRONZE: ('g1', 'Level'),
+    KILLER_Z: ('g1', 'Gain'),                          # Gain shows as "Level" and writes the last 0x80
 }
+GROUPS.update({n: ('g1', 'Output') for n in LEGACY if n not in GROUPS})
 ALL_KNOBS, XOVER_KNOBS = ('freq', 'dry', 'wet', 'mode'), ('freq', 'mode')
 # (parameter, state) names of the Mode knob; the second (stock strings of the Split XOver) where the model has a Mode
 # of its own (Pillars), shown as "Crossover" / "Xover" there
@@ -108,11 +123,18 @@ def _knobs(e, acc):
 
 
 def core_mono(info, rows=None):
-    """Entry 3 names of the core mono distortions (the legacy ones are HD2_DM4* and two others). With rows (the name
+    """Entry 3 names of the core mono distortions (HD2_Dist*Mono; the legacy ones are LEGACY). With rows (the name
     string indices that have a Static Model Table row, table1_names) only those: an HXtra build removes Xenomorph Fuzz
     Mono's row for NAM A2 Lite (preset_id 555), so the model is no longer reachable."""
     return tuple(m['name'] for m in info['models'] if m['name'].startswith('HD2_Dist') and m['name'].endswith('Mono')
                  and (rows is None or m['words'][2] in rows))
+
+
+def candidates(info, rows=None):
+    """Entry 3 names of every model patch_dist may build (SKIP included): the core mono distortions, then LEGACY, each as Entry 3 has it and, with rows, a Static Model Table row (core_mono)."""
+    have = {m['name']: m for m in info['models']}
+    rest = tuple(n for n in LEGACY if n in have and (rows is None or have[n]['words'][2] in rows))
+    return core_mono(info, rows) + rest
 
 
 def table1_names(e0):
@@ -307,8 +329,9 @@ def mode_meta(e3, disp=pt.MODE_NAME, short=pt.MODE_NAME):
 
 def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAMES[0]):
     """Entry 3 with Freq, Dry Level, Wet Level and Mode (those of `knobs`, in this order, Mode last; Mode named
-    mode_names) appended to model_name's parameters and states, its tables copied once (patch_comp.e3_add_knobs's
-    layout); records as patch_teemah.e3_add_param / e3_add_list write them. Returns (Entry 3, first new slot)."""
+    mode_names) added to model_name's parameters (at insert_at: before a hidden one on a slot from HIDDEN_SLOT, so
+    the shown ones stay first) and appended to its states, its tables copied once (patch_comp.e3_add_knobs's layout);
+    records as patch_teemah.e3_add_param / e3_add_list write them. Returns (Entry 3, first new slot)."""
     assert knobs in (ALL_KNOBS, XOVER_KNOBS)
     e3 = bytearray(e3)
     info = kp.parse_entry3_full(bytes(e3))
@@ -317,8 +340,10 @@ def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAME
     d = list(m['words'])
     n_par, n_st = d[7], d[6]
     old = [p['slot'] for p in m['params']]
-    assert n_par == n_st == len(old) and old == sorted(set(old)), f'{model_name}: parameters and states are not one per slot'
-    first = old[-1] + 1                                     # slot ids may have gaps (252 stock models): after the last
+    at = insert_at(m['params'])
+    assert n_par == len(old) and old == sorted(set(old)), f'{model_name}: parameters not one per slot'
+    assert n_st in (n_par, at), f'{model_name}: {n_st} states for {n_par} parameters, not one each but hidden ones'
+    first = old[at - 1] + 1                                 # slot ids may have gaps (252 stock models): after the last
     new = [n for n in (pt.FREQ_SRC[1], pt.DRY_SRC[1], pt.WET_SRC[1], mode_names[0])]
     assert not {p['name'] for p in m['params']} & set(new), f'{model_name} has {new} already'
     params, states = [], []
@@ -344,11 +369,48 @@ def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAME
     d[10] = len(e3)
     e3 += bytes(e3[m['words'][10]: m['words'][10] + 20 * n_st]) + b''.join(states)
     d[11] = len(e3)
-    e3 += bytes(e3[m['words'][11]: m['words'][11] + 32 * n_par]) + b''.join(params)
+    po = m['words'][11]
+    e3 += bytes(e3[po: po + 32 * at]) + b''.join(params) + bytes(e3[po + 32 * at: po + 32 * n_par])
     d[6], d[7] = n_st + n_new, n_par + n_new
     struct.pack_into('<14I', e3, m['off'], *d)
     struct.pack_into('<I', e3, 8, len(e3))
     return bytes(e3), first
+
+
+HIDDEN_SLOT = pt.HIDDEN_SLOT                           # Bronze Master's Smart: hidden, no state, writes nothing
+SHOWN_META = ('displayParamCount', 'presetParamCount')
+
+
+def insert_at(params):
+    """Index in a model's parameter list where patch_dist's knobs go: before the hidden ones on a slot from
+    HIDDEN_SLOT (Entry 3 lists them last), else at the end. label_color colours the knobs from there."""
+    at = len(params)
+    while at and params[at - 1]['slot'] >= HIDDEN_SLOT:
+        at -= 1
+    return at
+
+
+def e3_show_all(e3, model_name, k, S):
+    """Entry 3 with model_name's meta displayParamCount and presetParamCount (where it has them) k higher, so the new
+    knobs are shown and saved: its meta table copied once with those values replaced (strings of Entry 3). Core
+    models have neither."""
+    e3 = bytearray(e3)
+    m = kp.find_model(kp.parse_entry3_full(bytes(e3)), model_name)
+    if not any(key in SHOWN_META for _, key, *_ in m['meta_recs']):
+        return bytes(e3)
+    recs = []
+    for off, key, kt, kv, val in m['meta_recs']:
+        if key in SHOWN_META:
+            assert kt == 7 and str(int(val) + k) in S, f'{model_name}: {key} {val!r} + {k} is no Entry 3 string'
+            kv = S[str(int(val) + k)]
+        recs.append(struct.pack('<3I', struct.unpack_from('<I', e3, off)[0], kt, kv))
+    d = list(m['words'])
+    e3 += bytes((-len(e3)) % 4)
+    d[1] = len(e3)
+    e3 += b''.join(recs)
+    struct.pack_into('<14I', e3, m['off'], *d)
+    struct.pack_into('<I', e3, 8, len(e3))
+    return bytes(e3)
 
 
 def e4_write(e4, b0_new, blobs):
@@ -401,8 +463,8 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
     b0 = fw.b0
     info = fw.e3
     if models is None:
-        reachable = core_mono(info, table1_names(e0))
-        for name in sorted(set(core_mono(info)) - set(reachable)):
+        reachable = candidates(info, table1_names(e0))
+        for name in sorted(set(candidates(info)) - set(reachable)):
             log(f'[ ] {name}: no Static Model Table row (removed by this build), left as it is')
         models = tuple(n for n in reachable if n not in SKIP)
         for name in (n for n in reachable if n in SKIP):
@@ -446,7 +508,8 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
         blob.register({k: members[k - 1][3] for k in new})
         assert blob.sub_map() == blob.positions(), f"{m['name']}: sub-bindings do not match the node tree"
         blobs[m['blob_index']] = blob.assemble()
-        e0 = patch_comp.e0_set_param_counts(e0, m['words'][2], n, n + len(p['knobs']))
+        e3 = e3_show_all(e3, m['name'], len(p['knobs']), S)
+        e0 = patch_comp.e0_set_param_counts(e0, m['words'][2], n, n + len(p['knobs']), hidden_ok=True)
         e0, old_cost = patch_gate.e0_add_cost(e0, m['words'][2], cost)
         where = (f"crossover after slot {p['at']}" if sl['mix'] is None
                  else f"mixer before slot {smap[p['at']]}" + (' (dry follows Level)' if p['level'] else ''))
@@ -458,8 +521,9 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
     for m in ms:
         c = kp.find_model(chk, m['name'])
         old = [p['slot'] for p in m['params']]
-        k = len(plans[m['name']]['knobs'])
-        assert [p['slot'] for p in c['params']] == old + list(range(old[-1] + 1, old[-1] + 1 + k)), m['name']
+        k, at = len(plans[m['name']]['knobs']), insert_at(m['params'])
+        assert [p['slot'] for p in c['params']] == old[:at] + list(range(old[at - 1] + 1, old[at - 1] + 1 + k)) + \
+            old[at:], m['name']
         assert not kp.pmap_slots_without_param(e4, m['blob_index'], c['params']), f"{m['name']}: a slot without param"
     entries = l6ia.parse(l6ia_bytes)
     e2_raw = l6ia_bytes[entries[2]['payload_off']: entries[2]['payload_off'] + entries[2]['payload_len']]

@@ -159,6 +159,9 @@ def append_composite(b0, members, n_buf=2):
     return b0, 0x600000 + n_comp
 
 
+HIDDEN_SLOT = 10000                     # slots from here: hidden parameters (Bronze Master's Smart)
+
+
 class Blob:
     """A model blob taken apart so that its path area can grow, and laid out again by assemble() in stock order:
     header (12 words), path and value area, node tree (child blocks depth first), parameter map, init records,
@@ -309,12 +312,16 @@ class Blob:
         ct = [pm[c + 4 * k: c + 4 * k + 4] for k in range(nc)]
         dt = [pm[d + 4 * k: d + 4 * k + 4] for k in range(nd)]
         et = [pm[e + 4 * k: e + 4 * k + 4] for k in range(ne)]
-        assert max(r[2] for r in dt) < slot, f'slot {slot} is not after the map\'s slots'  # ids may have gaps
+        # ids may have gaps; a hidden parameter (slot from HIDDEN_SLOT: Bronze Master's Smart) stays last: the new one
+        # goes before it in Entry 3 (patch_dist.e3_add_params), so its row (word 1 = its index there) moves up one
+        shown = [r for r in dt if r[2] < HIDDEN_SLOT]
+        assert slot < HIDDEN_SLOT and max(r[2] for r in shown) < slot, f'slot {slot} is not after the map\'s slots'
+        hidden = [[r[0], r[1] + 1, r[2], r[3]] for r in dt if r[2] >= HIDDEN_SLOT]
         root = {r[0] for r in self.pins if r[3] == 1 and self.path(r[0]) == (0,)}
         assert len(root) == 1, 'no single root path among the init records'
         inp = len(nodes)
         nodes.append([nodes[0][0], 0, inp, input_op, 1, 2, 0, 0, 1, 0])
-        dt.append([inp, ne, slot, 0])
+        dt = shown + [[inp, len(shown), slot, 0]] + hidden
         et.append([inp, ne, ne, 0])
         for s, _, _ in outs:
             self.slot_path(s)

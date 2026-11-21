@@ -147,7 +147,8 @@ CORE = (
     'HD2_DistBallisticFuzzMono', 'HD2_DistPocketFuzzMono', 'HD2_DistRatatouilleDistMono', 'HD2_DistVitalDistMono',
     'HD2_DistVitalBoostMono', 'HD2_DistPillarsMono', 'HD2_DistDarkDoveFuzzMono', 'HD2_DistPrizeDriveMono',
     'HD2_DistRegalBassDIMono')
-PATCHED = tuple(n for n in CORE if n not in pdist.SKIP)
+CANDIDATES = CORE + pdist.LEGACY
+PATCHED = tuple(n for n in CANDIDATES if n not in pdist.SKIP)
 NAMES = {'freq': 'Frequency', 'dry': 'Dry Level', 'wet': 'Wet Level', 'mode': 'Mode'}
 
 
@@ -166,6 +167,20 @@ def full():
 @pytest.mark.firmware
 def test_the_core_mono_distortions_are_these_44():
     assert pdist.core_mono(kp.parse_entry3_full(firmware.stock_entry(3))) == CORE and len(CORE) == 44
+
+
+@pytest.mark.firmware
+def test_the_candidates_are_the_core_ones_and_the_17_legacy_ones():
+    """Rollout D5: the unit's Distortion > Legacy list (Entry 0 browser list 10: fifteen HD2_DM4*, Bronze Master,
+    Killer Z; helixhelp.com, Distortion: Legacy, 17 models), all mono; not Bass Octaver (pitch) nor Boost Comp and
+    the other DM4 compressors (dynamics)."""
+    info = kp.parse_entry3_full(firmware.stock_entry(3))
+    assert pdist.candidates(info) == CANDIDATES and len(CANDIDATES) == 61 and len(pdist.LEGACY) == 17
+    rest = [kp.find_model(info, n)['meta'] for n in CANDIDATES[len(CORE):]]
+    assert all(m['subcategory'] == 'mono' for m in rest)
+    assert [m['category'] for m in rest] == ['distortion'] * 17
+    dm4 = [m for m in info['models'] if m['name'].startswith('HD2_DM4') and m['name'] not in CANDIDATES]
+    assert sorted(m['meta']['category'] for m in dm4) == ['dynamics'] * (len(dm4) - 1) + ['pitch']
 
 
 def test_a_model_without_a_static_model_table_row_is_left_out():
@@ -188,7 +203,7 @@ def test_the_skipped_models_stay_stock(full):
     assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono',
                                'HD2_DistPocketFuzzMono', 'HD2_DistKWBMono', 'HD2_DistSwedishChainsawMono',
                                'HD2_DistAlpacaRougeMono', 'HD2_DistBallisticFuzzMono', 'HD2_DistDarkDoveFuzzMono',
-                               'HD2_DistRamsHeadMono', 'HD2_DistValveDriverMono'} and len(PATCHED) == 34
+                               'HD2_DistRamsHeadMono', 'HD2_DistValveDriverMono'} and len(PATCHED) == 51
     for n in pdist.SKIP:
         i = _model(stock, n)['blob_index']
         assert repr(_params(new, n)) == repr(_params(stock, n))
@@ -214,11 +229,13 @@ def test_each_model_gets_its_knobs_after_its_own(full, name):
     stock, new, plans, _ = full
     knobs = plans[name]['knobs']
     old, ps = _params(stock, name), _params(new, name)
-    assert ps[:len(old)] == old and len(ps) == len(old) + len(knobs)
+    at = pdist.insert_at(_model(stock, name)['params'])             # before a hidden one (Bronze Master's Smart)
+    assert ps[:at] == old[:at] and ps[at + len(knobs):] == old[at:] and len(ps) == len(old) + len(knobs)
+    mine = ps[at: at + len(knobs)]
     mode = 'Xover' if 'Mode' in [p[0] for p in old] else 'Mode'
-    assert [p[0] for p in ps[len(old):]] == [NAMES[k] for k in knobs[:-1]] + [mode]
-    assert [p[2] for p in ps[len(old):]] == list(range(old[-1][2] + 1, old[-1][2] + 1 + len(knobs)))
-    assert [p[6] for p in ps[len(old):]] == [{'freq': 20.0, 'dry': -60.0, 'wet': 0.0, 'mode': 0}[k] for k in knobs]
+    assert [p[0] for p in mine] == [NAMES[k] for k in knobs[:-1]] + [mode]
+    assert [p[2] for p in mine] == list(range(old[at - 1][2] + 1, old[at - 1][2] + 1 + len(knobs)))
+    assert [p[6] for p in mine] == [{'freq': 20.0, 'dry': -60.0, 'wet': 0.0, 'mode': 0}[k] for k in knobs]
 
 
 @pytest.mark.firmware
@@ -319,6 +336,58 @@ def test_no_member_names_a_list_entry_its_composite_lacks(full):
     assert not bad
 
 
+def _row(l6, name_idx):
+    """Entry 0 UI Model Info Table counts (shown, saved in a preset, all) of a model."""
+    e0 = kp.get_entry_swapped(l6, 0)
+    segs = kp._parse_e0_segments(e0)
+    A = kp.e0_device(segs)
+    fo = lambda va, ln=4: kp._e0_vaddr_to_foff(segs, va, ln)
+    tab = struct.unpack_from('<I', e0, fo(A.TAB2_BASE_PTR))[0]
+    _, cnt = kp._decode_thumb_movw(e0[fo(A.TAB2_CNT_INSN): fo(A.TAB2_CNT_INSN) + 4])
+    rows = [tab + 44 * i for i in range(cnt) if struct.unpack_from('<I', e0, fo(tab + 44 * i))[0] == name_idx]
+    assert len(rows) == 1
+    return struct.unpack_from('<3I', e0, fo(rows[0] + 24, 12))
+
+
+@pytest.mark.firmware
+@pytest.mark.parametrize('name', PATCHED)
+def test_each_models_new_knobs_are_shown_and_saved(full, name):
+    """Entry 0's row and the Entry 3 meta displayParamCount / presetParamCount (legacy models and Bronze Master have
+    them) count the new knobs; hidden ones stay hidden (Bronze Master's Smart: 4, 4, 5 -> 8, 8, 9)."""
+    stock, new, plans, _ = full
+    k = len(plans[name]['knobs'])
+    mo, mn = _model(stock, name), _model(new, name)
+    assert _row(new, mn['words'][2]) == tuple(c + k for c in _row(stock, mo['words'][2]))
+    for key in pdist.SHOWN_META:
+        assert (key in mn['meta']) == (key in mo['meta'])
+        if key in mo['meta']:
+            assert int(mn['meta'][key]) == int(mo['meta'][key]) + k
+    assert {x: v for x, v in mn['meta'].items() if x not in pdist.SHOWN_META} == \
+        {x: v for x, v in mo['meta'].items() if x not in pdist.SHOWN_META}
+
+
+@pytest.mark.firmware
+@pytest.mark.parametrize('name', (pdist.BRONZE, pdist.KILLER_Z))
+def test_knobs_go_before_a_hidden_smart(full, name):
+    """Bronze Master and Killer Z (one root): Smart (slot 10000, no state, writes nothing) stays last and hidden; the
+    slot map (table D: node, index in Entry 3's parameter list, slot) keeps slot order and moves Smart's index up by
+    four; Entry 0's row grows by four in each count (Bronze Master 4, 4, 5 -> 8, 8, 9)."""
+    stock, new, _, _ = full
+    old = _params(stock, name)
+    assert old[-1][0] == 'Smart' and old[-1][2] == pdist.HIDDEN_SLOT and pdist.insert_at(_model(stock, name)['params']) == len(old) - 1
+    slots = [p[2] for p in old[:-1]]
+    want = slots + list(range(slots[-1] + 1, slots[-1] + 5)) + [pdist.HIDDEN_SLOT]
+    assert [p[0] for p in _params(new, name)] == [p[0] for p in old[:-1]] + ['Frequency', 'Dry Level', 'Wet Level',
+                                                                             'Mode', 'Smart']
+    assert [p[2] for p in _params(new, name)] == want
+    ms, m = _model(stock, name), _model(new, name)
+    assert _row(stock, ms['words'][2]) == (len(old) - 1, len(old) - 1, len(old))
+    assert ms['words'][6] == len(old) - 1 and m['words'][6] == len(old) + 3        # no state for Smart
+    pm = pt.Blob(eb.blob(_w4(new), m['blob_index'])).pm
+    d = [pm[pm[6] + 4 * k: pm[6] + 4 * k + 4] for k in range(pm[21])]
+    assert [(r[1], r[2]) for r in d] == list(enumerate(want)) and pm[22] == len(old) + 3
+
+
 @pytest.mark.firmware
 def test_full_build_keeps_every_other_model_and_blob_stock(full):
     stock, new, plans, _ = full
@@ -332,7 +401,7 @@ def test_full_build_keeps_every_other_model_and_blob_stock(full):
     assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
     bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
     roots = {p['root'] for p in plans.values()}
-    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 30
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 35
 
 
 @pytest.mark.firmware
@@ -342,7 +411,9 @@ def test_full_build_fits_with_room_to_spare(full):
     assert kp.sharc_blob0_check(list(b0), kp.SHARC_BLOB0_MAX_WORDS) is None
     assert len(b0) - len(eb.blob(_w4(stock), 0)) < 33000                 # plan: about 33 000 words
     grow = len(kp.get_entry_swapped(new, 3)) - len(kp.get_entry_swapped(stock, 3))
-    assert grow <= sum(52 * (len(_model(stock, n)['params']) + len(plans[n]['knobs'])) for n in PATCHED) + 2 * 64
+    meta = sum(12 * len(_model(stock, n)['meta_recs']) for n in PATCHED        # e3_show_all's copies
+               if set(pdist.SHOWN_META) & set(_model(stock, n)['meta']))
+    assert grow <= sum(52 * (len(_model(stock, n)['params']) + len(plans[n]['knobs'])) for n in PATCHED) + meta + 2 * 64
     assert len(kp.get_entry_swapped(new, 4)) <= kp.E4_MAX
     for n in PATCHED:
         assert not kp.pmap_slots_without_param(kp.get_entry_swapped(new, 4), _model(new, n)['blob_index'],

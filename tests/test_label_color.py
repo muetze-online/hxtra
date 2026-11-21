@@ -167,8 +167,10 @@ def test_with_dist_xover_the_distortions_follow_with_their_stock_counts(monkeypa
     monkeypatch.setenv('HX_DIST_XOVER', '1')
     params = stock_params()
     info = pa.parse_entry3_full(stock_entry(3))
-    names = patch_dist.core_mono(info)
-    assert params[:len(base)] == base and len(params) == len(base) + len(names) == len(base) + 44
+    names = patch_dist.candidates(info)
+    assert params[:len(base)] == base and len(params) == len(base) + len(names) == len(base) + 61
     models = {m['name']: m for m in info['models']}
-    assert [n for _, n in params[len(base):]] == [len(models[n]['params']) for n in names]
-    assert dict(zip(names, (n for _, n in params[len(base):])))['HD2_DistTeemahMono'] == 5
+    assert [n for _, n in params[len(base):]] == [patch_dist.insert_at(models[n]['params']) for n in names]
+    first = dict(zip(names, (n for _, n in params[len(base):])))
+    assert first['HD2_DistTeemahMono'] == 5 and first['HD2_DM4FuzzPi'] == 5
+    assert first[patch_dist.BRONZE] == 4 and first[patch_dist.KILLER_Z] == 5, 'their knobs go before Smart'

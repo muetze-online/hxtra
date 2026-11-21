@@ -36,8 +36,8 @@ def hxtra_params(e0_read, e0_u32, segs, e3):
         out.append((METRONOME, 0))
     if os.environ.get('HX_DIST_XOVER'):              # tools/patch_dist.py runs later: these counts are still stock
         import patch_dist
-        names = patch_dist.MODELS or patch_dist.core_mono({'models': list(models.values())})
-        out += [(pid[models[n]['words'][2]], len(models[n]['params'])) for n in names
+        names = patch_dist.MODELS or patch_dist.candidates({'models': list(models.values())})
+        out += [(pid[models[n]['words'][2]], patch_dist.insert_at(models[n]['params'])) for n in names
                 if n in models and models[n]['words'][2] in pid]
     return out
 

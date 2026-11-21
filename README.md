@@ -203,7 +203,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 - Dry Level mixes the block's unprocessed input back in at the end, Wet Level sets the effect signal; the block's own Level still sets its overall volume.
 - Only the input above Frequency goes into the effect. Mode sets what the dry signal carries: the full range (Full) or only what lies below Frequency (Xover). At their defaults a block sounds as on stock firmware.
-- Every mono distortion but the legacy ones and those below. Not every block gets all four: Obsidian 7000, whose Blend already mixes a clean path, gets Frequency and Mode only.
+- Every mono distortion, the 17 legacy ones included, but those below. Not every block gets all four: Obsidian 7000, whose Blend already mixes a clean path, gets Frequency and Mode only. Bronze Master keeps its own Blend as well and gets all four.
 - Not supported (they stay stock, found on the unit):
   - Clawthorn Drive and Bitcrusher: the dry path carries the block's own output
   - Pocket Fuzz, KWB, Swedish Chainsaw and Alpaca Rouge: the dry path follows the gain knob

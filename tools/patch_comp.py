@@ -316,8 +316,11 @@ def e4_replace_blob(e4, idx, words):
     return out
 
 
-def e0_set_param_counts(e0, name_idx, old, new):
-    """Entry 0 with the model's UI Model Info Table row (bytes 24..35: three parameter counts) set to `new`."""
+def e0_set_param_counts(e0, name_idx, old, new, hidden_ok=False):
+    """Entry 0 with the model's UI Model Info Table row (bytes 24..35: three parameter counts, shown, saved in a
+    preset, all) set to `new`. The row must count `old` three times, or with hidden_ok (shown <= saved <= old)
+    `old` last (Bronze Master: 4, 4, 5): each count then grows by new - old (8, 8, 9), the new parameters shown and
+    saved, the hidden ones still hidden (patch_dist puts the new ones before them)."""
     e0 = bytearray(e0)
     segs = pa._parse_e0_segments(e0)
     A = pa.e0_device(segs)
@@ -327,8 +330,9 @@ def e0_set_param_counts(e0, name_idx, old, new):
     rows = [tab + 44 * i for i in range(cnt) if struct.unpack_from('<I', e0, fo(tab + 44 * i))[0] == name_idx]
     assert len(rows) == 1, f'{len(rows)} rows for string {name_idx} in the UI Model Info Table'
     r = fo(rows[0] + 24, 12)
-    assert struct.unpack_from('<3I', e0, r) == (old,) * 3, f'row counts {struct.unpack_from("<3I", e0, r)}, not {old}'
-    struct.pack_into('<3I', e0, r, new, new, new)
+    c = struct.unpack_from('<3I', e0, r)
+    assert c == (old,) * 3 or (hidden_ok and c[0] <= c[1] <= c[2] == old), f'row counts {c}, not {old}'
+    struct.pack_into('<3I', e0, r, *(x + new - old for x in c))
     return bytes(e0)
 
 
