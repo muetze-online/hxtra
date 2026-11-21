@@ -291,6 +291,35 @@ def test_each_models_composite_keeps_its_connections(full, name):
 
 
 @pytest.mark.firmware
+@pytest.mark.parametrize('name', PATCHED)
+def test_each_models_composite_keeps_its_list(full, name):
+    """Header words 4/5 (count and offset of the composite's list, 4 words an entry) are the stock root's, and no
+    member names (record word 19) an entry past the count. A build that wrote 0 left Megaphone's member 0x2396 naming
+    entry 1 of an empty list and hung the unit after a run of model changes (2026-11-21)."""
+    stock, new, plans, reports = full
+    bo, bn = eb.blob(_w4(stock), 0), eb.blob(_w4(new), 0)
+    ho, _ = pdist._composite(bo, plans[name]['root'])
+    hn, mem = pdist._composite(bn, int(reports[name][1]['root'], 16))
+    assert hn[4] == ho[4] and (hn[5] == ho[5] or not ho[4])
+    assert max(m[0][19] for m in mem) <= hn[4]
+
+
+@pytest.mark.firmware
+def test_no_member_names_a_list_entry_its_composite_lacks(full):
+    """Every composite of the new Blob 0, stock and new: record word 19 of each member at most header word 4."""
+    _, new, _, _ = full
+    b0 = eb.blob(_w4(new), 0)
+    ct = b0[0x10]
+    bad = []
+    for i in range(b0[0xf]):
+        h = b0[ct + 7 * i: ct + 7 * i + 7]
+        refs = max((b0[h[3] + 20 * k + 19] for k in range(h[2])), default=0)
+        if refs > h[4]:
+            bad.append((hex(0x600000 + i), refs, h[4]))
+    assert not bad
+
+
+@pytest.mark.firmware
 def test_full_build_keeps_every_other_model_and_blob_stock(full):
     stock, new, plans, _ = full
     e3o, e3n = (kp.parse_entry3_full(kp.get_entry_swapped(x, 3)) for x in (stock, new))

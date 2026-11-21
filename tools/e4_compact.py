@@ -3,9 +3,8 @@
 
 Every step that changes Entry 4 writes the blobs it grows past the end or behind a relocated directory and leaves the old
 copies where they were: a full HXtra image carries some 2 MiB of dead words, most of it the stock directory and Blob 0.
-The DSP holds all of Entry 4 in its DDR2, next to the block instances a preset needs, and a longer Entry 4 hangs the
-unit when a preset with rebuilt models is loaded [verified on unit, docs/resource-limits.md]. So the image ends with
-Entry 4 as stock has it: the 6-word header, the directory at word 6, then every blob in index order, each word for word.
+The M4 reads Entry 4 blob by blob and never its length (docs/research/formats/containers.md), so the dead words cost
+only room in the partition (kp.E4_MAX). The image ends with Entry 4 as stock has it: the 6-word header, the directory at word 6, then every blob in index order, each word for word.
 Blobs hold no Entry 4 offsets (their relocations are blob-relative, docs/research/sharc/model-blobs.md); earlier steps
 move them already. On a compact Entry 4, stock's among them, this changes nothing.
 """

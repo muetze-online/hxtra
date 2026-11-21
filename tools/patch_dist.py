@@ -225,7 +225,8 @@ def build_members(b0, root, plan):
         members = (old[:L] + [biquad(HP_TYPE, drive[0]), biquad(HP_TYPE, drive[0]),
                               biquad(lp_t, wet_in), biquad(lp_t, wet_in)] + old[L:])
         smap = {s: s if s <= L else s + 4 for s in range(1, len(old) + 1)}
-        slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1], 'head': h[0]}
+        slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1], 'head': h[0],
+                 'list': (h[4], h[5])}
         assert len(members) == len(old) + 4 and all(members[s - 1][0][6] == 0x102 for s in slots['hp'] + slots['lp'])
         return members, smap, slots
     # The dry path starts with its first low-pass reading the in-port's buffer into the new one: no copy member. A
@@ -238,7 +239,7 @@ def build_members(b0, root, plan):
     members = ([old[0], lp1, biquad(lp_t, dry), biquad(HP_TYPE, wet_in), biquad(HP_TYPE, wet_in)] + old[1:L - 1]
                + [mix] + old[L - 1:])
     smap = {s: s if s == 1 else s + 4 if s < L else s + 5 for s in range(1, len(old) + 1)}
-    slots = {'hp': (4, 5), 'lp': (2, 3), 'mix': L + 4, 'buffers': h[1] + 1, 'head': h[0]}
+    slots = {'hp': (4, 5), 'lp': (2, 3), 'mix': L + 4, 'buffers': h[1] + 1, 'head': h[0], 'list': (h[4], h[5])}
     assert members[slots['mix'] - 1][0][6] == 0x84 and members[smap[L] - 1] is lvl and len(members) == len(old) + 5
     assert all(m[0][4] != 1 for m in members[1:5]), 'a copy member among the new ones'
     return members, smap, slots
@@ -246,8 +247,12 @@ def build_members(b0, root, plan):
 
 def append_composites(b0, composites):
     """Blob 0 with one copy of the composite table, len(composites) entries longer, and the new composites after it;
-    composites = [(members, n_buf, header word 0)], members as _composite's (a connection is written after the
-    member's init, its offset word pointing at its two words). Returns (Blob 0, [new composite ids])."""
+    composites = [(members, n_buf, header word 0, (header words 4, 5))], members as _composite's (a connection is
+    written after the member's init, its offset word pointing at its two words). Header words 4/5 are the stock
+    root's list (count, offset; 4 words an entry) that members name by record word 19 (1..count): the new header
+    points at the stock list, which stays where it is. A build that wrote 0 there left Megaphone's member 0x2396
+    naming entry 1 of an empty list ([1, 1, 0, 0xbc00] in stock) and hung the unit after a run of model changes
+    (2026-11-21). Returns (Blob 0, [new composite ids])."""
     b0 = list(b0)
     n_comp, ctab = b0[0xf], b0[0x10]
     new_ctab = len(b0)
@@ -255,7 +260,7 @@ def append_composites(b0, composites):
     hdrs = len(b0)
     b0.extend([0] * (7 * len(composites)))
     ids = []
-    for c, (members, n_buf, head) in enumerate(composites):
+    for c, (members, n_buf, head, (n_list, list_off)) in enumerate(composites):
         mem_off = len(b0)
         b0.extend([0] * (20 * len(members)))
         for k, (rec, ins, outs, init, conn) in enumerate(members):
@@ -270,7 +275,10 @@ def append_composites(b0, composites):
             if not ins:
                 r[8] = r[10]
             b0[mem_off + 20 * k: mem_off + 20 * k + 20] = r
-        b0[hdrs + 7 * c: hdrs + 7 * c + 7] = [head, n_buf, len(members), mem_off, 0, len(b0), 0]
+        refs = max(rec[19] for rec, *_ in members)
+        assert refs <= n_list, f'composite {c}: a member names list entry {refs} of {n_list}'
+        b0[hdrs + 7 * c: hdrs + 7 * c + 7] = [head, n_buf, len(members), mem_off, n_list,
+                                              list_off if n_list else len(b0), 0]
         ids.append(0x600000 + n_comp + c)
     b0[0xf], b0[0x10] = n_comp + len(composites), new_ctab
     err = kp.sharc_blob0_check(b0, kp.SHARC_BLOB0_MAX_WORDS)
@@ -408,7 +416,7 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
         assert roots.setdefault(p['root'], (key, p)) [0] == key, \
             f"{name}: {key} on root {p['root']:#x}, which another model has at {roots[p['root']][0]}"
     built = {root: build_members(b0, root, p) for root, (_, p) in roots.items()}
-    b0_new, ids = append_composites(b0, [(mem, sl['buffers'], sl['head']) for mem, _, sl in built.values()])
+    b0_new, ids = append_composites(b0, [(mem, sl['buffers'], sl['head'], sl['list']) for mem, _, sl in built.values()])
     new_comp = dict(zip(built, ids))
     e3, meta, S = mode_meta(e3)
     meta2 = None

@@ -155,7 +155,7 @@ def main():
         # after every step that adds a model: each rebuilds the Entry 3 and 4 tails the knobs live in
         run(py, "tools/patch_comp.py", image, titled)
         os.replace(titled, image)
-    # last of all that touch Entry 4: the DSP holds all of it, dead copies included, and a long one hangs the unit
+    # last of all that touch Entry 4: drops the dead copies the steps before leave (room in its partition)
     run(py, "tools/e4_compact.py", image, titled)
     os.replace(titled, image)
     report = run(py, "tools/l6ia_verify.py", image, "--e3-max", hex(E3_MAX))

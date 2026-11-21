@@ -18,7 +18,7 @@ The HX Stomp has two processors. The **M4** (LPC4350, the CPU) runs the screen, 
 | Preset model IDs (1..832) | **8** | each new model | verified offline |
 | Entry 2 partition (DSP boot stream, 512 KiB) | **9.5 KB** (NAM build); **2.3 KB** with `HX_GR=1 HX_CLICK=1` | DSP code and tables | verified offline |
 | Entry 3 (model database) | **between 1 KB and 11 KB** past the default build's `0xf0d00` bytes: `0xf10f0` is known to work, and by `0xf3888` the unit drops every amp and preamp (the partition itself has 53 KB) | models (~1.8 KB), knobs (~1 KB per model) | verified on unit |
-| Entry 4 length (model library, all of it held in the DSP's DDR2) | a preset with rebuilt models loads at `0xe8a020` bytes and hangs the unit at `0xe906d4`; the limit depends on the preset (block instances share that memory). `tools/e4_compact.py` drops the dead copies (~2.2 MB in a full build), which brings all 33 crossover distortions to `0xc8bc78`: Favorites, model browser and a large preset run [verified on unit, 2026-11-21, RAM run] | models, knobs, rebuilt model blobs | verified on unit (2026-11-21, 15 images) |
+| Entry 4 partition (model library, `kp.E4_MAX` = `0xf7f000` bytes) | **~3.1 MB** past a full build (all 33 crossover distortions, `0xc8bc78` bytes after `tools/e4_compact.py`) | models, knobs, rebuilt model blobs | verified offline; the length itself is never read (the M4 reads blob by blob), so the hangs once put down to it were a build bug (Megaphone's composite list, fixed 2026-11-21) [on unit 2026-11-21] |
 | Blob 0 buffer (DSP composite library) | 88,551 words (~27 more cloned composites) | models | verified offline |
 | DSP time per preset | M4 admits up to 90%; 15% always taken | blocks in a preset | verified offline |
 | M4 code space (segment 6) | **1.73 MB** before the RAM-run hook at `0x29000000`; ~3.1 MB installed (4 MiB image cap) | caves, relocated tables | verified offline |
@@ -46,7 +46,7 @@ The HX Stomp has two processors. The **M4** (LPC4350, the CPU) runs the screen, 
 ### Models [verified offline]
 
 - **Preset model IDs stop at 832**: the app keeps 833-entry arrays indexed by preset ID (init loop `0x28e01182`) and rejects `id > 0x340` (`0x28e01518`, `0x28e01d30`, `0x28e0768e`, about 12 sites). Stock uses 823 of them, and NAM uses 147 and 148.
-- Each `add-model` appends new copies of the Static Model Table (~10 KB) and the UI Model Info Table (~36 KB) to segment 6, and leaves the old copies behind. The first model also copies Entry 3's string and descriptor tables (+156 KB once) and moves Blob 0 to Entry 4's tail (+1.98 MB once). Each Blob 0 clone appends a whole copy of the composite table. The build's last step on Entry 4, `tools/e4_compact.py`, lays it out again as stock does (directory at word 6, blobs in index order), so the old Blob 0 and the old copies of rebuilt model blobs no longer count against the Entry 4 length above.
+- Each `add-model` appends new copies of the Static Model Table (~10 KB) and the UI Model Info Table (~36 KB) to segment 6, and leaves the old copies behind. The first model also copies Entry 3's string and descriptor tables (+156 KB once) and moves Blob 0 to Entry 4's tail (+1.98 MB once). Each Blob 0 clone appends a whole copy of the composite table. The build's last step on Entry 4, `tools/e4_compact.py`, lays it out again as stock does (directory at word 6, blobs in index order), so the old Blob 0 and the old copies of rebuilt model blobs no longer take room in Entry 4's partition.
 
 ### M4 memory [verified offline: reset handler `0x28d92598`]
 
