@@ -183,4 +183,14 @@ def test_plan_of_the_build(tmp_path):
     regions, checks, summary = hxf_ram.plan(str(out), stock)
     assert [i for i, *_ in summary["changed"]] == [2, 3, 4, 8]       # 8: the boot picture
     assert summary["end"] <= hxf_ram.RB_STAGE_BASE
-    assert sum(len(b) for _, b, _ in regions) < 4 << 20
+    assert summary["pool"][2] >= hxf_ram.POOL_MIN       # the compacted Entry 4 moves every blob: most of it is overlay
+
+
+def test_pool_takes_what_the_overlay_leaves():
+    s, top = hxf_ram.SECTOR, hxf_ram.RB_STAGE_BASE
+    end = lambda at, p: ((at + 4 * p + s - 1) & ~(s - 1)) + s * p
+    assert hxf_ram.pool_fit(0x29000000) == hxf_ram.POOL_MAX
+    for at in (0x29c00000, 0x29d00000, 0x29d40000):
+        p = hxf_ram.pool_fit(at)
+        assert hxf_ram.POOL_MIN <= p < hxf_ram.POOL_MAX and end(at, p) <= top < end(at, p + 64)
+    assert hxf_ram.pool_fit(0x29d80000) < hxf_ram.POOL_MIN        # 512 KiB left: plan() refuses

@@ -26,7 +26,7 @@ var STOCK_MD5 = {
   "a2cd8f4ae56f49415380270ebc484bf1": "HX_Stomp",
 };
 var BUILT_MD5 = {
-  "HX_Stomp": "9d804d5e99f19b0223f2f3d866e60807",
+  "HX_Stomp": "6087a0a1e5016a46bebe99c009b67f4e",
 };
 
 // build.py's KERNEL, STEPS and E3_MAX (tests/test_web_build.py keeps them equal): the kernel
@@ -62,6 +62,7 @@ var SOURCES = [
   "tools/patch_comp.py",
   "tools/patch_dist.py",
   "tools/patch_teemah.py",
+  "tools/e4_compact.py",
   "tools/m4asm.py",
   "tools/image_store.py",
   "tools/patch_splash.py",
@@ -279,6 +280,9 @@ async function build(stock, flags, slots) {
            ["tools/patch_comp.py", "build/nam_lite.l6ia", "build/nam_lite_comp.l6ia"]);
       p.FS.rename("/repo/build/nam_lite_comp.l6ia", "/repo/build/nam_lite.l6ia");
     }
+    // as in build.py: last of all that touch Entry 4, whose dead copies the DSP would hold too
+    step(5, "Packing the model library…", ["tools/e4_compact.py", "build/nam_lite.l6ia", "build/nam_lite_e4.l6ia"]);
+    p.FS.rename("/repo/build/nam_lite_e4.l6ia", "/repo/build/nam_lite.l6ia");
     var report = step(6, "Checking every checksum and packing the file…",
                       ["tools/l6ia_verify.py", "build/nam_lite.l6ia", "--e3-max", "0x" + E3_MAX.toString(16)]);
     if (report.indexOf("ALL OK") < 0) throw new Error("The built image failed its check.");

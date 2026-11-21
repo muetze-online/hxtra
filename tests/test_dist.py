@@ -376,6 +376,59 @@ def test_e4_write_rewrites_a_blob_of_the_same_length_in_place():
     assert out[2] == [5] * 4 and w[w[3] + 5] == wo[wo[3] + 5]
 
 
+# ---- tools/e4_compact.py: Entry 4 without dead copies, the last step on it
+
+@pytest.mark.parametrize('relocated', [False, True], ids=['stock', 'hxtra'])
+def test_compact_keeps_every_blob_and_drops_every_gap(relocated):
+    import e4_compact
+    blobs = [[100 + k] * (3 + k) for k in range(6)]
+    e4 = pdist.e4_write(_e4(blobs, relocated), [7] * 9, {2: [8] * 20})
+    before, _ = _blobs_of(e4)
+    c = e4_compact.compact(e4)
+    after, w = _blobs_of(c)
+    assert after == before
+    n = len(blobs)
+    assert w[:4] == (0x28267e5e, 4, n, 6) and w[4] == 6 + 2 * n
+    assert len(w) == 6 + 2 * n + sum(map(len, before))
+    offs = [w[6 + 2 * k + 1] for k in range(n)]
+    assert offs == [6 + 2 * n + sum(map(len, before[:k])) for k in range(n)]     # index order, no gap
+    assert e4_compact.compact(c) == c
+
+
+def test_compact_leaves_a_compact_entry_4_as_it_is():
+    import e4_compact
+    e4 = _e4([[100 + k] * (3 + k) for k in range(5)], False)
+    assert e4_compact.compact(e4) == e4
+
+
+@pytest.mark.firmware
+def test_compact_keeps_stock_and_shrinks_the_full_build(full):
+    import e4_compact
+    stock, new, _, _ = full
+    s4 = kp.get_entry_swapped(stock, 4)
+    assert e4_compact.compact(s4) == s4
+    n4 = kp.get_entry_swapped(new, 4)
+    c = e4_compact.compact(n4)
+    assert _blobs_of(c)[0] == _blobs_of(n4)[0] and len(c) < len(n4)
+
+
+def test_build_compacts_entry_4_last_with_or_without_features(tmp_path, monkeypatch):
+    from test_gate import build_steps
+    for env in ({}, {k: '1' for k in ('HX_CLICK', 'HX_FX_GATE', 'HX_DIST_XOVER', 'HX_GR')}):
+        for k in ('HX_DIST_XOVER', 'HX_GATE_SC', 'HX_USB_MONITOR'):
+            monkeypatch.delenv(k, raising=False)
+        ran = build_steps(tmp_path, monkeypatch, 'HX_Stomp', env)
+        assert ran[-3:] == ['tools/e4_compact.py', 'tools/l6ia_verify.py', 'tools/hxf.py'], env
+
+
+def test_web_worker_compacts_where_build_py_does():
+    from pathlib import Path
+    js = (Path(__file__).resolve().parent.parent / 'web/firmware-worker.js').read_text()
+    at = lambda s: js.index(s, js.index('step(5,'))
+    assert at('"tools/patch_comp.py", "build/') < at('"tools/e4_compact.py", "build/') < at('"tools/l6ia_verify.py", "build/')
+    assert '"tools/e4_compact.py",\n' in js
+
+
 # ---- build.py, the web page and the feature switch
 
 def test_build_runs_it_after_every_step_that_adds_a_model_and_before_the_gr_knobs(tmp_path, monkeypatch):

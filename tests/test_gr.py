@@ -516,8 +516,8 @@ def test_comp_patch_refuses_a_second_run(comp_patched):
 # ---- the whole GR build, pinned as tests/test_firmware.py pins the default one
 
 GR_BUILT_MD5 = {
-    'HX_GR': '58c63d2dbc0b3ad7a0e866fb22f9b2be',
-    'HX_GR HX_CLICK': '40d3c0e61c427897d332e317c428d535',    # patch_click.py adds a model, which would drop knobs written before it
+    'HX_GR': 'e7d0548b210597d8695d41596d59ab8e',
+    'HX_GR HX_CLICK': 'c2f9cf338a257266b0562c77ac812338',    # patch_click.py adds a model, which would drop knobs written before it
 }
 
 
@@ -573,7 +573,7 @@ def test_gr_keeps_nam_on_two_slots_and_patches_last(tmp_path, monkeypatch, env):
     assert kernel[kernel.index('--slots') + 1] == '2'
     patch = next(a for a in ran if a[:2] == ('tools/patch_amp.py', 'patch'))
     assert '--wrap-prim' not in patch and patch[patch.index('--asm') + 1].endswith('nam_lite.asm')
-    assert [a[0] for a in ran][-3:] == ['tools/patch_comp.py', 'tools/l6ia_verify.py', 'tools/hxf.py']
+    assert [a[0] for a in ran][-4:] == ['tools/patch_comp.py', 'tools/e4_compact.py', 'tools/l6ia_verify.py', 'tools/hxf.py']
 
 
 def test_without_gr_nam_keeps_three_slots(tmp_path, monkeypatch):

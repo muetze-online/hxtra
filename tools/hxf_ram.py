@@ -188,9 +188,21 @@ def runs_of(sectors):
     return runs
 
 
-def plan(firmware, stock_path, writes="ram", pool_sectors=4096, hook_bin=None):
+POOL_MAX, POOL_MIN = 4096, 1024     # sectors for written sectors; a full pool drops writes (ramboot_hook.c)
+
+
+def pool_fit(pslots):
+    """The largest pool up to POOL_MAX that ends by RB_STAGE_BASE after an overlay ending at pslots."""
+    p = POOL_MAX
+    while p >= POOL_MIN and ((pslots + 4 * p + SECTOR - 1) & ~(SECTOR - 1)) + SECTOR * p > RB_STAGE_BASE:
+        p -= 64
+    return p
+
+
+def plan(firmware, stock_path, writes="ram", pool_sectors=None, hook_bin=None):
     """Everything to load: regions [(addr, bytes, label)], the stock entries,
-    the checks of the eMMC [(first sector, count, crc)] and a summary."""
+    the checks of the eMMC [(first sector, count, crc)] and a summary. pool_sectors None: as many as fit,
+    POOL_MAX at most (a compacted Entry 4 moves every blob, so a full build's overlay takes most of the room)."""
     stock, new = load(stock_path, stock=True), load(firmware)
     app = app_of(stock[0])
     if app is None:
@@ -225,6 +237,11 @@ def plan(firmware, stock_path, writes="ram", pool_sectors=4096, hook_bin=None):
         at += len(d)
     blob = blob.ljust(data - table, b"\0") + b"".join(bytes(d) for _, d in runs)
     pslots = (at + 15) & ~15
+    if pool_sectors is None:
+        pool_sectors = pool_fit(pslots)
+        if pool_sectors < POOL_MIN:
+            fail(f"the overlay ends at {pslots:#x}: no room for a write pool of {POOL_MIN} sectors before "
+                 f"{RB_STAGE_BASE:#x}, too much changed")
     pdata = (pslots + 4 * pool_sectors + SECTOR - 1) & ~(SECTOR - 1)
     end = pdata + SECTOR * pool_sectors
     if end > RB_STAGE_BASE:
@@ -578,7 +595,7 @@ def main():
         p.add_argument("--stock", required=True, help="the stock 3.80 .hxf the unit holds (HX Stomp or HX Stomp XL)")
         p.add_argument("--writes", choices=("ram", "pass"), default="ram",
                        help="where the application's eMMC writes go (default: SDRAM only)")
-        p.add_argument("--pool", type=int, default=4096, help="sectors of SDRAM for written sectors (default 4096)")
+        p.add_argument("--pool", type=int, default=None, help="sectors of SDRAM for written sectors (default: as many as fit, 1024..4096)")
         if name == "plan":
             p.add_argument("--out", help="write the regions and plan.json here")
         else:
