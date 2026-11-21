@@ -202,7 +202,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 *Frequency, Dry Level, Wet Level and Mode knobs on the mono distortions*
 
 - The drive hears only the input above Frequency, and Dry Level mixes the clean input back in: full range (Mode Full) or only below Frequency (Mode Xover), so the lows of a bass stay clean under a distorted top. At their defaults a block sounds as on stock firmware.
-- Every mono distortion but the legacy ones, Clawthorn Drive, Bitcrusher, Pocket Fuzz, KWB, Swedish Chainsaw and Alpaca Rouge; Obsidian 7000 gets Frequency and Mode only.
+- Every mono distortion but the legacy ones, Clawthorn Drive, Bitcrusher, Pocket Fuzz, KWB, Swedish Chainsaw, Alpaca Rouge, Ballistic Fuzz, Dark Dove Fuzz, Bighorn Fuzz and Valve Driver; Obsidian 7000 gets Frequency and Mode only.
 - Each of these blocks then counts 1% more toward the DSP limit.
 
 [More in the feature guide](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover)

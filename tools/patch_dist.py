@@ -57,6 +57,10 @@ SKIP = {                                               # core mono distortions l
     'HD2_DistKWBMono': 'dry path follows the gain knob on the unit (a tap writes the in-port\'s buffer)',
     'HD2_DistSwedishChainsawMono': 'dry path follows the gain knob on the unit (a tap writes the in-port\'s buffer)',
     'HD2_DistAlpacaRougeMono': 'dry path follows the gain knob on the unit (a tap writes the in-port\'s buffer)',
+    'HD2_DistBallisticFuzzMono': 'dry path distorted and following the gain knob on the unit (a tap writes buffer 0)',
+    'HD2_DistDarkDoveFuzzMono': 'dry path distorted and following the gain knob on the unit (a tap writes buffer 0)',
+    'HD2_DistRamsHeadMono': 'dry path distorted and following the gain knob on the unit (a tap writes buffer 0)',
+    'HD2_DistValveDriverMono': 'block silent on the unit at Wet Level -60 dB, Dry Level without effect (a tap writes buffer 0)',
 }
 LEVEL_KNOBS = ('Level', 'Volume')                      # Entry 3 names; Volume shows as "Level"
 GAIN_TYPES = {0x80}                                    # members that may follow Level in group G1
