@@ -48,7 +48,9 @@ def built():
 def test_teemah_composite_is_test_build_d3s_with_the_dry_path_first(built):
     """Test build D3's members, its tap gone: the two low-passes right after the in-port, the first reading the
     in-port's buffer into the dry one (a tap carried the in-port buffer's final content in Clawthorn Drive and
-    Bitcrusher on the unit, 2026-11-20)."""
+    Bitcrusher on the unit, 2026-11-20); the drive path on a buffer of its own, which the first high-pass fills from
+    the in-port's, so nothing after the in-port writes buffer 0 (the dry path got the high-passed input in Thrifter
+    Fuzz and Screamer on the unit, 2026-11-21)."""
     _, new, d3 = built
     (bn, bd) = (eb.blob(_w4(x), 0) for x in (new, d3))
     hn, mn = _members(bn, eb.top_type(eb.blob(_w4(new), _model(new, TEEMAH)['blob_index'])))
@@ -58,9 +60,14 @@ def test_teemah_composite_is_test_build_d3s_with_the_dry_path_first(built):
     mix = [k for k, m in enumerate(md) if m[0] == 0x84][0]
     lp_a, lp_b = md[mix - 2], md[mix - 1]
     assert lp_a[0] == lp_b[0] == 0x102 and lp_a[2] == tap[3]
-    want = [md[0], lp_a[:2] + (tap[2],) + lp_a[3:], lp_b, md[2], md[3]] + md[4: mix - 2] + md[mix:]
-    assert hn[1] == hd[1] and hn[2] == hd[2] - 1 and mn == want
+    wet = hd[1]
+    ren = lambda bufs: type(bufs)(wet if b == 0 else b for b in bufs)
+    mv = lambda m: m[:2] + (ren(m[2]), ren(m[3])) + m[4:]
+    hp1 = md[2][:3] + (ren(md[2][3]),) + md[2][4:]
+    want = [md[0], lp_a[:2] + (tap[2],) + lp_a[3:], lp_b, hp1] + [mv(m) for m in [md[3]] + md[4: mix - 2] + md[mix:]]
+    assert hn[1] == hd[1] + 1 and hn[2] == hd[2] - 1 and mn == want
     assert all(m[1] != 1 for m in mn[1:5])
+    assert all(0 not in m[3] for m in mn[1:]) and mn[3][2:4] == ([0], [wet])
 
 
 @pytest.mark.firmware

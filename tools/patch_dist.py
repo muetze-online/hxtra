@@ -22,7 +22,9 @@ Where the mixer goes (GROUPS; docs/research/sharc/cores/teemah.md, Rollout D3):
 
   Entry 4  Blob 0: one copy of the composite table for all new composites, one new composite per stock root (models
            that share a root share it): the stock members, two low-passes from the in-port's buffer into a new one
-           (the dry path, no copy member), two high-passes after them and a 0x84 mixer [wet, dry] -> wet right before the first member the
+           (the dry path, no copy member), two high-passes after them from the in-port's buffer into another new one
+           that the stock members use in its place (the drive path: after the in-port nothing writes its buffer; rollout
+           D6) and a 0x84 mixer [wet, dry] -> wet right before the first member the
            Level knob writes (group G1: after it only gain members). Model blobs rebuilt with patch_teemah.Blob (root on
            the new composite, slots renumbered, four input nodes, new members registered). Written by e4_write: the
            whole Entry 4 laid out again without gaps (directory at word 6, blobs in index order), so no dead copy takes
@@ -254,15 +256,28 @@ def build_members(b0, root, plan):
     # The dry path starts with its first low-pass reading the in-port's buffer into the new one: no copy member. A
     # copy (tap) of the in-port's buffer carried that buffer's final content in Clawthorn Drive and Bitcrusher, the
     # two with root on/off flags (on the unit 2026-11-20, docs/research/sharc/cores/teemah.md, Rollout D3).
+    # The drive path gets a buffer of its own: the first high-pass reads the in-port's buffer into it and every stock
+    # member's use of the in-port's buffer moves there, so after the in-port nothing writes that buffer and the dry
+    # low-pass reads the clean input whenever the unit runs it. With the drive path on the in-port's buffer, a model
+    # with a tap into that buffer (Thrifter Fuzz, Screamer) gave the dry path the high-passed input (on the unit
+    # 2026-11-21: Dry Level +18 dB, Wet Level -60 dB, Freq 1000 Hz: only highs, in Full and Xover), Teemah!, without
+    # one, the low-passed input. Stock out-ports read other buffers than 0 too (66 mono composites read 1).
+    wet = h[1] + 1
+    ren = lambda bufs: [wet if b == wet_in else b for b in bufs]
+    moved = [(o[0], ren(o[1]), ren(o[2]), o[3], o[4]) for o in old[1:]]
+    lvl, wet_at = moved[L - 2], ren([wet_at])[0]
     lp1 = biquad(lp_t, dry)
     lp1 = (lp1[0], [wet_in], [dry], lp1[3], None)
+    hp1 = biquad(HP_TYPE, wet)
+    hp1 = (hp1[0], [wet_in], [wet], hp1[3], None)
     mix = prim(tmpl[5][0], [wet_at, dry], [wet_at], [(1, f2u(WET)), (2, f2u(DRY))], typ=0x84)
     mix[0][13], mix[0][14] = 2, 2                          # 0x84: DM 2, PM 2 (registry row 0x200340)
-    members = ([old[0], lp1, biquad(lp_t, dry), biquad(HP_TYPE, wet_in), biquad(HP_TYPE, wet_in)] + old[1:L - 1]
-               + [mix] + old[L - 1:])
+    members = ([old[0], lp1, biquad(lp_t, dry), hp1, biquad(HP_TYPE, wet)] + moved[:L - 2]
+               + [mix] + moved[L - 2:])
     smap = {s: s if s == 1 else s + 4 if s < L else s + 5 for s in range(1, len(old) + 1)}
-    slots = {'hp': (4, 5), 'lp': (2, 3), 'mix': L + 4, 'buffers': h[1] + 1, 'head': h[0], 'list': (h[4], h[5])}
+    slots = {'hp': (4, 5), 'lp': (2, 3), 'mix': L + 4, 'buffers': h[1] + 2, 'head': h[0], 'list': (h[4], h[5])}
     assert members[slots['mix'] - 1][0][6] == 0x84 and members[smap[L] - 1] is lvl and len(members) == len(old) + 5
+    assert all(wet_in not in m[2] for m in members[1:]), 'a member after the in-port writes its buffer'
     assert all(m[0][4] != 1 for m in members[1:5]), 'a copy member among the new ones'
     return members, smap, slots
 
