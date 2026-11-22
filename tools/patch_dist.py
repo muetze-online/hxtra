@@ -67,6 +67,8 @@ SKIP = {                                               # candidates left as they
     'HD2_DistClawthornDriveMono': 'its map writes the root (on/off flags), which the nested form does not carry',
     'HD2_DistBitcrusherMono': 'its map writes the root (on/off flags), which the nested form does not carry',
     'HD2_DistMinotaurMono': 'three nested composites; the unit goes silent (2026-11-22)',
+    'HD2_DistKinkyBoostMono': 'a clean boost with no drive to split off, and no single Level (2026-11-22)',
+    'HD2_DistVitalBoostMono': 'a clean boost with no drive to split off, and no single Level (2026-11-22)',
 }
 LEVEL_KNOBS = ('Level', 'Volume')                      # Entry 3 names; Volume shows as "Level"
 LEVEL = {                                              # the Level knob where not LEVEL_KNOBS; None: no single one
@@ -74,8 +76,6 @@ LEVEL = {                                              # the Level knob where no
     'HD2_DistLegendaryDriveMono': 'Volume',
     'HD2_DistToneSovereignMono': 'Level 2',            # Level 2 writes its last gain member
     'HD2_DistClawthornDriveMono': None,
-    'HD2_DistKinkyBoostMono': None,
-    'HD2_DistVitalBoostMono': None,
     BRONZE: 'Level',
     KILLER_Z: 'Gain',                                  # Gain shows as "Level" and writes the last 0x80
 }
