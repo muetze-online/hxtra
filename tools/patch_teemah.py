@@ -301,7 +301,8 @@ class Blob:
         value itself, ('curve', 9 values) through an op 0x3 node (a table B row), ('select', word if 0, word if not)
         through an op 0x2a node (port 0 ? port 2 : port 1, as Regal Bass DI switches its 0x102 types),
         ('plus_curve', other slot, 9 values) the value plus the other slot's knob through a new 0x3 node, added by an
-        op 0x14 node (the dB sum patch_dist's group G3 uses). Tables A, C,
+        op 0x14 node (the dB sum by which patch_dist's Dry Level follows Level), ('plus', other slot) the same without
+        the curve. Tables A, C,
         D, E (and B when a curve is added) are rebuilt at the map's end, the old ones left unused."""
         pm = self.pm
         assert patch_comp.pmap_sizes(pm) == pm[12:18], 'the parameter map\'s sizes do not follow its tables'
@@ -335,17 +336,21 @@ class Blob:
                 nodes.append([nodes[0][0], 0, src, 0x3, 1, 11, 0, 0, 0, 0])
                 bt.append([data, 0, src, 0, 9, 0])
                 ct.append([inp, src, 0, 0])
-            elif how is not None and how[0] == 'plus_curve':
-                # value + curve(parameter how[1]) through op 0x3 (how[2], 9 values) and op 0x14 (a + b)
-                assert len(how) == 3 and len(how[2]) == 9
+            elif how is not None and how[0] in ('plus_curve', 'plus'):
+                # value + curve(parameter how[1]) through op 0x3 (how[2], 9 values) and op 0x14 (a + b); 'plus' the
+                # parameter itself (a Level knob in dB: Deranged Master, Bronze Master)
+                assert len(how) == (3 if how[0] == 'plus_curve' else 2)
                 other = [r[0] for r in dt if r[2] == how[1]]
                 assert len(other) == 1, f'no single input node for slot {how[1]}'
-                data = len(pm)
-                pm += [f2u(v) for v in how[2]]
-                cn = len(nodes)
-                nodes.append([nodes[0][0], 0, cn, 0x3, 1, 11, 0, 0, 0, 0])
-                bt.append([data, 0, cn, 0, 9, 0])
-                ct.append([other[0], cn, 0, 0])
+                cn = other[0]
+                if how[0] == 'plus_curve':
+                    assert len(how[2]) == 9
+                    data = len(pm)
+                    pm += [f2u(v) for v in how[2]]
+                    cn = len(nodes)
+                    nodes.append([nodes[0][0], 0, cn, 0x3, 1, 11, 0, 0, 0, 0])
+                    bt.append([data, 0, cn, 0, 9, 0])
+                    ct.append([other[0], cn, 0, 0])
                 data = len(pm)
                 pm += [0, 0]
                 src = len(nodes)

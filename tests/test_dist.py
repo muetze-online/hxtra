@@ -44,30 +44,81 @@ def built():
             pt.patch_teemah_d(stock, log=lambda *_: None))
 
 
+def _outer_ok(b0, outer, root):
+    """Group mix's outer composite: in-port -> 0, tap 0 -> 1, HP x2 on 0, the stock root 0 -> 0, LP x2 on 1, 0x84
+    [0, 1] -> 0, out-port 0; two buffers, no connections, no list; the nested record sums the stock root's members."""
+    h, mem = _members(b0, outer)
+    assert h[0] == 0 and h[1] == 2 and h[4] == 0
+    assert [(m[0], m[1], m[2], m[3]) for m in mem] == [
+        (0, 4, [], [0]), (0, 1, [0], [1]), (0x102, 0, [0], [0]), (0x102, 0, [0], [0]), (root, 0, [0], [0]),
+        (0x102, 0, [1], [1]), (0x102, 0, [1], [1]), (0x84, 0, [0, 1], [0]), (0, 8, [0], [])]
+    _, recs = pdist._composite(b0, outer)
+    assert all(r[4] is None and r[0][1] == 0 for r in recs)
+    assert recs[pdist.S - 1][0][13:19] == pdist.sub_record(b0, root)
+
+
 @pytest.mark.firmware
-def test_teemah_composite_is_test_build_d3s_with_the_dry_path_first(built):
-    """Test build D3's members, its tap gone: the two low-passes right after the in-port, the first reading the
-    in-port's buffer into the dry one (a tap carried the in-port buffer's final content in Clawthorn Drive and
-    Bitcrusher on the unit, 2026-11-20); the drive path on a buffer of its own, which the first high-pass fills from
-    the in-port's, so nothing after the in-port writes buffer 0 (the dry path got the high-passed input in Thrifter
-    Fuzz and Screamer on the unit, 2026-11-21)."""
-    _, new, d3 = built
-    (bn, bd) = (eb.blob(_w4(x), 0) for x in (new, d3))
-    hn, mn = _members(bn, eb.top_type(eb.blob(_w4(new), _model(new, TEEMAH)['blob_index'])))
-    hd, md = _members(bd, 0x600000 + bd[0xf] - 1)
-    tap = md[1]
-    assert tap[:2] == (0, 1)
-    mix = [k for k, m in enumerate(md) if m[0] == 0x84][0]
-    lp_a, lp_b = md[mix - 2], md[mix - 1]
-    assert lp_a[0] == lp_b[0] == 0x102 and lp_a[2] == tap[3]
-    wet = hd[1]
-    ren = lambda bufs: type(bufs)(wet if b == 0 else b for b in bufs)
-    mv = lambda m: m[:2] + (ren(m[2]), ren(m[3])) + m[4:]
-    hp1 = md[2][:3] + (ren(md[2][3]),) + md[2][4:]
-    want = [md[0], lp_a[:2] + (tap[2],) + lp_a[3:], lp_b, hp1] + [mv(m) for m in [md[3]] + md[4: mix - 2] + md[mix:]]
-    assert hn[1] == hd[1] + 1 and hn[2] == hd[2] - 1 and mn == want
-    assert all(m[1] != 1 for m in mn[1:5])
-    assert all(0 not in m[3] for m in mn[1:]) and mn[3][2:4] == ([0], [wet])
+def test_teemah_nests_its_stock_root_in_a_new_composite(built):
+    """The stock root stays as it is in Blob 0, the one member of a new composite whose tap feeds the dry path
+    (Thrifter Fuzz, Screamer, Pocket Fuzz: dry 0 dB flat, Xover an LR4 low-pass, on the unit 2026-11-22)."""
+    stock, new, _ = built
+    bo, bn = eb.blob(_w4(stock), 0), eb.blob(_w4(new), 0)
+    root = eb.top_type(eb.blob(_w4(stock), _model(stock, TEEMAH)['blob_index']))
+    _outer_ok(bn, eb.top_type(eb.blob(_w4(new), _model(new, TEEMAH)['blob_index'])), root)
+    assert _members(bn, root) == _members(bo, root)
+
+
+@pytest.mark.firmware
+def test_sub_record_gives_the_stock_record_words_of_nested_composites():
+    """Words 13..18 of every stock member that is a composite: 38 of 46 as sub_record sums them, the rest 2-member
+    placeholders and the two lists with entries [k, 16, 0, 0] or a single 5.76 M delay; none of them a model root."""
+    b0 = eb.blob(_w4(firmware.stock()), 0)
+    n, ct = b0[0xf], b0[0x10]
+    ok = bad = 0
+    for c in range(n):
+        h = b0[ct + 7 * c: ct + 7 * c + 7]
+        for k in range(h[2]):
+            r = b0[h[3] + 20 * k: h[3] + 20 * k + 20]
+            if r[4] == 0 and 0x600000 <= r[6] < 0x600000 + n:
+                try:
+                    good = list(r[13:19]) == pdist.sub_record(b0, r[6])
+                except SystemExit:
+                    good = False
+                ok, bad = ok + good, bad + (not good)
+    assert (ok, bad) == (38, 8)
+
+
+@pytest.mark.firmware
+def test_f_row_gives_every_stock_models_nested_map_rows():
+    """Table F rows of every stock model blob (not the app harnesses, filled at run time): the nested map's own
+    sizes and counts plus its own rows."""
+    w4 = _w4(firmware.stock())
+    info = kp.parse_entry3_full(kp.get_entry_swapped(firmware.stock(), 3))
+    n = 0
+    for m in info['models']:
+        if m['name'].startswith(('HelixStomp_App', 'HD2_App')) or eb.blob(w4, m['blob_index'])[0] != 3:
+            continue
+        blob = pt.Blob(eb.blob(w4, m['blob_index']))
+        pm = blob.pm
+        for base in blob.maps():
+            for k in range(pm[base + 23]):
+                r = pm[pm[base + 10] + 8 * k: pm[base + 10] + 8 * k + 8]
+                if r[0]:
+                    assert r[2:8] == pdist.f_row(pm, r[0]), (m['name'], r)
+                    n += 1
+    assert n >= 60
+
+
+@pytest.mark.firmware
+def test_each_nested_blobs_new_root_row_follows_f_row(built):
+    """The new root map's one filled row (the stock map, nested) by f_row: Teemah! and Scream 808 have a nested map
+    of their own under the stock one."""
+    _, new, _ = built
+    for name in (TEEMAH, SCREAM):
+        pm = pt.Blob(eb.blob(_w4(new), _model(new, name)['blob_index'])).pm
+        rows = [pm[pm[10] + 8 * k: pm[10] + 8 * k + 8] for k in range(pm[23])]
+        assert [r for r in rows if r[0]] == [[24, 0] + pdist.f_row(pm, 24)]
+        assert rows[0][2] > pm[24 + 12]                    # the nested drive's map counted in
 
 
 @pytest.mark.firmware
@@ -101,11 +152,11 @@ def test_scream_808_knobs_write_filters_mixer_and_types(built):
     fw = pdist.Fw(kp.get_entry_swapped(new, 3), _w4(new))
     r = pmap.model_report(fw, kp.find_model(fw.e3, SCREAM))
     writes = {(tuple(w['path']), w['pid']): pdist._knobs(w['expr'], set()) for w in r['writes']}
-    assert {k for k, v in writes.items() if 'Frequency' in v} == {((s,), 2) for s in (2, 3, 4, 5)}
-    assert {k for k, v in writes.items() if 'Dry Level' in v} == {((10,), 2)}
-    assert {k for k, v in writes.items() if 'Wet Level' in v} == {((10,), 1)}
-    assert {k for k, v in writes.items() if 'Mode' in v} == {((2,), 1), ((3,), 1)}
-    assert {k for k, v in writes.items() if 'Level' in v} == {((11,), 1)}
+    assert {k for k, v in writes.items() if 'Frequency' in v} == {((s,), 2) for s in pdist.HP + pdist.LP}
+    assert {k for k, v in writes.items() if 'Dry Level' in v} == {((pdist.MIX,), 2)}
+    assert {k for k, v in writes.items() if 'Wet Level' in v} == {((pdist.MIX,), 1)}
+    assert {k for k, v in writes.items() if 'Mode' in v} == {((s,), 1) for s in pdist.LP}
+    assert {k for k, v in writes.items() if 'Level' in v} == {((pdist.S, 6), 1), ((pdist.MIX,), 2)}   # dry follows
 
 
 @pytest.mark.firmware
@@ -133,10 +184,10 @@ def test_entry_3_grows_once_per_model(built):
 
 
 @pytest.mark.firmware
-def test_g1_rule_rejects_a_model_with_a_member_after_level():
-    with pytest.raises(SystemExit, match='not group G1'):
-        fw = pdist.Fw(kp.get_entry_swapped(firmware.stock(), 3), _w4(firmware.stock()))
-        pdist.plan_model(fw, kp.find_model(fw.e3, 'HD2_DistPrizeDriveMono'), group='g1')
+def test_a_model_whose_map_writes_the_root_is_refused():
+    fw = pdist.Fw(kp.get_entry_swapped(firmware.stock(), 3), _w4(firmware.stock()))
+    with pytest.raises(SystemExit, match='writes the root'):
+        pdist.plan_model(fw, kp.find_model(fw.e3, 'HD2_DistClawthornDriveMono'))
 
 
 # Rollout D3: every core mono distortion (docs/research/sharc/cores/teemah.md, Rollout D3)
@@ -201,16 +252,15 @@ def test_a_model_without_a_static_model_table_row_is_left_out():
 
 @pytest.mark.firmware
 def test_the_skipped_models_stay_stock(full):
-    """Clawthorn Drive and Bitcrusher: on the unit their dry path carried the block's own output, with a tap and with
-    a low-pass reading the in-port's buffer alike (2026-11-20); the dry path of Pocket Fuzz, KWB, Swedish Chainsaw and
-    Alpaca Rouge followed the gain knob (clean, louder with gain, silent at 0; 2026-11-20); that of Ballistic Fuzz, Dark Dove
-    Fuzz and Bighorn Fuzz (Ram's Head) was distorted and followed it, and Valve Driver stayed silent at Wet Level -60 dB
-    whatever Dry Level and Gain did (2026-11-21). They keep their stock parameters and blob."""
+    """Clawthorn Drive and Bitcrusher: their maps write the root (on/off flags; their dry path carried the block's
+    own output on the unit in the shared-composite form, 2026-11-20). The tap models of the earlier SKIP list (Pocket
+    Fuzz, KWB, Swedish Chainsaw, Alpaca Rouge, Ballistic Fuzz, Dark Dove Fuzz, Bighorn Fuzz, Valve Driver) are nested
+    now. Minotaur, the one model with three composites nested under its stock root, went silent nested one level
+    deeper and silenced every block placed after it (on the unit 2026-11-22). The skipped ones keep their stock
+    parameters and blob."""
     stock, new, _, _ = full
-    assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono',
-                               'HD2_DistPocketFuzzMono', 'HD2_DistKWBMono', 'HD2_DistSwedishChainsawMono',
-                               'HD2_DistAlpacaRougeMono', 'HD2_DistBallisticFuzzMono', 'HD2_DistDarkDoveFuzzMono',
-                               'HD2_DistRamsHeadMono', 'HD2_DistValveDriverMono'} and len(PATCHED) == 51
+    assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono', 'HD2_DistMinotaurMono'}
+    assert len(PATCHED) == 58
     for n in pdist.SKIP:
         i = _model(stock, n)['blob_index']
         assert repr(_params(new, n)) == repr(_params(stock, n))
@@ -258,25 +308,19 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     if p['group'] == 'xover':
         assert not dry and not wet
         return
-    (dpath, dpid), = dry
-    (wpath, wpid), = wet
-    assert dpath == wpath and (dpid, wpid) == (2, 1) and _type(rn, dpath) == '0x84'
-    top = [c for c in rn['chain'] if c['depth'] == 0]
-    if p['group'] in ('g3', 'g4'):                       # the mixer feeds the out-port
-        assert dpath[0] == top[-1]['path'][0] - 1
-    else:                                                # the mixer feeds the member Level writes first
-        lname = pdist.GROUPS.get(name, (None, None))[1]
-        (lv,) = [q for q in ro['params'] if (q['name'] == lname if lname else q['name'] in pdist.LEVEL_KNOBS)]
-        assert dpath[0] == min(k[0][0] for k in _writes(rn, lv['disp']) if k[0][0] != dpath[0]) - 1
-    e = dry[(dpath, dpid)]['expr']
-    if p['group'] == 'g3':                               # Level reaches the dry signal, 0 dB at its default
-        knobs = {q['slot']: q['default'] for q in rn['params']}
-        assert pmap.evaluate(e, knobs) == pytest.approx(-60.0, abs=1e-4)
-        knobs[p['level'][0]] = 1.0
-        top_db = p['level'][1][-1]
-        assert pmap.evaluate(e, knobs) == pytest.approx(-60.0 + top_db, abs=1e-3) and top_db > 0
-    else:
+    assert {k[0] for k in freq} == {(s,) for s in pdist.HP + pdist.LP} and {k[0] for k in mode} == {(s,) for s in pdist.LP}
+    assert set(dry) == {((pdist.MIX,), 2)} and set(wet) == {((pdist.MIX,), 1)} and _type(rn, (pdist.MIX,)) == '0x84'
+    e = dry[((pdist.MIX,), 2)]['expr']
+    if p['level'] is None:                               # no single Level knob: Dry Level alone
         assert pdist._knobs(e, set()) == {'Dry Level'}
+        return
+    # Level reaches the dry signal, 0 dB at its default: dry dB = Dry Level + L(Level) - L(default)
+    knobs = {q['slot']: q['default'] for q in rn['params']}
+    assert pmap.evaluate(e, knobs) == pytest.approx(-60.0, abs=1e-4)
+    lv = next(q for q in rn['params'] if q['slot'] == p['level'][0])
+    knobs[lv['slot']] = lv['max']
+    top_db = lv['max'] if p['level'][1] is None else p['level'][1][-1]
+    assert pmap.evaluate(e, knobs) == pytest.approx(-60.0 + top_db, abs=1e-3) and top_db > 0
 
 
 @pytest.mark.firmware
@@ -285,9 +329,9 @@ def test_each_models_stock_writes_survive_renumbered(full, name):
     _, _, plans, reports = full
     ro, rn = reports[name]
     p = plans[name]
-    shift = (lambda s: s if s <= p['at'] else s + 4) if p['group'] == 'xover' else \
-        (lambda s: s if s <= 1 else s + 4 if s < p['at'] else s + 5)          # path [0]: the root itself
-    stock = sorted((tuple([shift(w['path'][0])] + w['path'][1:]), w['pid'], repr(w['expr'])) for w in ro['writes'])
+    shift = (lambda path: (path[0] if path[0] <= p['at'] else path[0] + 4,) + tuple(path[1:])) \
+        if p['group'] == 'xover' else (lambda path: (pdist.S,) + tuple(path))    # path [0]: the root itself
+    stock = sorted((shift(w['path']), w['pid'], repr(w['expr'])) for w in ro['writes'])
     mine = {'Frequency', 'Dry Level', 'Wet Level', _mode_disp(ro)}
     new = sorted((tuple(w['path']), w['pid'], repr(w['expr'])) for w in rn['writes']
                  if not pdist._knobs(w['expr'], set()) & mine)
@@ -299,14 +343,19 @@ def test_each_models_stock_writes_survive_renumbered(full, name):
 def test_each_models_composite_keeps_its_connections(full, name):
     """Stock members keep their connection words (record words 1/2: [2, offset, 0] then [id, 0], the offset pointing
     right after), the header keeps word 0; new members have none. A build that dropped them hung the unit on Alpaca
-    Rouge (2026-11-20): word 1 stayed 3 while word 2 pointed at the next member's data."""
+    Rouge (2026-11-20): word 1 stayed 3 while word 2 pointed at the next member's data. Group mix leaves the stock
+    root as it is and nests it whole."""
     stock, new, plans, reports = full
     p = plans[name]
-    shift = (lambda s: s if s <= p['at'] else s + 4) if p['group'] == 'xover' else \
-        (lambda s: s if s <= 1 else s + 4 if s < p['at'] else s + 5)
     bo, bn = eb.blob(_w4(stock), 0), eb.blob(_w4(new), 0)
     ho, old = pdist._composite(bo, p['root'])
-    hn, mem = pdist._composite(bn, int(reports[name][1]['root'], 16))      # asserts the form of every connection
+    outer = int(reports[name][1]['root'], 16)
+    if p['group'] == 'mix':
+        assert pdist._composite(bn, p['root']) == (ho, old)
+        _outer_ok(bn, outer, p['root'])
+        return
+    shift = lambda s: s if s <= p['at'] else s + 4
+    hn, mem = pdist._composite(bn, outer)                 # asserts the form of every connection
     assert hn[0] == ho[0]
     assert [mem[shift(k + 1) - 1][4] for k in range(len(old))] == [o[4] for o in old]
     kept = {shift(k + 1) - 1 for k in range(len(old))}
@@ -323,6 +372,9 @@ def test_each_models_composite_keeps_its_list(full, name):
     stock, new, plans, reports = full
     bo, bn = eb.blob(_w4(stock), 0), eb.blob(_w4(new), 0)
     ho, _ = pdist._composite(bo, plans[name]['root'])
+    if plans[name]['group'] == 'mix':                      # the list stays with the nested stock root
+        assert pdist._composite(bn, plans[name]['root'])[0] == ho
+        return
     hn, mem = pdist._composite(bn, int(reports[name][1]['root'], 16))
     assert hn[4] == ho[4] and (hn[5] == ho[5] or not ho[4])
     assert max(m[0][19] for m in mem) <= hn[4]
@@ -408,7 +460,7 @@ def test_full_build_keeps_every_other_model_and_blob_stock(full):
     assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
     bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
     roots = {p['root'] for p in plans.values()}
-    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 35
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 42
 
 
 @pytest.mark.firmware

@@ -42,6 +42,14 @@ Checked on all 863 stock model blobs (2026-11-19, `tools/patch_teemah.py`'s `Blo
 - In 836 blobs some path words serve as both a member path and a position path. So renumbering member paths in place moves positions too.
 - **Table F** has one 8-word row per root child (`nF` = their number in 863 of 863), in tree order.
 - Relocations cover every init record and every writer's path word, nested maps' included; sub-bindings and init-record values are not relocated.
+- **A filled table F row's words 2..7** are the nested map's own header words s12, s13, nF, s14, s15 and s16 + s17, plus the same six words of each filled row of its own table F (so a map counts its nested maps in) [verified offline: every filled row of every stock model blob, the app harnesses left out (filled at run time); `patch_dist.f_row`, `tests/test_dist.py`]. On the unit [2026-11-22] a new root map whose one row carried the stock map's own words alone left Minotaur (three maps nested under the stock one) silent and hung the unit; Teemah! and Scream 808 (one nested map) played.
+
+## A composite as a member of another [verified offline unless tagged]
+
+Found for the Distortion Crossover's nested form (`tools/patch_dist.py`, group `mix`; [cores/teemah.md](cores/teemah.md), Rollout D7).
+- A Blob 0 member record (20 words) whose type is a composite ID (`0x6xxxxx`, word 4 = 0) carries the nested composite's totals in words 13..18: DM (sum of its members' word 13, plus 1 per list entry), PM (sum of word 14), word 15 (sum of word 15 plus each list entry's word 3), instances (1 plus those of its nested composites), member count and list count (each plus those of its nested composites). `patch_dist.sub_record` gives these words for 38 of the 46 stock members that are composites; the other 8 are 2-member placeholders and two lists whose entries have word 1 = 16 (`tests/test_dist.py`), none of them a model root.
+- [on the unit 2026-11-22] A nested member record that copied the words of Teemah!'s drive member `0x6000c2` instead left the model silent.
+- [on the unit 2026-11-22] Nested one level deeper (three composites under a stock root that itself sits in a new composite), Minotaur stays silent even with these rules, and every block placed after it in the same session goes silent too (digital silence, −186.6 dBFS). Hypothesis, not tested: the unit builds composites cleanly only two levels deep.
 
 ## Tempo sync in a parameter map [verified offline]
 
