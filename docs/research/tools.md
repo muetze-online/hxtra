@@ -38,6 +38,7 @@ The repository's tools and the build switches. Status tags as in [conventions.md
 | `tools/mac/stomp_render.swift`, `tools/mac/skins/` | A recording set into a photo of the HX Stomp (photos in `build/art/`, out of git), its controls moving as they were used, as an MP4 small enough to attach on GitHub, or with `--gif` a looping 480 × 360 GIF of part of it (`hx_mirror.py gif`). |
 | `tools/features/usb_input.py`, `src/m4/usb_input.s` | USB input (`HX_USB_INPUT=1`, not on the web page): HX Edit's editor service takes command 0x51, UI events the unit queues as its own controls do. |
 | `tools/hx_input.py` | Presses, holds and turns the HX Stomp's footswitches, knobs and buttons from a USB input build; `Input(ctl)` for scripts. |
+| `tools/hx_freqresp.py`, `tools/mac/noise_mac.swift`, `tools/freqresp/` | The magnitude response of stock blocks over USB: per case (a JSON file, examples in `tools/freqresp/`) one block in slot 0 of path A, fixed-seed noise into USB 5/6, USB 1 recorded (`tools/mac/record_mac.swift`), H1 by cross-correlation and Welch on 1/12-octave bands, divided by a reference case; -3/-6 dB points, flank slopes, boost or cut and half-gain points, optional expected curves (`--expect`); `--reanalyse` needs no unit. |
 | `tools/hx_devtest.py`, `tools/mac/ocr_mac.swift` | A test of each feature on the running unit, pressing its controls (`hx_input.py`) and reading its screen (`hx_mirror.py`, text by macOS Vision); never boots it. `QA.md` has how to run it. |
 
 Build commands:
