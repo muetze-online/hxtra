@@ -123,8 +123,14 @@ def test_each_nested_blobs_new_root_row_follows_f_row(built):
 
 @pytest.mark.firmware
 def test_teemah_parameters_are_test_build_d3s(built):
+    """As test build D3, but Freq has the "Off" end of stock Low Cut knobs (19.9 Hz, the default; Rollout D9)."""
     _, new, d3 = built
-    assert repr(_params(new, TEEMAH)) == repr(_params(d3, TEEMAH))
+    got, want = _params(new, TEEMAH), _params(d3, TEEMAH)
+    k = [p[0] for p in want].index('Frequency')
+    f = got[k]
+    assert f[3] == dict(want[k][3], valueMinString='Off')
+    assert (round(f[4], 3), f[5], round(f[6], 3)) == (19.9, 1000.0, 19.9)
+    assert repr(got[:k] + got[k + 1:]) == repr(want[:k] + want[k + 1:])
 
 
 @pytest.mark.firmware
@@ -141,7 +147,7 @@ def test_scream_808_gets_the_four_knobs_after_its_own(built):
     old, ps = _params(stock, SCREAM), _params(new, SCREAM)
     assert ps[:len(old)] == old
     assert [(p[0], p[2]) for p in ps[len(old):]] == [('Frequency', 4), ('Dry Level', 5), ('Wet Level', 6), ('Mode', 7)]
-    assert [p[6] for p in ps[len(old):]] == [20.0, -60.0, 0.0, 0]
+    assert [round(p[6], 3) for p in ps[len(old):]] == [pdist.FREQ_OFF, -60.0, 0.0, 0]
     assert ps[len(old) + 1][5] == pt.DRY_MAX
 
 
@@ -152,7 +158,8 @@ def test_scream_808_knobs_write_filters_mixer_and_types(built):
     fw = pdist.Fw(kp.get_entry_swapped(new, 3), _w4(new))
     r = pmap.model_report(fw, kp.find_model(fw.e3, SCREAM))
     writes = {(tuple(w['path']), w['pid']): pdist._knobs(w['expr'], set()) for w in r['writes']}
-    assert {k for k, v in writes.items() if 'Frequency' in v} == {((s,), 2) for s in pdist.HP + pdist.LP}
+    assert {k for k, v in writes.items() if 'Frequency' in v} == ({((s,), 2) for s in pdist.HP + pdist.LP} |
+                                                                 {((s,), 1) for s in pdist.HP})   # Off: type 0
     assert {k for k, v in writes.items() if 'Dry Level' in v} == {((pdist.MIX,), 2)}
     assert {k for k, v in writes.items() if 'Wet Level' in v} == {((pdist.MIX,), 1)}
     assert {k for k, v in writes.items() if 'Mode' in v} == {((s,), 1) for s in pdist.LP}
@@ -179,7 +186,7 @@ def test_entry_3_grows_once_per_model(built):
     stock, new, d3 = built
     grow = len(kp.get_entry_swapped(new, 3)) - len(kp.get_entry_swapped(stock, 3))
     per = lambda n: 52 * (len(_model(stock, n)['params']) + pdist.N_KNOBS)
-    assert grow <= per(TEEMAH) + per(SCREAM) + 64
+    assert grow <= per(TEEMAH) + per(SCREAM) + 112          # + the Mode and Freq meta tables, once each
     assert grow < len(kp.get_entry_swapped(d3, 3)) - len(kp.get_entry_swapped(stock, 3))
 
 
@@ -344,7 +351,7 @@ def test_each_model_gets_its_knobs_after_its_own(full, name):
     mode = 'Xover' if 'Mode' in [p[0] for p in old] else 'Mode'
     assert [p[0] for p in mine] == [NAMES[k] for k in knobs[:-1]] + [mode]
     assert [p[2] for p in mine] == list(range(old[at - 1][2] + 1, old[at - 1][2] + 1 + len(knobs)))
-    assert [p[6] for p in mine] == [{'freq': 20.0, 'dry': -60.0, 'wet': 0.0, 'mode': 0}[k] for k in knobs]
+    assert [round(p[6], 3) for p in mine] == [{'freq': pdist.FREQ_OFF, 'dry': -60.0, 'wet': 0.0, 'mode': 0}[k] for k in knobs]
 
 
 @pytest.mark.firmware
@@ -354,8 +361,12 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     _, _, plans, reports = full
     p, (ro, rn) = plans[name], reports[name]
     freq, mode = _writes(rn, 'Frequency'), _writes(rn, _mode_disp(ro))
+    off = {k: e for k, e in freq.items() if k[1] == 1}          # the "Off" end: the high-passes' type (Rollout D9)
+    freq = {k: e for k, e in freq.items() if k[1] == 2}
     n = _n_new(p)
-    assert len(freq) == n and {pid for _, pid in freq} == {2} and all(_type(rn, k[0]) == '0x102' for k in freq)
+    assert len(freq) == n and all(_type(rn, k[0]) == '0x102' for k in freq)
+    assert len(off) == 2 and {k[0] for k in off} < {k[0] for k in freq}
+    assert all(e['expr']['op'] == '0x2a' and e['expr']['ins']['0']['op'] == '0x40' for e in off.values())
     assert len(mode) == n - 2 and {pid for _, pid in mode} == {1} and {k[0] for k in mode} < {k[0] for k in freq}
     dry, wet = _writes(rn, 'Dry Level'), _writes(rn, 'Wet Level')
     if p['group'] == 'xover':
@@ -697,3 +708,19 @@ def test_build_and_worker_report_the_space_after_the_last_compaction():
     assert 'run(py, "tools/e4_compact.py", image, titled, "--report", hex(E3_MAX))' in (root / 'build.py').read_text()
     js = (root / 'web/firmware-worker.js').read_text()
     assert '"--report", "0x" + E3_MAX.toString(16)' in js and '"tools/space_report.py",\n' in js
+
+
+@pytest.mark.firmware
+@pytest.mark.parametrize('name', ['HD2_DistTeemahMono', 'HD2_DistMinotaurMono', 'HD2_DistObsidian7000Mono'])
+def test_freq_off_passes_the_drive_path_through(full, name):
+    """Rollout D9: at Freq's "Off" end (19.9 Hz, the default) the high-passes' type is 0 (through), from 20 Hz on the
+    LR4 high-pass (type 4): in the map's writers (pmap.evaluate) and in their init records."""
+    import pmap
+    _, _, plans, reports = full
+    rn = reports[name][1]
+    off = {k: e for k, e in _writes(rn, 'Frequency').items() if k[1] == 1}
+    assert len(off) == 2
+    for e in off.values():
+        slot = e['expr']['ins']['0']['ins']['0']['slot']
+        assert [pmap.evaluate(e['expr'], {slot: f}) for f in (19.9, 20.0, 1000.0)] == [0, pdist.HP_TYPE, pdist.HP_TYPE]
+    assert [c['init'][1] for c in rn['chain'] if (tuple(c['path']), 1) in off] == [0, 0]

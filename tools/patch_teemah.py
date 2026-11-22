@@ -302,7 +302,8 @@ class Blob:
         through an op 0x2a node (port 0 ? port 2 : port 1, as Regal Bass DI switches its 0x102 types),
         ('plus_curve', other slot, 9 values) the value plus the other slot's knob through a new 0x3 node, added by an
         op 0x14 node (the dB sum by which patch_dist's Dry Level follows Level), ('plus', other slot) the same without
-        the curve. Tables A, C,
+        the curve, ('gt_select', threshold, word if not, word if greater) the select fed by an op 0x40 test of the
+        value against the threshold. Tables A, C,
         D, E (and B when a curve is added) are rebuilt at the map's end, the old ones left unused."""
         pm = self.pm
         assert patch_comp.pmap_sizes(pm) == pm[12:18], 'the parameter map\'s sizes do not follow its tables'
@@ -357,6 +358,20 @@ class Blob:
                 nodes.append([data, 0, src, 0x14, 1, 3, 2, 2, 0, 0])
                 ct.append([inp, src, 0, 0])
                 ct.append([cn, src, 0, 1])
+            elif how is not None and how[0] == 'gt_select':
+                # (value > how[1]) ? how[3] : how[2], through op 0x40 (a > b, b its data word, as Parametric EQ's Low
+                # Cut tests 20 Hz) into an op 0x2a node: patch_dist's Freq "Off" end sets the high-passes' type 0
+                assert len(how) == 4
+                data = len(pm)
+                pm += [f2u(how[1])]
+                cmp = len(nodes)
+                nodes.append([data, 0, cmp, 0x40, 1, 3, 1, 1, 0, 0])
+                ct.append([inp, cmp, 0, 0])
+                data = len(pm)
+                pm += [how[2], how[3]]
+                src = len(nodes)
+                nodes.append([data, 0, src, 0x2a, 1, 4, 2, 2, 0, 0])
+                ct.append([cmp, src, 0, 0])
             elif how is not None:
                 assert how[0] == 'select' and len(how) == 3
                 data = len(pm)

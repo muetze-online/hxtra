@@ -10,8 +10,9 @@ one pass: the core mono distortions, the legacy ones and Bronze Master (candidat
 T is the stock block with its own Level, HP and LP a 4th-order Linkwitz-Riley crossover at Freq (two 0x102 sections
 a side), w and d the Wet and Dry Level, L the change of the block's Level from its default (the model's own Level
 curve, 0 dB at the default), so Level sets the volume of both and Wet and Dry their ratio. The knobs follow the stock
-ones: Freq (20..1000 Hz), Dry Level (-60..+18 dB), Wet Level (-60..+9 dB), Mode (Full / Xover); the defaults (20 Hz,
--60 dB, 0 dB, Full) sound like the stock block.
+ones: Freq (Off, 20..1000 Hz), Dry Level (-60..+18 dB), Wet Level (-60..+9 dB), Mode (Full / Xover); the defaults
+(Off, -60 dB, 0 dB, Full) sound like the stock block: at Freq's "Off" end (19.9 Hz, as stock Low Cut) the high-passes
+take type 0 and pass the drive path through (an op 0x40 test of Freq into an op 0x2a select, Rollout D9).
 
 Groups (docs/research/sharc/cores/teemah.md, Rollout D6):
   mix    the stock root nested whole in a new composite (outer_members): in-port, tap into the dry buffer, HP, the
@@ -89,7 +90,10 @@ ALL_KNOBS, XOVER_KNOBS = ('freq', 'dry', 'wet', 'mode'), ('freq', 'mode')
 # of its own (Pillars), shown as "Crossover" / "Xover" there
 MODE_NAMES = ((pt.MODE_NAME, pt.MODE_NAME + 'State'), ('Xover', 'XoverState'))
 MODE_DISP2 = ('Crossover', 'Xover')
-FREQ, DRY, WET, MODE = 20.0, pt.LEVEL_MIN, 0.0, 0      # defaults: the stock sound
+FREQ, DRY, WET, MODE = 19.9, pt.LEVEL_MIN, 0.0, 0      # defaults: the stock sound (Freq Off)
+# Freq's "Off" end (as stock Low Cut, 19.9 Hz): the high-passes take type 0 (through) while Freq <= FREQ_ON, so the
+# drive path is the stock block; above it they are the LR4 high-pass at Freq
+FREQ_OFF, FREQ_ON = 19.9, 19.95
 HP_TYPE, LP_TYPE, Q = 4, 3, 0.7071                     # LR4: two 2nd-order sections a side (patch_teemah)
 N_KNOBS = 4
 COST = 100
@@ -255,6 +259,7 @@ def build_xover(b0, root, plan):
         return (r, ins, outs, init, None)                  # no connection, as Teemah!'s members
 
     def biquad(typ, buf):
+        typ = 0 if typ == HP_TYPE and FREQ <= FREQ_ON else typ
         return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
 
     lp_t = LP_TYPE if MODE else 0
@@ -319,6 +324,7 @@ def outer_members(b0, root):
         return (r, ins, outs, init, None)                  # no connection, as Teemah!'s members
 
     def biquad(typ, buf):
+        typ = 0 if typ == HP_TYPE and FREQ <= FREQ_ON else typ
         return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
 
     lp_t = LP_TYPE if MODE else 0
@@ -504,7 +510,25 @@ def mode_meta(e3, disp=pt.MODE_NAME, short=pt.MODE_NAME):
     return bytes(e3), (off, len(meta)), S
 
 
-def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAMES[0]):
+def freq_meta(e3):
+    """Entry 3 with the Freq knob's meta table appended once: Auto Filter Frequency's (displayType hz, its short name)
+    and valueMinString "Off", as stock Low Cut knobs show their 19.9 Hz end. (Entry 3, (offset, count))"""
+    e3 = bytearray(e3)
+    _, _, _, S = patch_comp.e3_strings(e3)
+    assert {'valueMinString', 'Off'} <= set(S), 'Entry 3 lacks valueMinString or Off'
+    src = kp.find_model(kp.parse_entry3_full(bytes(e3)), pt.FREQ_SRC[0])
+    j = [p['name'] for p in src['params']].index(pt.FREQ_SRC[1])
+    n, off = struct.unpack_from('<2I', e3, src['words'][11] + 32 * j)
+    rows = bytes(e3[off: off + 12 * n])
+    assert all(struct.unpack_from('<3I', rows, 12 * k)[0] != S['valueMinString'] for k in range(n))
+    e3 += bytes((-len(e3)) % 4)
+    at = len(e3)
+    e3 += rows + struct.pack('<3I', S['valueMinString'], 7, S['Off'])
+    struct.pack_into('<I', e3, 8, len(e3))
+    return bytes(e3), (at, n + 1)
+
+
+def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAMES[0], fmeta=None):
     """Entry 3 with Freq, Dry Level, Wet Level and Mode (those of `knobs`, in this order, Mode last; Mode named
     mode_names) added to model_name's parameters (at insert_at: before a hidden one on a slot from HIDDEN_SLOT, so
     the shown ones stay first) and appended to its states, its tables copied once (patch_comp.e3_add_knobs's layout);
@@ -533,6 +557,8 @@ def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAME
         srec = list(struct.unpack_from('<5I', e3, src['words'][10] + 20 * j))
         assert prec[3] == 3 and srec[3] == 3 and srec[4] == j, f'{src_model}.{src_param} is not a float of state {j}'
         prec[4], prec[7] = first + k, f2u(dflt)
+        if src_param == pt.FREQ_SRC[1] and fmeta is not None:     # the "Off" end below Auto Filter's 20 Hz
+            prec[0], prec[1], prec[5] = fmeta[1], fmeta[0], f2u(FREQ_OFF)
         if top is not None:
             prec[6] = f2u(top)
         srec[4] = n_st + k
@@ -642,6 +668,7 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
     b0_new, ids = append_composites(b0, [(mem, sl['buffers'], sl['head'], sl['list']) for mem, _, sl in built.values()])
     new_comp = dict(zip(built, ids))
     e3, meta, sm = mode_meta(e3)
+    e3, fmeta = freq_meta(e3)
     meta2 = None
     blobs = {}
     for m in ms:
@@ -652,16 +679,17 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
         if MODE_NAMES[0][0] in {q['name'] for q in m['params']}:
             if meta2 is None:
                 e3, meta2, _ = mode_meta(e3, *MODE_DISP2)
-            e3, first = e3_add_params(e3, m['name'], meta2, sm, p['knobs'], MODE_NAMES[1])
+            e3, first = e3_add_params(e3, m['name'], meta2, sm, p['knobs'], MODE_NAMES[1], fmeta)
         else:
-            e3, first = e3_add_params(e3, m['name'], meta, sm, p['knobs'])
+            e3, first = e3_add_params(e3, m['name'], meta, sm, p['knobs'], fmeta=fmeta)
         s = dict(zip(p['knobs'], range(first, first + len(p['knobs']))))
         blob = pt.Blob(eb.blob(w4, m['blob_index']))
         if p['group'] == 'xover':
             blob.renumber(smap, new_comp[root], old_comp=root)
         else:
             nest_blob(blob, new_comp[root])
-        blob.add_param(s['freq'], f2u(FREQ), [(k, 2, None) for k in sl['hp'] + sl['lp']])
+        blob.add_param(s['freq'], f2u(FREQ), [(k, 2, None) for k in sl['hp'] + sl['lp']] +
+                       [(k, 1, ('gt_select', FREQ_ON, 0, HP_TYPE)) for k in sl['hp']])
         if 'dry' in s:
             lv = p['level']
             how = None if lv is None else ('plus', lv[0]) if lv[1] is None else ('plus_curve', lv[0], lv[1])

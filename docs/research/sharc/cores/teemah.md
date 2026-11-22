@@ -165,3 +165,10 @@ Test build D for every mono distortion in one pass (plan: bass's `2026-11-19-dis
   - No dropouts or repeated blocks; the click counter fires on Xenomorph (7) and Bitcrusher (9) with the drive path alone, as on Ram's Head in D7.
 - **Supersedes** the SKIP and Minotaur paragraphs of Rollout D7: `SKIP` now holds Kinky Boost and Vital Boost only.
 - **Measuring tool**: `hx_xover_resp.py --set KNOB=VALUE` (Entry 3 name, cast to the knob's type) and `--tag SUFFIX` for takes with a knob changed.
+
+## Rollout D9: Freq "Off" bypasses the high-pass (2026-11-22)
+
+- **Finding** (stock against D8, 59 models, 2 boots each, Freq 20 Hz, Dry −60 dB, Wet 0 dB, Full): equal above about 200 Hz; below, near-linear models follow the LR4 at 20 Hz (−4.0 / −2.1 / −0.9 dB at 25 / 31 / 39 Hz), distorting ones lose 0.5..2.2 dB at 39..62 Hz in the total spectrum, Minotaur −3.7 dB at 39 Hz. So 20 Hz was not stock.
+- **Change**: Freq gets an "Off" end as stock Low Cut does: range 19.9..1000 Hz, default 19.9, meta `valueMinString` = "Off" (Auto Filter Frequency's meta rows plus that one). Besides its frequency writes, Freq drives the type word of both high-pass biquads through `Blob.add_param(..., how=('gt_select', 19.95, 0, HP_TYPE))`: a `0x40` node (x > 19.95) feeds a `0x2a` select (data words [0, HP_TYPE]). At Off the sections take type 0 (through), as the low-pass does in Mode Full; the init type follows `FREQ` the same way. Defaults now Off, −60 dB, 0 dB, Full.
+- **Measured** (image A_d9_nonam, 3 boots against 3 stock boots, Freq Off, 6-s takes): largest deviation in the total spectrum D9 against stock 0.78..1.37 dB over all models and bands, stock against stock 0.92..1.19 dB, D9 against D9 0.84..1.37 dB; mean of 3 against mean of 3 at most 0.72 dB, without a sign pattern. D9 at Off is stock within repeatability; at 20 Hz it measures as D8. Data: project folder `2026-11-22-xover-messung/stockvergleich/vergleich.md`.
+- **Measuring note**: after RAM-start step 1 the RAM loader at times comes up only after step 2 timed out; a rerun of the driver then skips steps 1 and 2.
