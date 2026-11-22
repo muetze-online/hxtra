@@ -203,11 +203,8 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 - Dry Level mixes the block's unprocessed input back in at the end, Wet Level sets the effect signal; the block's own Level sets the volume of both.
 - Only the input above Frequency goes into the effect. Mode sets what the dry signal carries: the full range (Full) or only what lies below Frequency (Xover). At their defaults a block sounds as on stock firmware.
-- Every mono distortion, the 17 legacy ones included, but those below. Not every block gets all four: Obsidian 7000, whose Blend already mixes a clean path, gets Frequency and Mode only. Bronze Master keeps its own Blend as well and gets all four.
-- Not supported (they stay stock):
-  - Clawthorn Drive and Bitcrusher: the dry path carries the block's own output
-  - Minotaur: silent with the new knobs
-  - Kinky Boost and Vital Boost: clean boosts, with no drive to split off
+- Every mono distortion, the 17 legacy ones included, but those below. Not every block gets all four: Obsidian 7000 and Minotaur, which mix clean paths of their own, get Frequency and Mode only. Bronze Master keeps its own Blend as well and gets all four. Xenomorph Fuzz gets them in a build without NAM A2 Lite, which otherwise takes its place.
+- Not supported (they stay stock): Kinky Boost and Vital Boost, clean boosts with no drive to split off.
 - Each of these blocks then counts 1% more toward the DSP limit.
 
 [More in the feature guide](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover)

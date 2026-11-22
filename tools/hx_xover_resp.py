@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """hx_xover_resp.py IMAGE OUTDIR [--models 302,386,431,595] [--freq 250] [--level -40] [--secs 6] [--wavdir DIR]
+                   [--set KNOB=VALUE ...] [--tag SUFFIX]
 : the Distortion Crossover (HX_DIST_XOVER) of HXtra bass measured on the HX Stomp over USB.
 
 IMAGE is the .hxf running on the unit (its Entry 3 gives each model's knobs, its parameter map their defaults).
@@ -187,7 +188,15 @@ def main():
     ap.add_argument("--cases", default=",".join(DEFAULT_CASES))
     ap.add_argument("--wavdir")
     ap.add_argument("--reanalyse", action="store_true", help="evaluate the takes in --wavdir, no unit")
+    ap.add_argument("--set", action="append", default=[], metavar="KNOB=VALUE",
+                    help="an Entry 3 knob (e.g. ODLowBoost=1) set in every case of each model that has it")
+    ap.add_argument("--tag", default="", help="appended to each take's key (and wav name), so takes with other "
+                    "--set values keep their own")
     a = ap.parse_args()
+    try:
+        sets = tuple((k, float(v)) for k, v in (s.split("=", 1) for s in a.set))
+    except ValueError:
+        sys.exit("--set takes KNOB=VALUE, VALUE a number")
     pids = [int(p) for p in a.models.split(",")]
     cases = [c for c in CASES if c[0] in a.cases.split(",")]
     writes = len(pids) * len(cases) + 2
@@ -210,11 +219,14 @@ def main():
             for knob, val in (("Frequency", a.freq), ("Dry Level", dry), ("Wet Level", wet), ("Mode", mode)):
                 if knob in idx:
                     v[idx[knob]] = val
+            for knob, val in sets:              # in the knob's own type: a switch as a bool, a list as an int
+                if knob in idx:
+                    v[idx[knob]] = type(v[idx[knob]])(val)
             if tag == "lvlmax":
                 if level is None:
                     continue
                 v[level[0]] = level[1]
-            runs.append((f"{pid}_{tag}", pid, v))
+            runs.append((f"{pid}_{tag}{a.tag}", pid, v))
     res = {}
 
     def evaluate(key, wav):
@@ -273,7 +285,7 @@ def main():
                   "| Fall | " + " | ".join(f"{hz} Hz" for hz in SHOW_HZ) + " | RMS | Aussetzer/Wdh./Klicks | xcorr |",
                   "|---|" + "---|" * (len(SHOW_HZ) + 3)]
         for tag, *_ in cases:
-            key = f"{pid}_{tag}"
+            key = f"{pid}_{tag}{a.tag}"
             if key not in res:
                 lines.append(f"| {tag} | nicht gesetzt |")
                 continue

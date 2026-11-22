@@ -68,8 +68,8 @@ def parse_map(b, base):
     for k in range(nA):
         n = pm[oA + 10 * k: oA + 10 * k + 10]     # {data_off, 0, id, op, n_out, state, dlen, dlen, is_input, 0}
         nd = {'id': n[2], 'op': n[3], 'state': n[5], 'dlen': n[6], 'input': n[8]}
-        if n[3] == 1:
-            nd['path'], nd['pid'] = path_at(b, pm[n[0]]), pm[n[0] + 1]
+        if n[3] == 1:                               # writer data {path, pid, kind}: 1 a parameter, 0 a switch
+            nd['path'], nd['pid'], nd['kind'] = path_at(b, pm[n[0]]), pm[n[0] + 1], pm[n[0] + 2]
         elif n[6]:
             nd['data'] = [fv(x) for x in pm[n[0]: n[0] + n[6]]]
         nodes.append(nd)
@@ -87,11 +87,12 @@ def parse_map(b, base):
 
 
 def init_records(b):
-    """The blob's init records: path -> {pid: value}."""
+    """The blob's init records of parameters: path -> {pid: value} (word 3 = 2, a composite's switch, left out)."""
     out = {}
     for k in range(b[11]):
-        soff, pid, voff, _kind = b[b[10] + 4 * k: b[10] + 4 * k + 4]
-        out.setdefault(path_at(b, soff), {})[pid] = fv(b[voff + 1])
+        soff, pid, voff, kind = b[b[10] + 4 * k: b[10] + 4 * k + 4]
+        if kind != 2:
+            out.setdefault(path_at(b, soff), {})[pid] = fv(b[voff + 1])
     return out
 
 
@@ -145,7 +146,7 @@ def model_report(fw, m):
         memo, writes = {}, []
         for w in (n for n in mp['nodes'].values() if n['op'] == 1):
             src = [s for s, d, _, _ in mp['edges'] if d == w['id']]
-            writes.append((w['path'], w['pid'], expr(mp, src[0], slotname, memo) if src else None))
+            writes.append((w['path'], w['pid'], expr(mp, src[0], slotname, memo) if src else None, w['kind']))
         c = fw.comp(member_type(comp_path))
         subs = [k + 1 for k, mm in enumerate(c['members'])
                 if is_comp(nt.get(tuple(comp_path) + (k + 1,)) or mm['type_id'])]
@@ -153,7 +154,7 @@ def model_report(fw, m):
         assert len(rows) == len(subs), f"{m['displayName']}: {len(rows)} nested maps for {len(subs)} composites"
         for s, r in zip(subs, rows):
             p = tuple(comp_path) + (s,)
-            feeds = {pid: e for wp, pid, e in writes if wp == p}
+            feeds = {pid: e for wp, pid, e, kind in writes if wp == p and kind}    # a switch (kind 0) feeds none
 
             def sn(slot, feeds=feeds, p=p):
                 if slot in feeds:
@@ -174,10 +175,10 @@ def model_report(fw, m):
                        'default': round(p['default'], 6),
                        'list': {k: v for k, v in p['meta'].items() if k.isdigit()}} for p in m['params']],
            'chain': [], 'writes': []}
-    for path, pid, e in walk_map(0, (), top_slot):
+    for path, pid, e, kind in walk_map(0, (), top_slot):
         t = member_type(path) if path else root
-        if path and is_comp(t):
-            continue                                # fed into that member's nested map
+        if path and is_comp(t) and kind:
+            continue                                # fed into that member's nested map; a switch of it stays
         out['writes'].append({'path': list(path), 'type': hex(t) if path else 'root', 'pid': pid, 'expr': e})
 
     def chain(t, prefix, depth):

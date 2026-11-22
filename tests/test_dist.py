@@ -184,10 +184,25 @@ def test_entry_3_grows_once_per_model(built):
 
 
 @pytest.mark.firmware
-def test_a_model_whose_map_writes_the_root_is_refused():
-    fw = pdist.Fw(kp.get_entry_swapped(firmware.stock(), 3), _w4(firmware.stock()))
-    with pytest.raises(SystemExit, match='writes the root'):
-        pdist.plan_model(fw, kp.find_model(fw.e3, 'HD2_DistClawthornDriveMono'))
+@pytest.mark.parametrize('name, pids', [('HD2_DistClawthornDriveMono', [0]), ('HD2_DistBitcrusherMono', [2, 3])])
+def test_the_roots_switches_go_with_the_nested_stock_root(name, pids):
+    """Clawthorn Drive (Low Boost) and Bitcrusher (Low Cut, High Cut off) write switches of their root ({path, pid,
+    0}; header word 0 counts them, members' connections name them) and init them (init records of word 3 = 2). The
+    nested form moves both to (S,), the stock root that holds the switched members; the new root has none."""
+    stock = firmware.stock()
+    new = pdist.patch_dist(stock, models=(name,), log=lambda *_: None)
+    blobs = {}
+    for x in (stock, new):
+        b = pt.Blob(eb.blob(_w4(x), _model(x, name)['blob_index']))
+        blobs[x is new] = ([(b.path(b.pm[d]), b.pm[d + 1]) for d in b.writer_data() if b.pm[d + 2] == pdist.SWITCH],
+                           sorted((b.path(r[0]), r[1], b.area[r[2]]) for r in b.pins if r[3] == pdist.SWITCH_PIN))
+    (w_old, p_old), (w_new, p_new) = blobs[False], blobs[True]
+    assert sorted(w_old) == [((0,), p) for p in pids] and sorted(w_new) == [((pdist.S,), p) for p in pids]
+    assert p_old and all(p == (0,) for p, *_ in p_old)
+    assert p_new == [((pdist.S,), q, v) for _, q, v in p_old]
+    fw = pdist.Fw(kp.get_entry_swapped(stock, 3), _w4(stock))
+    root = pdist.plan_model(fw, kp.find_model(fw.e3, name))['root']
+    assert len(p_old) == pdist._composite(fw.b0, root)[0][0], 'one init record per switch of the root'
 
 
 # Rollout D3: every core mono distortion (docs/research/sharc/cores/teemah.md, Rollout D3)
@@ -241,6 +256,38 @@ def test_the_candidates_are_the_core_ones_and_the_17_legacy_ones():
     assert sorted(m['meta']['category'] for m in dm4) == ['dynamics'] * (len(dm4) - 1) + ['pitch']
 
 
+@pytest.mark.firmware
+def test_minotaur_filters_its_clean_paths_and_its_drive_path_in_place():
+    """Minotaur (group xover, form parallel): three nested composites read the in-port's buffer 0; the first two
+    (no clipper, Gain fading the first) write buffers 1 and 2, the third (with the clipper 0x832) works in place.
+    HP on 0 and LP on 1 and 2 go between the second and the third; its composites stay two levels deep, as stock."""
+    stock = firmware.stock()
+    fw = pdist.Fw(kp.get_entry_swapped(stock, 3), _w4(stock))
+    p = pdist.plan_model(fw, kp.find_model(fw.e3, 'HD2_DistMinotaurMono'))
+    assert (p['group'], p['form'], p['at'], p['drive'], p['clean']) == ('xover', 'parallel', 3, [0], [1, 2])
+    members, smap, sl = pdist.build_xover(fw.b0, p['root'], p)
+    assert sl['hp'] == (4, 5) and sl['lp'] == (6, 7, 8, 9) and smap[4] == 10
+    assert [(m[1], m[2]) for m in members[3:9]] == [([0], [0])] * 2 + [([1], [1])] * 2 + [([2], [2])] * 2
+    assert all(0x600000 <= members[s - 1][0][6] < 0x700000 for s in (2, 3, 10))
+    o = kp.find_model(fw.e3, 'HD2_DistObsidian7000Mono')
+    q = pdist.plan_model(fw, o)
+    assert q['form'] == 'split' and q['clean'] == [0] and len(q['drive']) == 1
+
+
+def test_a_build_without_nam_keeps_xenomorph_and_crosses_it_over(tmp_path, monkeypatch):
+    """NAM A2 Lite takes Xenomorph Fuzz Mono's preset ID 555 (build.py STEPS, remove-model first). HX_NAM_SLOTS=0
+    runs no STEPS, so Xenomorph keeps its Static Model Table row and patch_dist gives it the four knobs (PATCHED, on
+    the stock rows); with NAM, the model is gone before patch_dist runs."""
+    from test_gate import build_steps
+    for k in ('HX_GATE_SC', 'HX_USB_MONITOR', 'HX_NAM_SLOTS'):
+        monkeypatch.delenv(k, raising=False)
+    without = build_steps(tmp_path, monkeypatch, 'HX_Stomp', {'HX_NAM_SLOTS': '0', 'HX_DIST_XOVER': '1'})
+    assert 'tools/patch_amp.py' not in without and 'tools/patch_dist.py' in without
+    with_nam = build_steps(tmp_path, monkeypatch, 'HX_Stomp', {'HX_NAM_SLOTS': '2', 'HX_DIST_XOVER': '1'})
+    assert with_nam.index('tools/patch_amp.py') < with_nam.index('tools/patch_dist.py')
+    assert 'HD2_DistXenomorphFuzzMono' in PATCHED
+
+
 def test_a_model_without_a_static_model_table_row_is_left_out():
     """An HXtra build removes Xenomorph Fuzz Mono's Table 1 row for NAM A2 Lite; patch_dist then skips it."""
     info = kp.parse_entry3_full(firmware.stock_entry(3))
@@ -252,17 +299,15 @@ def test_a_model_without_a_static_model_table_row_is_left_out():
 
 @pytest.mark.firmware
 def test_the_skipped_models_stay_stock(full):
-    """Clawthorn Drive and Bitcrusher: their maps write the root (on/off flags; their dry path carried the block's
-    own output on the unit in the shared-composite form, 2026-11-20). The tap models of the earlier SKIP list (Pocket
-    Fuzz, KWB, Swedish Chainsaw, Alpaca Rouge, Ballistic Fuzz, Dark Dove Fuzz, Bighorn Fuzz, Valve Driver) are nested
-    now. Minotaur, the one model with three composites nested under its stock root, went silent nested one level
-    deeper and silenced every block placed after it (on the unit 2026-11-22). Kinky Boost and Vital Boost are clean
-    boosts with no drive to split off (the author's choice, 2026-11-22). The skipped ones keep their stock
+    """Kinky Boost and Vital Boost are clean boosts with no drive to split off (the author's choice, 2026-11-22).
+    The others of earlier SKIP lists are crossed over now: the tap models (Pocket Fuzz, KWB, Swedish Chainsaw, Alpaca
+    Rouge, Ballistic Fuzz, Dark Dove Fuzz, Bighorn Fuzz, Valve Driver) nested; Clawthorn Drive and Bitcrusher nested
+    with their root's switches on the stock root (Rollout D8); Minotaur, which went silent nested one level deeper
+    (three composites under its stock root, 2026-11-22), in group xover. The skipped ones keep their stock
     parameters and blob."""
     stock, new, _, _ = full
-    assert set(pdist.SKIP) == {'HD2_DistClawthornDriveMono', 'HD2_DistBitcrusherMono', 'HD2_DistMinotaurMono',
-                               'HD2_DistKinkyBoostMono', 'HD2_DistVitalBoostMono'}
-    assert len(PATCHED) == 56
+    assert set(pdist.SKIP) == {'HD2_DistKinkyBoostMono', 'HD2_DistVitalBoostMono'}
+    assert len(PATCHED) == 59
     for n in pdist.SKIP:
         i = _model(stock, n)['blob_index']
         assert repr(_params(new, n)) == repr(_params(stock, n))
@@ -272,6 +317,11 @@ def test_the_skipped_models_stay_stock(full):
 def _mode_disp(r_stock):
     """The new Mode knob's display name: "Crossover" where the model has a Mode of its own (Pillars)."""
     return pdist.MODE_DISP2[0] if 'Mode' in [q['name'] for q in r_stock['params']] else 'Mode'
+
+
+def _n_new(p):
+    """The filters a plan adds: two HP, two LP (group mix), two HP and two LP per clean buffer (group xover)."""
+    return 2 + 2 * len(p['clean']) if p['group'] == 'xover' else 4
 
 
 def _writes(r, knob):
@@ -304,8 +354,9 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     _, _, plans, reports = full
     p, (ro, rn) = plans[name], reports[name]
     freq, mode = _writes(rn, 'Frequency'), _writes(rn, _mode_disp(ro))
-    assert len(freq) == 4 and {pid for _, pid in freq} == {2} and all(_type(rn, k[0]) == '0x102' for k in freq)
-    assert len(mode) == 2 and {pid for _, pid in mode} == {1} and {k[0] for k in mode} < {k[0] for k in freq}
+    n = _n_new(p)
+    assert len(freq) == n and {pid for _, pid in freq} == {2} and all(_type(rn, k[0]) == '0x102' for k in freq)
+    assert len(mode) == n - 2 and {pid for _, pid in mode} == {1} and {k[0] for k in mode} < {k[0] for k in freq}
     dry, wet = _writes(rn, 'Dry Level'), _writes(rn, 'Wet Level')
     if p['group'] == 'xover':
         assert not dry and not wet
@@ -331,8 +382,10 @@ def test_each_models_stock_writes_survive_renumbered(full, name):
     _, _, plans, reports = full
     ro, rn = reports[name]
     p = plans[name]
-    shift = (lambda path: (path[0] if path[0] <= p['at'] else path[0] + 4,) + tuple(path[1:])) \
-        if p['group'] == 'xover' else (lambda path: (pdist.S,) + tuple(path))    # path [0]: the root itself
+    n = _n_new(p)
+    # path [0]: the root itself; group mix moves its switch writers (Clawthorn Drive, Bitcrusher) to the stock root
+    shift = (lambda path: (path[0] if path[0] <= p['at'] else path[0] + n,) + tuple(path[1:])) \
+        if p['group'] == 'xover' else (lambda path: (pdist.S,) + (tuple(path) if list(path) != [0] else ()))
     stock = sorted((shift(w['path']), w['pid'], repr(w['expr'])) for w in ro['writes'])
     mine = {'Frequency', 'Dry Level', 'Wet Level', _mode_disp(ro)}
     new = sorted((tuple(w['path']), w['pid'], repr(w['expr'])) for w in rn['writes']
@@ -356,7 +409,7 @@ def test_each_models_composite_keeps_its_connections(full, name):
         assert pdist._composite(bn, p['root']) == (ho, old)
         _outer_ok(bn, outer, p['root'])
         return
-    shift = lambda s: s if s <= p['at'] else s + 4
+    shift = lambda s: s if s <= p['at'] else s + _n_new(p)
     hn, mem = pdist._composite(bn, outer)                 # asserts the form of every connection
     assert hn[0] == ho[0]
     assert [mem[shift(k + 1) - 1][4] for k in range(len(old))] == [o[4] for o in old]
@@ -462,7 +515,7 @@ def test_full_build_keeps_every_other_model_and_blob_stock(full):
     assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
     bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
     roots = {p['root'] for p in plans.values()}
-    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 40
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 43
 
 
 @pytest.mark.firmware

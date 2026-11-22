@@ -64,9 +64,6 @@ LEGACY = (
     'HD2_DM4ColorDrive', 'HD2_DM4BuzzSaw', 'HD2_DM4FacialFuzz', 'HD2_DM4JumboFuzz', 'HD2_DM4FuzzPi', 'HD2_DM4JetFuzz',
     'HD2_DM4Line6Drive', 'HD2_DM4Line6Distortion', 'HD2_DM4SubOctFuzz', 'HD2_DM4OctaveFuzz', BRONZE, KILLER_Z)
 SKIP = {                                               # candidates left as they are, and why
-    'HD2_DistClawthornDriveMono': 'its map writes the root (on/off flags), which the nested form does not carry',
-    'HD2_DistBitcrusherMono': 'its map writes the root (on/off flags), which the nested form does not carry',
-    'HD2_DistMinotaurMono': 'three nested composites; the unit goes silent (2026-11-22)',
     'HD2_DistKinkyBoostMono': 'a clean boost with no drive to split off, and no single Level (2026-11-22)',
     'HD2_DistVitalBoostMono': 'a clean boost with no drive to split off, and no single Level (2026-11-22)',
 }
@@ -81,7 +78,12 @@ LEVEL = {                                              # the Level knob where no
 }
 LEVEL.update({n: 'Output' for n in LEGACY if n not in LEVEL})
 GAIN = {'0x80': 'db', '0x225': 'lin'}                 # members whose pid 1 the Level knob sets: dB, linear
-XOVER = ('HD2_DistObsidian7000Mono',)                  # Freq and Mode on its own Blend (group xover)
+# Group xover, Freq and Mode only, and the form of its clean path (plan_model): 'split' (Obsidian 7000, whose Blend
+# mixes its own clean path): a member splits the drive path off the in-port's buffer, which goes on clean;
+# 'parallel' (Minotaur, Gain fading its clean paths): members read the in-port's buffer one after the other, the clean
+# paths into buffers of their own, then the drive path (the one with the clipper 0x832) in place, nested composites
+# all, so the mix group's nesting would put them three levels deep (silent on the unit, 2026-11-22)
+XOVER = {'HD2_DistObsidian7000Mono': 'split', 'HD2_DistMinotaurMono': 'parallel'}
 ALL_KNOBS, XOVER_KNOBS = ('freq', 'dry', 'wet', 'mode'), ('freq', 'mode')
 # (parameter, state) names of the Mode knob; the second (stock strings of the Split XOver) where the model has a Mode
 # of its own (Pillars), shown as "Crossover" / "Xover" there
@@ -159,21 +161,29 @@ def plan_model(fw, m):
     """{'group', 'root', 'knobs', 'level', 'at'} of a model. Group 'mix': the stock root nested in a new composite
     with the crossover and the mixer around it (outer_members); 'level' = (Level's parameter slot, its curve shifted
     to 0 dB at its default, or None for a Level knob in dB with default 0), by which the dry signal follows Level, or
-    None (LEVEL: no single Level knob). Group 'xover' (XOVER): `at` the member that splits drive and clean path. A
-    model that does not fit: SystemExit."""
+    None (LEVEL: no single Level knob). Group 'xover' (XOVER): its 'form', `at` the slot after which the filters go,
+    'drive' the buffer the high-pass takes and 'clean' those the low-pass takes (build_xover). A model that does
+    not fit: SystemExit."""
     r = pmap.model_report(fw, m)
     top = [c for c in r['chain'] if c['depth'] == 0]
     root = int(r['root'], 16)
     assert top[0]['type'] == 'in-port' and top[-1]['type'] == 'out-port', f"{m['name']}: ports"
     if m['name'] in XOVER:
         wet_in = top[0]['out']
-        split = [c for c in top[1:-1] if c['in'] == wet_in and c['out'] != wet_in]
-        if not split or len(split[0]['out']) != 1:
-            raise SystemExit(f"{m['name']}: no member splits a drive path off the in-port's buffer")
-        return {'group': 'xover', 'root': root, 'knobs': XOVER_KNOBS, 'level': None, 'at': split[0]['path'][0]}
+        plan = {'group': 'xover', 'root': root, 'knobs': XOVER_KNOBS, 'level': None, 'form': XOVER[m['name']]}
+        if XOVER[m['name']] == 'split':
+            split = [c for c in top[1:-1] if c['in'] == wet_in and c['out'] != wet_in]
+            if not split or len(split[0]['out']) != 1:
+                raise SystemExit(f"{m['name']}: no member splits a drive path off the in-port's buffer")
+            return dict(plan, at=split[0]['path'][0], drive=split[0]['out'], clean=wet_in)
+        par = [c for c in top[1:-1] if c['in'] == wet_in]
+        k = next((i for i, c in enumerate(par) if c['out'] == wet_in), None)
+        clean = [b for c in par[:k] for b in c['out']] if k else []
+        if (not k or par[k]['path'][0] != par[k - 1]['path'][0] + 1 or [c['path'][0] for c in par[:k]] !=
+                list(range(2, 2 + k)) or len(clean) != k or len(set(clean) | {wet_in[0]}) != k + 1):
+            raise SystemExit(f"{m['name']}: not clean paths off the in-port's buffer and then a drive path in place")
+        return dict(plan, at=par[k]['path'][0] - 1, drive=wet_in, clean=clean)
     plan = {'group': 'mix', 'root': root, 'knobs': ALL_KNOBS, 'level': None, 'at': None}
-    if any(w['path'] in ([], [0]) for w in r['writes']):     # path [0]: the root itself
-        raise SystemExit(f"{m['name']}: its map writes the root (on/off flags): not nested")
     lname = LEVEL.get(m['name'], LEVEL_KNOBS)
     if lname is None:
         return plan
@@ -224,8 +234,9 @@ def _composite(b0, cid):
 
 def build_xover(b0, root, plan):
     """(members, slot map old -> new, {'hp': slots, 'lp': slots, 'mix': None, 'buffers': n, ..}) of group xover's
-    new composite: the stock members, HP on the splitter's drive output, LP on its clean input (the in-port's
-    buffer), right after the splitter; no tap, no mixer."""
+    new composite: the stock members and, right after slot plan['at'], HP on the drive buffer and LP on each clean
+    one (XOVER: the splitter's drive output and the in-port's buffer, or the in-port's buffer that the drive path
+    then takes in place and the buffers the clean paths wrote); no tap, no mixer."""
     h, old = _composite(b0, root)
     _, tmpl = _composite(b0, pt.STOCK_COMP)                 # Teemah!'s: in-port, 0x102, 0x80 records to copy
     assert [t[0][6] for t in tmpl][:2] == [0, 0x102] and tmpl[5][0][6] == 0x80
@@ -235,7 +246,6 @@ def build_xover(b0, root, plan):
     L = plan['at']
     assert 2 <= L <= len(old), f'{root:#x}: splitter slot {L}'
     wet_in = old[0][2][0]
-    lvl = old[L - 1]
 
     def prim(rec, ins, outs, init, typ=None, flags=0):
         r = list(rec)
@@ -248,18 +258,28 @@ def build_xover(b0, root, plan):
         return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
 
     lp_t = LP_TYPE if MODE else 0
-    drive, clean = lvl[2], lvl[1]
-    assert len(drive) == 1 and clean == [wet_in] and drive != clean, f'{root:#x}: splitter {lvl[1]} -> {lvl[2]}'
-    members = (old[:L] + [biquad(HP_TYPE, drive[0]), biquad(HP_TYPE, drive[0]),
-                          biquad(lp_t, wet_in), biquad(lp_t, wet_in)] + old[L:])
-    smap = {s: s if s <= L else s + 4 for s in range(1, len(old) + 1)}
-    slots = {'hp': (L + 1, L + 2), 'lp': (L + 3, L + 4), 'mix': None, 'buffers': h[1], 'head': h[0],
-             'list': (h[4], h[5])}
-    assert len(members) == len(old) + 4 and all(members[s - 1][0][6] == 0x102 for s in slots['hp'] + slots['lp'])
+    drive, clean = plan['drive'], plan['clean']
+    if plan['form'] == 'split':
+        assert old[L - 1][2] == drive and old[L - 1][1] == clean == [wet_in], f'{root:#x}: splitter {old[L - 1][1:3]}'
+    else:
+        assert drive == [wet_in] and old[L][1] == old[L][2] == drive, f'{root:#x}: drive path {old[L][1:3]}'
+    assert len(drive) == 1 and drive[0] not in clean and len(set(clean)) == len(clean), f'{root:#x}: {drive} {clean}'
+    assert all(b < h[1] for b in drive + clean), f'{root:#x}: a buffer beyond its {h[1]}'
+    new = [biquad(HP_TYPE, drive[0]) for _ in (0, 1)] + [biquad(lp_t, b) for b in clean for _ in (0, 1)]
+    n = len(new)
+    members = old[:L] + new + old[L:]
+    smap = {s: s if s <= L else s + n for s in range(1, len(old) + 1)}
+    slots = {'hp': (L + 1, L + 2), 'lp': tuple(range(L + 3, L + 1 + n)), 'mix': None, 'buffers': h[1],
+             'head': h[0], 'list': (h[4], h[5])}
+    assert len(members) == len(old) + n and all(members[s - 1][0][6] == 0x102 for s in slots['hp'] + slots['lp'])
     return members, smap, slots
 
 
 S, HP, LP, MIX = 5, (3, 4), (6, 7), 8                  # group mix: slots of the outer composite (outer_members)
+# A writer's data is {path, pid, kind}: kind 1 a parameter, 0 a switch of a composite (header word 0 counts them; a
+# member's connection names one); an init record's word 3 is 1 for a parameter, 2 for a switch. Clawthorn Drive (Low
+# Boost) and Bitcrusher (Low Cut, High Cut off) switch members of their stock root this way.
+SWITCH, SWITCH_PIN = 0, 2
 
 
 def sub_record(b0, cid):
@@ -335,7 +355,9 @@ def nest_blob(blob, outer_id):
     root map's 24-word header, the nested map of table F's first row; a new root map with an input per stock knob
     (stock node order and Entry 3 indices kept) written on to (S,) pid slot, a hidden one (Bronze Master's Smart:
     no state, writes nothing) kept as its stock node without edges; init records (S,) slot with the knob defaults;
-    sub-bindings (S, ..) -> (1, ..)."""
+    sub-bindings (S, ..) -> (1, ..). Writers to the root's switches and their init records go to (S,), the stock
+    root that holds the switched members (SWITCH; the stock App harness writes the switches of its child
+    composites the same way)."""
     old = list(blob.pm)
     writers = list(blob.writer_data())
     member = {old[d] for d in writers} | {r[0] for r in blob.pins} | {p for p, _ in blob.sub}
@@ -360,9 +382,13 @@ def nest_blob(blob, outer_id):
                 nested[f + 8 * k] += D
                 shift(old[f + 8 * k])
     shift(0)
+    switches = []                                          # writers to the root's switches: on to the stock root
     for d in writers:
-        assert blob.path(old[d]) != (0,), 'a writer to the root'
-        nested[d] = moved[old[d]]
+        if blob.path(old[d]) == (0,):
+            assert old[d + 2] == SWITCH, f'a writer to the root with kind {old[d + 2]}, not a switch'
+            switches.append(d)
+        else:
+            nested[d] = moved[old[d]]
     blob.reloc = [(t, r, o + D if r == 'pm' else o) for t, r, o in blob.reloc]
     frow = [D, 0] + f_row(old, 0)
     a, dn, ne = old[0], old[21], old[22]
@@ -371,6 +397,8 @@ def nest_blob(blob, outer_id):
     slot_of = {r[0]: r[2] for r in drows}
     pm = [0] * D + nested
     sp = blob.add(1, S)
+    for d in switches:
+        pm[D + d] = sp
     nodes, ct, new_id = [], [], {}
     for r in erows:                                        # an input and its writer per stock input, node order
         n = old[a + 10 * r[0]: a + 10 * r[0] + 10]
@@ -402,6 +430,8 @@ def nest_blob(blob, outer_id):
     for r in blob.pins:
         if r[0] in moved:
             r[0] = moved[r[0]]
+        elif blob.path(r[0]) == (0,) and r[3] == SWITCH_PIN:  # the root's switch inits go with its switches
+            r[0] = sp
     shown = {slot_of[r[0]] for r in erows}
     for r in [r for r in blob.pins if blob.path(r[0]) == (0,) and r[1] in shown]:
         blob.pins.append([sp, r[1], r[2], 1])
