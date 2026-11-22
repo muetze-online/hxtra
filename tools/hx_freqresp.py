@@ -35,7 +35,7 @@ The edit buffer is saved first and written back at the end. Needs the installed 
 (stock 3.80.0 or an HXtra build), HX Edit closed. Each case is one preset write, plus the input block and the
 restore: stock 3.80 stops answering after about 30 a boot, so a run refuses more than --max-writes (28).
 
-Build the helpers once:
+Helpers (built once; HX_MAC_HELPERS names their folder, default build/):
   swiftc -O tools/mac/noise_mac.swift -o build/noise_mac
   swiftc -O tools/mac/record_mac.swift -o build/record_mac
 """
@@ -45,7 +45,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hx_smoke as hs
 
 ROOT = hs.ROOT
-NOISE = os.path.join(ROOT, "build", "noise_mac")
+HELPERS = os.environ.get("HX_MAC_HELPERS", os.path.join(ROOT, "build"))
+NOISE = os.path.join(HELPERS, "noise_mac")
+RECORDER = os.path.join(HELPERS, "record_mac")
 NFFT = 16384
 PER_OCT = 12
 TRIM = 0.3                                   # seconds dropped at the start of each recording
@@ -127,7 +129,7 @@ def usb_input(tmp):
 def take(wav, secs, level_db):
     play = subprocess.Popen([NOISE, "HX Stomp", str(secs + 2), "5,6", str(level_db)], stderr=subprocess.DEVNULL)
     time.sleep(1.0)
-    subprocess.run([hs.RECORDER, "HX Stomp", str(secs), wav], capture_output=True, timeout=secs + 30)
+    subprocess.run([RECORDER, "HX Stomp", str(secs), wav], capture_output=True, timeout=secs + 30)
     play.wait()
 
 
@@ -259,9 +261,9 @@ def main():
     if not a.reanalyse:
         if writes > a.max_writes:
             sys.exit(f"{writes} preset writes exceed --max-writes {a.max_writes}: split the case file")
-        for tool in (NOISE, hs.RECORDER):
+        for tool in (NOISE, RECORDER):
             if not os.path.exists(tool):
-                sys.exit(f"missing {tool}: build it as the docstring says")
+                sys.exit(f"missing {tool}: build it as the docstring says (HX_MAC_HELPERS names the folder)")
         if not hs.alive(2):
             sys.exit("the HX Stomp does not answer (USB connected? HX Edit closed?)")
         backup = os.path.join(a.outdir, "edit_buffer_before.json")
