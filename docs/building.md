@@ -27,7 +27,7 @@ This writes `build/HX_Stomp_v3.80.0_HXtra.hxf`. It takes about 2 minutes, most o
 4. Adds the kernel to the DSP's boot code (`patch_amp.py patch`).
 5. Recomputes and verifies every checksum: the container MD5, the archive Fletcher-32 and CRC-32, and the image CRCs.
 
-The build is deterministic. The default HX Stomp build (no switches) has MD5 `6087a0a1e5016a46bebe99c009b67f4e`, pinned in `tests/test_firmware.py`.
+The build is deterministic. The default HX Stomp build (no switches) has MD5 `27bf341931c80eaef218c71d61c67470`, pinned in `tests/test_firmware.py`.
 
 A default build changes only 5 of the 15 parts of the firmware: the main application, the DSP program, the model list, the DSP graph library and the image store (the boot picture; emoji in the boot text also change the font table). **The bootloader is never touched**, which is what keeps [recovery](https://wisemandenny.github.io/hxtra/web/#recovery) possible.
 

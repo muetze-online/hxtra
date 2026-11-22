@@ -383,8 +383,8 @@ def test_after_the_metronome_and_before_the_gr_knobs():
 
 
 GATE_BUILT_MD5 = {
-    'HX_FX_GATE': 'e49309dc81415407eab9e65efe0a65ff',
-    'HX_FX_GATE HX_GR HX_CLICK HX_REAL_NAMES': 'c94a1f9eaa0f01abd5d33d560a5acb7b',      # every DSP and model step, and an Entry 0 renamer
+    'HX_FX_GATE': '1ede5b285f3ccdc48ed08e9ed2c502b5',
+    'HX_FX_GATE HX_GR HX_CLICK HX_REAL_NAMES': '9afcbbd5bfff2a7b28af984d6099538a',      # every DSP and model step, and an Entry 0 renamer
 }
 
 

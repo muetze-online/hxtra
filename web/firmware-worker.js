@@ -26,7 +26,7 @@ var STOCK_MD5 = {
   "a2cd8f4ae56f49415380270ebc484bf1": "HX_Stomp",
 };
 var BUILT_MD5 = {
-  "HX_Stomp": "6087a0a1e5016a46bebe99c009b67f4e",
+  "HX_Stomp": "27bf341931c80eaef218c71d61c67470",
 };
 
 // build.py's KERNEL, STEPS and E3_MAX (tests/test_web_build.py keeps them equal): the kernel

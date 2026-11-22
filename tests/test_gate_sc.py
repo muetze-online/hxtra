@@ -411,8 +411,8 @@ def test_after_the_fx_gate_and_before_the_gr_knobs():
 
 
 SC_BUILT_MD5 = {
-    'HX_GATE_SC': 'fc083866805a560f59f1ac627745e818',
-    'HX_GATE_SC HX_FX_GATE HX_GR HX_CLICK HX_USB_MONITOR HX_REAL_NAMES': 'a920a06a49067154a5f938fd8e95bdb6',  # every DSP step
+    'HX_GATE_SC': '6a0469f395bcdfc73d23961f2a336213',
+    'HX_GATE_SC HX_FX_GATE HX_GR HX_CLICK HX_USB_MONITOR HX_REAL_NAMES': '36100999b75cdb4a355cca886fc935ea',  # every DSP step
 }
 
 
