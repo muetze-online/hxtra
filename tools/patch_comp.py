@@ -72,13 +72,14 @@ def move_offsets(out, h, mv):
         struct.pack_into('<I', out, lo, mv(struct.unpack_from('<I', out, lo)[0]))
 
 
-def e3_add_strings(e3, wanted):
+def e3_add_strings(e3, wanted, reclaim=False):
     """Entry 3 with the strings of `wanted` it lacks appended to its section, and {string: index} for them all.
     Indices never change. A stock section (at 0x200) is copied past the end. Once add-model has copied the section and
     the model table to the tail (0xcae00), their stock copies at 0x200..h[8] are dead: the section goes back to 0x200 and
     the model table and everything after it move back over the old tail section, their offsets with them; a later call
     (tools/patch_gate.py's, then this tool's) grows it there in place. That keeps
-    Entry 3 small: one 11 KB larger than the default build's makes the unit drop every amp and preamp [verified on unit]."""
+    Entry 3 small: one 11 KB larger than the default build's makes the unit drop every amp and preamp [verified on unit].
+    With reclaim, a section and model table add-model left at the tail go back home even when no string is new."""
     e3 = bytearray(e3)
     h = list(struct.unpack_from('<10I', e3, 0))
     str_off, recs, data, index = e3_strings(e3)
@@ -90,7 +91,7 @@ def e3_add_strings(e3, wanted):
             added += struct.pack('<3I', len(data), zlib.crc32(raw) & 0xffffffff, len(raw))
             data += raw + b'\x00'
             index[s] = nstr + len(added) // 12 - 1
-    if not added:
+    if not added and not (reclaim and STOCK_E3_END <= str_off < h[6]):
         return bytes(e3), index
     n = nstr + len(added) // 12
     section = struct.pack('<2I', n, 8 + 12 * n + len(data)) + recs + added + data
@@ -120,6 +121,13 @@ def e3_add_strings(e3, wanted):
     h[4] = zlib.crc32(out[h[3]:h[3] + len(section)]) & 0xffffffff
     struct.pack_into('<10I', out, 0, *h)
     return bytes(out), index
+
+
+def e3_reclaim(e3):
+    """Entry 3 with the stock tables add-model left dead given back (e3_add_strings's move home), for a step that adds
+    no string: tools/patch_dist.py. Without it a build with NAM and Distortion Crossover but no DSP feature (whose
+    patch_gate or patch_comp step moves them) is 1,014,196 bytes, past E3_MAX. Unchanged when nothing is dead."""
+    return e3_add_strings(e3, (), reclaim=True)[0]
 
 
 def models_view(info):

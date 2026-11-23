@@ -724,3 +724,27 @@ def test_freq_off_passes_the_drive_path_through(full, name):
         slot = e['expr']['ins']['0']['ins']['0']['slot']
         assert [pmap.evaluate(e['expr'], {slot: f}) for f in (19.9, 20.0, 1000.0)] == [0, pdist.HP_TYPE, pdist.HP_TYPE]
     assert [c['init'][1] for c in rn['chain'] if (tuple(c['path']), 1) in off] == [0, 0]
+
+
+@pytest.mark.firmware
+def test_patch_dist_gives_back_the_entry3_tables_add_model_left_dead():
+    """The first add-model (NAM, Metronome) copies Entry 3's string section and model table to the tail and leaves the
+    stock copies dead. patch_dist adds no string, so before it took them back (patch_comp.e3_reclaim) a build with NAM
+    and Distortion Crossover but no DSP feature (none of whose steps moves them) made Entry 3 1,014,196 bytes, past
+    E3_MAX: the v1.2.1-bass.1 cache failed there. Moving them is patch_comp's move home, models and slots unchanged."""
+    import patch_click
+    import patch_comp as pc
+    added, _ = patch_click.add_click(firmware.stock(), log=lambda *_: None)
+    before = kp.get_entry_swapped(added, 3)
+    home = pc.e3_reclaim(before)
+    h0, h1 = struct.unpack_from('<10I', before, 0), struct.unpack_from('<10I', home, 0)
+    assert h0[3] > pc.STOCK_E3_END and h1[3] == pc.STR_HOME and h1[6] == h0[3]
+    assert len(home) < len(before) - 0x10000
+    view = lambda e3: [pc.models_view({'models': [m]}) for m in kp.parse_entry3_full(e3)['models']]
+    assert view(before) == view(home) and pc.slot_lists(before) == pc.slot_lists(home)
+    assert pc.e3_reclaim(home) == home
+    stock3 = firmware.stock_entry(3)
+    assert pc.e3_reclaim(stock3) == stock3
+    e3 = kp.get_entry_swapped(pdist.patch_dist(added, log=lambda *_: None), 3)
+    assert struct.unpack_from('<10I', e3, 0)[3] == pc.STR_HOME
+    assert len(e3) < len(before)

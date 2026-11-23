@@ -206,6 +206,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - Every mono distortion, the 17 legacy ones included, but those below. Not every block gets all four: Obsidian 7000 and Minotaur, which mix clean paths of their own, get Frequency and Mode only. Bronze Master keeps its own Blend as well and gets all four. Xenomorph Fuzz gets them in a build without NAM A2 Lite, which otherwise takes its place.
 - Not supported (they stay stock): Kinky Boost and Vital Boost, clean boosts with no drive to split off.
 - Each of these blocks then counts 1% more toward the DSP limit.
+- Goes with every choice on the setup page, 3 NAM A2 Lite blocks included; it takes no DSP memory from them.
 
 [More in the feature guide](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover)
 
@@ -371,7 +372,7 @@ If you hear crackling, leave those out on the setup page.
 <td valign="top">
 
 ### <img src="docs/assets/icons/faq-choose.svg" width="28" height="28" align="top" alt=""> Can I choose which features I get?
-Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite blocks (3, 2, 1 or none), the gain reduction meter, the Metronome, the FX Loop gate, USB & Send Routing and Input Sidechain. They share the HX Stomp's spare DSP memory, so the page shows what's left as you tick, and fewer NAM blocks leave room for more of the others. Real block names and Distortion crossover are boxes too. Every other feature is always in; to leave one of those out, [build it yourself](docs/building.md).
+Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite blocks (3, 2, 1 or none), the gain reduction meter, the Metronome, the FX Loop gate, USB & Send Routing and Input Sidechain. They share the HX Stomp's spare DSP memory, so the page shows what's left as you tick, and fewer NAM blocks leave room for more of the others. Real block names and Distortion crossover are boxes too, and go with any of those choices. Every other feature is always in; to leave one of those out, [build it yourself](docs/building.md).
 
 &nbsp;
 

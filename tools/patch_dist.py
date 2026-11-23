@@ -641,7 +641,7 @@ def e4_write(e4, b0_new, blobs):
 
 def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
     e0 = kp.get_entry_swapped(l6ia_bytes, 0)
-    e3 = kp.get_entry_swapped(l6ia_bytes, 3)
+    e3 = patch_comp.e3_reclaim(kp.get_entry_swapped(l6ia_bytes, 3))   # NAM's dead stock tables, before appending
     e4 = kp.get_entry_swapped(l6ia_bytes, 4)
     w4 = struct.unpack('<%dI' % (len(e4) // 4), e4)
     fw = Fw(e3, w4)
