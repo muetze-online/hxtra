@@ -14,6 +14,7 @@ body:
       label: HXtra version
       description: The boot screen shows it at power-on, or see the release you downloaded. Not the HX Stomp firmware version (3.80.0).
       options:
+        - v1.2.1-bass.2
         - v1.2.1-bass.1
         - v1.2.1
         - v1.2.0
