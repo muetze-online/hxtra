@@ -411,6 +411,14 @@ Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite bl
 </tr>
 </table>
 
+## Roadmap
+
+Planned for later versions of this fork (not built yet):
+
+- **Crossover for mod blocks:** only the signal above an adjustable frequency goes into the effect; the frequencies below pass unchanged.
+- **DI blend at the output:** the HX Stomp's input signal, unprocessed, mixed into the output at an adjustable level.
+- **LFO knobs for the synth filters.**
+
 ## Known issues
 
 - With the breathing line on, the BPM beat dot sometimes draws half lit.
