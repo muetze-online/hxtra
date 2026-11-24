@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "web" / "features.html"
-URL = "https://wisemandenny.github.io/hxtra/web/features.html"
+URL = "https://muetze-online.github.io/hxtra/web/features.html"
 
 
 def page():
