@@ -1,6 +1,6 @@
 # Building HXtra
 
-Most people never need this page: the [setup page](https://wisemandenny.github.io/hxtra/web/) does the whole build in your browser. Build from the command line to pick features one by one, to use your own boot picture, or to work on HXtra.
+Most people never need this page: the [setup page](https://muetze-online.github.io/hxtra/web/) does the whole build in your browser. Build from the command line to pick features one by one, to use your own boot picture, or to work on HXtra.
 
 ## Requirements
 
@@ -14,7 +14,7 @@ Most people never need this page: the [setup page](https://wisemandenny.github.i
 ## Build
 
 ```sh
-git clone https://github.com/wisemandenny/hxtra.git
+git clone -b bass https://github.com/muetze-online/hxtra.git
 cd hxtra
 python3 build.py path/to/HX_Stomp_v3.80.0_0x103966115.hxf
 ```
@@ -29,30 +29,30 @@ This writes `build/HX_Stomp_v3.80.0_HXtra.hxf`. It takes about 2 minutes, most o
 
 The build is deterministic. The default HX Stomp build (no switches) has MD5 `40da3e5d4864e54b8a49c99172698f37`, pinned in `tests/test_firmware.py`.
 
-A default build changes only 5 of the 15 parts of the firmware: the main application, the DSP program, the model list, the DSP graph library and the image store (the boot picture; emoji in the boot text also change the font table). **The bootloader is never touched**, which is what keeps [recovery](https://wisemandenny.github.io/hxtra/web/#recovery) possible.
+A default build changes only 5 of the 15 parts of the firmware: the main application, the DSP program, the model list, the DSP graph library and the image store (the boot picture; emoji in the boot text also change the font table). **The bootloader is never touched**, which is what keeps [recovery](https://muetze-online.github.io/hxtra/web/#recovery) possible.
 
-To add features, set their switches (the [features page](https://wisemandenny.github.io/hxtra/web/features.html) describes each feature):
+To add features, set their switches (the [features page](https://muetze-online.github.io/hxtra/web/features.html) describes each feature):
 
 | Feature | Switch |
 |---|---|
-| [Extra tuner settings](https://wisemandenny.github.io/hxtra/web/features.html#tuner-settings) | `HX_TUNER=1` |
-| [BPM Display](https://wisemandenny.github.io/hxtra/web/features.html#bpm) | `HX_BPM=1` |
-| [DSP Usage Display](https://wisemandenny.github.io/hxtra/web/features.html#dsp-usage-display) | `HX_DSP_METER=1` |
-| [Breathing Line](https://wisemandenny.github.io/hxtra/web/features.html#breathing-line) | `HX_BREATHING_LINE=1` |
-| [More Snapshots (4-6)](https://wisemandenny.github.io/hxtra/web/features.html#more-snapshots) | `HX_MORE_SNAPSHOTS=1` |
-| [TAP LED Color](https://wisemandenny.github.io/hxtra/web/features.html#tap-led-color) | `HX_TAP_COLOR=1` |
-| [Preset Mode LED Color](https://wisemandenny.github.io/hxtra/web/features.html#preset-led-color) | `HX_PRESET_COLOR=1` |
-| [Tap Command](https://wisemandenny.github.io/hxtra/web/features.html#tap-command) | `HX_CC_TAP=1` |
-| [Real Block Names](https://wisemandenny.github.io/hxtra/web/features.html#real-block-names) | `HX_REAL_NAMES=1` |
-| [FX Loop Noise Gate](https://wisemandenny.github.io/hxtra/web/features.html#fx-loop-gate) | `HX_FX_GATE=1` |
-| [Noise Gate Input Sidechain](https://wisemandenny.github.io/hxtra/web/features.html#gate-sidechain) | `HX_GATE_SC=1` |
-| [Foot Switch Long Press](https://wisemandenny.github.io/hxtra/web/features.html#long-press) | `HX_LONG_PRESS=1` |
-| [Virtual Footswitches (FS6-10)](https://wisemandenny.github.io/hxtra/web/features.html#virtual-footswitches) | `HX_LONG_PRESS=1`, with Foot Switch Long Press |
-| [Metronome](https://wisemandenny.github.io/hxtra/web/features.html#metronome) | `HX_CLICK=1` |
-| [USB & Send Routing](https://wisemandenny.github.io/hxtra/web/features.html#usb-monitoring) | `HX_USB_MONITOR=1` |
-| [Compressor Gain Reduction Meter](https://wisemandenny.github.io/hxtra/web/features.html#gr-meter) | `HX_GR=1` |
-| [Distortion Crossover](https://wisemandenny.github.io/hxtra/web/features.html#distortion-crossover) (Freq, Dry Level, Wet Level, Mode on the mono distortions, the legacy ones included, but Kinky Boost and Vital Boost; Xenomorph Fuzz only with `HX_NAM_SLOTS=0`, as NAM A2 Lite takes its place otherwise; [how it works](research/sharc/cores/teemah.md#rollout-d8-root-switches-minotaur-and-xenomorph-2026-11-22)) | `HX_DIST_XOVER=1` |
-| [NAM A2 Lite](https://wisemandenny.github.io/hxtra/web/features.html#nam-a2-lite) | `HX_NAM_SLOTS=3`, `2`, `1`, `0` (off); unset, the most that fit |
+| [Extra tuner settings](https://muetze-online.github.io/hxtra/web/features.html#tuner-settings) | `HX_TUNER=1` |
+| [BPM Display](https://muetze-online.github.io/hxtra/web/features.html#bpm) | `HX_BPM=1` |
+| [DSP Usage Display](https://muetze-online.github.io/hxtra/web/features.html#dsp-usage-display) | `HX_DSP_METER=1` |
+| [Breathing Line](https://muetze-online.github.io/hxtra/web/features.html#breathing-line) | `HX_BREATHING_LINE=1` |
+| [More Snapshots (4-6)](https://muetze-online.github.io/hxtra/web/features.html#more-snapshots) | `HX_MORE_SNAPSHOTS=1` |
+| [TAP LED Color](https://muetze-online.github.io/hxtra/web/features.html#tap-led-color) | `HX_TAP_COLOR=1` |
+| [Preset Mode LED Color](https://muetze-online.github.io/hxtra/web/features.html#preset-led-color) | `HX_PRESET_COLOR=1` |
+| [Tap Command](https://muetze-online.github.io/hxtra/web/features.html#tap-command) | `HX_CC_TAP=1` |
+| [Real Block Names](https://muetze-online.github.io/hxtra/web/features.html#real-block-names) | `HX_REAL_NAMES=1` |
+| [FX Loop Noise Gate](https://muetze-online.github.io/hxtra/web/features.html#fx-loop-gate) | `HX_FX_GATE=1` |
+| [Noise Gate Input Sidechain](https://muetze-online.github.io/hxtra/web/features.html#gate-sidechain) | `HX_GATE_SC=1` |
+| [Foot Switch Long Press](https://muetze-online.github.io/hxtra/web/features.html#long-press) | `HX_LONG_PRESS=1` |
+| [Virtual Footswitches (FS6-10)](https://muetze-online.github.io/hxtra/web/features.html#virtual-footswitches) | `HX_LONG_PRESS=1`, with Foot Switch Long Press |
+| [Metronome](https://muetze-online.github.io/hxtra/web/features.html#metronome) | `HX_CLICK=1` |
+| [USB & Send Routing](https://muetze-online.github.io/hxtra/web/features.html#usb-monitoring) | `HX_USB_MONITOR=1` |
+| [Compressor Gain Reduction Meter](https://muetze-online.github.io/hxtra/web/features.html#gr-meter) | `HX_GR=1` |
+| [Distortion Crossover](https://muetze-online.github.io/hxtra/web/features.html#distortion-crossover) (Freq, Dry Level, Wet Level, Mode on the mono distortions, the legacy ones included, but Kinky Boost and Vital Boost; Xenomorph Fuzz only with `HX_NAM_SLOTS=0`, as NAM A2 Lite takes its place otherwise; [how it works](research/sharc/cores/teemah.md#rollout-d8-root-switches-minotaur-and-xenomorph-2026-11-22)) | `HX_DIST_XOVER=1` |
+| [NAM A2 Lite](https://muetze-online.github.io/hxtra/web/features.html#nam-a2-lite) | `HX_NAM_SLOTS=3`, `2`, `1`, `0` (off); unset, the most that fit |
 | [Boot screen](#boot-screen) | `--splash`, `--splash-text` |
 
 Switches combine. The Metronome, the FX Loop gate, the GR meter, USB & Send Routing and Input Sidechain put code on the DSP, in the room NAM A2 Lite's blocks leave (`python3 tools/block3.py` prints it): `HX_NAM_SLOTS=3`, `2`, `1` or `0` sets how many NAM blocks can play at once (`0`: no NAM A2 Lite, which skips steps 1, 2 and 4), and unset, `build.py` takes the most that leave room for the features you turned on. A build whose DSP features don't fit beside `HX_NAM_SLOTS` stops with what they take and what is left. For example, every feature but the boot picture:
@@ -83,7 +83,7 @@ This also changes the image store (part 8 of the 15), and with emoji, the font t
 
 ## Build in the browser
 
-The setup page, **[wisemandenny.github.io/hxtra](https://wisemandenny.github.io/hxtra/web/)**, does the same build in the browser, and your file never leaves your computer: you drop your stock `.hxf` and download `HXtra_v<version>.hxf` (e.g. `HXtra_v1.2.0.hxf`), with every feature on and the ones you tick: the DSP features (how many NAM A2 Lite blocks, the GR meter, the Metronome block, the FX Loop gate, USB & Send Routing, Input Sidechain), which share the DSP memory and show what is left as you tick, and the others (Real block names). It also runs the build from RAM and converts `.nam` captures, and it reads in 10 languages. It runs `build.py`'s own commands in [Pyodide](https://pyodide.org) (`web/firmware-worker.js`); its builds have the same MD5s as `build.py`'s.
+The setup page, **[muetze-online.github.io/hxtra](https://muetze-online.github.io/hxtra/web/)**, does the same build in the browser, and your file never leaves your computer: you drop your stock `.hxf` and download `HXtra_v<version>.hxf` (e.g. `HXtra_v1.2.0.hxf`), with every feature on and the ones you tick: the DSP features (how many NAM A2 Lite blocks, the GR meter, the Metronome block, the FX Loop gate, USB & Send Routing, Input Sidechain), which share the DSP memory and show what is left as you tick, and the others (Real block names). It also runs the build from RAM and converts `.nam` captures, and it reads in 10 languages. It runs `build.py`'s own commands in [Pyodide](https://pyodide.org) (`web/firmware-worker.js`); its builds have the same MD5s as `build.py`'s.
 
 The browser has no clang to assemble the features' M4 code, so each release brings that code made in advance: `tools/m4cache.py` runs the page's features on the stock file and keeps what each module assembled to, in `m4cache.json`, with the MD5 of the build, and `tools/m4asm.py` reads it when `HX_M4_CACHE` names it. The page compares its build with that MD5 and says **Verified**. The page runs `build.py`'s other steps for them too: the Metronome block (`tools/patch_click.py`), the FX Loop gate (`tools/patch_gate.py`), the distortions' crossover knobs (`tools/patch_dist.py`), and the GR meter's knobs and DSP code (`tools/patch_comp.py`). `m4cache.json` also holds the DSP memory each NAM slot count leaves and each DSP feature's cost (`"dsp"`), and the MD5 of every combination that fits. A copy of the page served from a checkout (`python3 -m http.server`, then `/web/`) has no `m4cache.json` and builds without features, unless you make one: `python3 tools/m4cache.py path/to/HX_Stomp_v3.80.0_0x103966115.hxf -o m4cache.json`.
 
@@ -103,4 +103,4 @@ python3 tools/hxf_ram.py run build/HX_Stomp_v3.80.0_HXtra.hxf --stock HX_Stomp_v
 
 The setup page's **Run from RAM** step does the same in Chrome or Edge. Presets and IRs you change during the run are lost at power-off. [RAM_RUN.md](../RAM_RUN.md) explains how it works and its limits.
 
-Then install it with Line 6 Updater, as the [setup page](https://wisemandenny.github.io/hxtra/web/)'s install step says.
+Then install it with Line 6 Updater, as the [setup page](https://muetze-online.github.io/hxtra/web/)'s install step says.

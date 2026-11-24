@@ -320,7 +320,9 @@ The HX Stomp has no SDK, no documentation, no source code and no debug symbols. 
 <td valign="top">
 
 ### AI only writes code
-One person chose every feature and decided how each should look, feel and behave, and shelved ideas that were unsafe or not worth the risk. I loaded every test build onto my own HX Stomp, played through it and watched the screen, which is where most bugs were caught, and tuned animation speeds, colours and the click's volume by eye and ear. All AI did is write the code.
+In HXtra, one person, wisemandenny, chose every feature and decided how each should look, feel and behave, and shelved ideas that were unsafe or not worth the risk. Every test build went onto wisemandenny's own HX Stomp, was played through with an eye on the screen, which is where most bugs were caught, and animation speeds, colours and the click's volume were tuned by eye and ear. All AI did is write the code.
+
+This fork works the same way: I chose Distortion Crossover and how it behaves, measured every step on my own HX Stomp by reamping it over USB (`tools/hx_freqresp.py`) against the stock blocks, ran each build from RAM before installing it, and judged the sound by ear on bass. AI wrote the code.
 
 &nbsp;
 
