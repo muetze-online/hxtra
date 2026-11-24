@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="HXtra: custom firmware for the Line 6 HX Stomp">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="HXtra bass: custom firmware for the Line 6 HX Stomp">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0b0e14"/>
@@ -38,7 +38,7 @@
     <rect width="1280" height="400" fill="url(#glow)"/>
 
     <text x="640" y="200" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="150" font-weight="800" letter-spacing="-4">
-      <tspan fill="#ffffff">HX</tspan><tspan fill="url(#tra)">tra</tspan>
+      <tspan fill="#ffffff">HX</tspan><tspan fill="url(#tra)">tra</tspan><tspan fill="#ffffff" font-weight="300" letter-spacing="-2"> bass</tspan>
     </text>
 
     <!-- The breathing line at its defaults, Rainbow, Breathe, Speed 4: src/m4/breathing_line.s's curve sampled over its 4 s cycle -->

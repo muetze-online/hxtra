@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://muetze-online.github.io/hxtra/web/"><img src="docs/assets/banner.svg" alt="HXtra: custom firmware for the Line 6 HX Stomp" width="100%"></a>
+<a href="https://muetze-online.github.io/hxtra/web/"><img src="docs/assets/banner.svg" alt="HXtra bass: custom firmware for the Line 6 HX Stomp" width="100%"></a>
 
 [![Release](https://img.shields.io/github/v/release/muetze-online/hxtra?style=flat-square&color=ff2e93&label=release)](https://github.com/muetze-online/hxtra/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/github/license/muetze-online/hxtra?style=flat-square&color=blue)](LICENSE)
@@ -55,7 +55,7 @@ The setup page builds HXtra locally from your own firmware file, right in your b
 
 ## Installation
 
-<p align="center"><a href="https://muetze-online.github.io/hxtra/web/"><img src="docs/assets/install-hxtra.svg" alt="Install HXtra" width="60%"></a></p>
+<p align="center"><a href="https://muetze-online.github.io/hxtra/web/"><img src="docs/assets/install-hxtra.svg" alt="Install HXtra bass" width="60%"></a></p>
 
 ## Features
 
