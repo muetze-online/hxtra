@@ -423,10 +423,11 @@ Planned for later versions of this fork (not built yet):
 
 ## Known issues
 
+- **Back up your presets.** Going back to stock firmware deletes the presets you changed on HXtra bass (seen on an HX Stomp, 2026-11-25). Make a backup with HX Edit (File > Create Backup...) before you install and again before you go back. Restoring a backup made on HXtra bass is not tested yet.
 - With the breathing line on, the BPM beat dot sometimes draws half lit.
 - Tapping the tempo doesn't yet move the Metronome's beat onto your taps.
 - A preset made before 1.2 (on stock firmware or an earlier HXtra) that is close to the DSP limit may open empty. With FX Loop Noise Gate in your build, each FX Loop and Return block counts 0.2% more (0.4% stereo); with Input Sidechain, each Noise Gate block counts 0.1% more (0.2% stereo). To fix it, remove a block from the preset on stock firmware, or untick those features on the setup page.
-- Distortion Crossover: HX Edit doesn't show the four new knobs (it has its own list of each block's knobs). Opening a preset saved with them on stock firmware is not tested yet.
+- Distortion Crossover: HX Edit doesn't show the four new knobs (it has its own list of each block's knobs).
 - Distortion Crossover: at Wet Level −60 dB a high-gain block can stay faintly audible.
 - Distortion Crossover: a preset close to the DSP limit may not load once its distortions count 1% more each; remove a block or leave the feature out of your build.
 
