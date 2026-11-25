@@ -303,7 +303,8 @@ class Blob:
         ('plus_curve', other slot, 9 values) the value plus the other slot's knob through a new 0x3 node, added by an
         op 0x14 node (the dB sum by which patch_dist's Dry Level follows Level), ('plus', other slot) the same without
         the curve, ('gt_select', threshold, word if not, word if greater) the select fed by an op 0x40 test of the
-        value against the threshold. Tables A, C,
+        value against the threshold, ('expr', tree) a tree of curves, sums and products of this and other knobs
+        (patch_dist's Mix). Tables A, C,
         D, E (and B when a curve is added) are rebuilt at the map's end, the old ones left unused."""
         pm = self.pm
         assert patch_comp.pmap_sizes(pm) == pm[12:18], 'the parameter map\'s sizes do not follow its tables'
@@ -358,6 +359,36 @@ class Blob:
                 nodes.append([data, 0, src, 0x14, 1, 3, 2, 2, 0, 0])
                 ct.append([inp, src, 0, 0])
                 ct.append([cn, src, 0, 1])
+            elif how is not None and how[0] == 'expr':
+                # a tree of ('in',) this knob, ('knob', slot) another knob's input node, ('curve', 9 values, t)
+                # op 0x3, ('add', a, b) op 0x14, ('mul', a, b) op 0x18 (stock's 676 nodes: 3 state words, data 0, 0)
+                def build(t):
+                    if t[0] == 'in':
+                        return inp
+                    if t[0] == 'knob':
+                        found = [r[0] for r in dt if r[2] == t[1]]
+                        assert len(found) == 1, f'no single input node for slot {t[1]}'
+                        return found[0]
+                    if t[0] == 'curve':
+                        assert len(t[1]) == 9
+                        x = build(t[2])
+                        data = len(pm)
+                        pm.extend(f2u(v) for v in t[1])
+                        n = len(nodes)
+                        nodes.append([nodes[0][0], 0, n, 0x3, 1, 11, 0, 0, 0, 0])
+                        bt.append([data, 0, n, 0, 9, 0])
+                        ct.append([x, n, 0, 0])
+                        return n
+                    assert t[0] in ('add', 'mul') and len(t) == 3, t
+                    a_, b_ = build(t[1]), build(t[2])
+                    data = len(pm)
+                    pm.extend([0, 0])
+                    n = len(nodes)
+                    nodes.append([data, 0, n, 0x14 if t[0] == 'add' else 0x18, 1, 3, 2, 2, 0, 0])
+                    ct.append([a_, n, 0, 0])
+                    ct.append([b_, n, 0, 1])
+                    return n
+                src = build(how[1])
             elif how is not None and how[0] == 'gt_select':
                 # (value > how[1]) ? how[3] : how[2], through op 0x40 (a > b, b its data word, as Parametric EQ's Low
                 # Cut tests 20 Hz) into an op 0x2a node: patch_dist's Freq "Off" end sets the high-passes' type 0

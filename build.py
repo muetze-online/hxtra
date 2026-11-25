@@ -27,7 +27,7 @@ Steps:
      --splash-text and --splash-glyph are the splash feature's HX_SPLASH, HX_SPLASH_FIT, HX_SPLASH_TEXT and HX_SPLASH_GLYPHS;
      with HX_CLICK=1, then tools/patch_click.py: the Metronome block; with HX_FX_GATE=1, tools/patch_gate.py: the gate in
      the FX Loop and Return blocks; with HX_GATE_SC=1, tools/patch_sidechain.py: the Noise Gate's Input Sidechain;
-     with HX_DIST_XOVER=1, tools/patch_dist.py: Freq, Dry Level, Wet Level and Mode on the mono distortions;
+     with HX_DIST_XOVER=1, tools/patch_dist.py: Freq, Mix and Mode on the mono distortions;
      with HX_GR=1, tools/patch_comp.py: the GR meter's compressor knobs and DSP code;
      last, tools/e4_compact.py: Entry 4 without the dead copies those steps leave, and the space each limited part uses)
   4. tools/l6ia_verify.py: every checksum of the result

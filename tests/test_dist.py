@@ -1,4 +1,4 @@
-"""tools/patch_dist.py: mono distortions with test build D's Freq, Dry Level, Wet Level and Mode, every model in one pass."""
+"""tools/patch_dist.py: mono distortions with Freq, Mix (branch bass-mix) and Mode, every model in one pass."""
 import struct
 
 import pytest
@@ -123,14 +123,18 @@ def test_each_nested_blobs_new_root_row_follows_f_row(built):
 
 @pytest.mark.firmware
 def test_teemah_parameters_are_test_build_d3s(built):
-    """As test build D3, but Freq has the "Off" end of stock Low Cut knobs (19.9 Hz, the default; Rollout D9)."""
-    _, new, d3 = built
+    """As test build D3, but Freq has the "Off" end of stock Low Cut knobs (19.9 Hz, the default; Rollout D9), and
+    Mix (Megaphone's Mix record, default 100 %) stands for Dry and Wet Level."""
+    stock, new, d3 = built
     got, want = _params(new, TEEMAH), _params(d3, TEEMAH)
     k = [p[0] for p in want].index('Frequency')
     f = got[k]
     assert f[3] == dict(want[k][3], valueMinString='Off')
     assert (round(f[4], 3), f[5], round(f[6], 3)) == (19.9, 1000.0, 19.9)
-    assert repr(got[:k] + got[k + 1:]) == repr(want[:k] + want[k + 1:])
+    assert repr(got[:k]) == repr(want[:k]) and len(got) == len(want) - 1
+    assert repr(got[k + 2:]) == repr([q[:2] + (q[2] - 1,) + q[3:] for q in want[k + 3:]])   # Mode one slot down
+    mix = next(p for p in _params(stock, pt.MIX_SRC[0]) if p[0] == pt.MIX_SRC[1])
+    assert got[k + 1] == ('Mix', mix[1], f[2] + 1, mix[3], mix[4], mix[5], 1.0)
 
 
 @pytest.mark.firmware
@@ -142,13 +146,13 @@ def test_scream_808_shares_teemahs_new_composite(built):
 
 
 @pytest.mark.firmware
-def test_scream_808_gets_the_four_knobs_after_its_own(built):
+def test_scream_808_gets_the_three_knobs_after_its_own(built):
     stock, new, _ = built
     old, ps = _params(stock, SCREAM), _params(new, SCREAM)
     assert ps[:len(old)] == old
-    assert [(p[0], p[2]) for p in ps[len(old):]] == [('Frequency', 4), ('Dry Level', 5), ('Wet Level', 6), ('Mode', 7)]
-    assert [round(p[6], 3) for p in ps[len(old):]] == [pdist.FREQ_OFF, -60.0, 0.0, 0]
-    assert ps[len(old) + 1][5] == pt.DRY_MAX
+    assert [(p[0], p[2]) for p in ps[len(old):]] == [('Frequency', 4), ('Mix', 5), ('Mode', 6)]
+    assert [round(p[6], 3) for p in ps[len(old):]] == [pdist.FREQ_OFF, 1.0, 0]
+    assert (ps[len(old) + 1][4], ps[len(old) + 1][5]) == (0.0, 1.0) and ps[len(old) + 1][3]['displayType'] == 'percent'
 
 
 @pytest.mark.firmware
@@ -160,8 +164,8 @@ def test_scream_808_knobs_write_filters_mixer_and_types(built):
     writes = {(tuple(w['path']), w['pid']): pdist._knobs(w['expr'], set()) for w in r['writes']}
     assert {k for k, v in writes.items() if 'Frequency' in v} == ({((s,), 2) for s in pdist.HP + pdist.LP} |
                                                                  {((s,), 1) for s in pdist.HP})   # Off: type 0
-    assert {k for k, v in writes.items() if 'Dry Level' in v} == {((pdist.MIX,), 2)}
-    assert {k for k, v in writes.items() if 'Wet Level' in v} == {((pdist.MIX,), 1)}
+    assert {k for k, v in writes.items() if 'Mix' in v} == {((pdist.MIX,), 1), ((pdist.MIX,), 2)}
+    assert ((pdist.MIX,), 2) in {k for k, v in writes.items() if 'Gain' in v}   # the delta follows Gain
     assert {k for k, v in writes.items() if 'Mode' in v} == {((s,), 1) for s in pdist.LP}
     assert {k for k, v in writes.items() if 'Level' in v} == {((pdist.S, 6), 1), ((pdist.MIX,), 2)}   # dry follows
 
@@ -229,7 +233,8 @@ CORE = (
     'HD2_DistRegalBassDIMono')
 CANDIDATES = CORE + pdist.LEGACY
 PATCHED = tuple(n for n in CANDIDATES if n not in pdist.SKIP)
-NAMES = {'freq': 'Frequency', 'dry': 'Dry Level', 'wet': 'Wet Level', 'mode': 'Mode'}
+NAMES = {'freq': 'Frequency', 'mix': 'Mix', 'mode': 'Mode'}
+MIXES = set(pdist.MIX_NAMES)
 
 
 @pytest.fixture(scope='module')
@@ -336,6 +341,15 @@ def _writes(r, knob):
     return {(tuple(w['path']), w['pid']): w for w in r['writes'] if knob in pdist._knobs(w['expr'], set())}
 
 
+def _slots(e, acc):
+    if isinstance(e, dict):
+        if 'slot' in e:
+            acc.add(e['slot'])
+        for v in e.values():
+            _slots(v, acc)
+    return acc
+
+
 def _type(r, path):
     return next(c['type'] for c in r['chain'] if tuple(c['path']) == path)
 
@@ -350,9 +364,10 @@ def test_each_model_gets_its_knobs_after_its_own(full, name):
     assert ps[:at] == old[:at] and ps[at + len(knobs):] == old[at:] and len(ps) == len(old) + len(knobs)
     mine = ps[at: at + len(knobs)]
     mode = 'Xover' if 'Mode' in [p[0] for p in old] else 'Mode'
-    assert [p[0] for p in mine] == [NAMES[k] for k in knobs[:-1]] + [mode]
+    mixn = pdist.mix_name_of(_model(stock, name))
+    assert [p[0] for p in mine] == [mixn if k == 'mix' else NAMES[k] for k in knobs[:-1]] + [mode]
     assert [p[2] for p in mine] == list(range(old[at - 1][2] + 1, old[at - 1][2] + 1 + len(knobs)))
-    assert [round(p[6], 3) for p in mine] == [{'freq': pdist.FREQ_OFF, 'dry': -60.0, 'wet': 0.0, 'mode': 0}[k] for k in knobs]
+    assert [round(p[6], 3) for p in mine] == [{'freq': pdist.FREQ_OFF, 'mix': 1.0, 'mode': 0}[k] for k in knobs]
 
 
 @pytest.mark.firmware
@@ -369,23 +384,34 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     assert len(off) == 2 and {k[0] for k in off} < {k[0] for k in freq}
     assert all(e['expr']['op'] == '0x2a' and e['expr']['ins']['0']['op'] == '0x40' for e in off.values())
     assert len(mode) == n - 2 and {pid for _, pid in mode} == {1} and {k[0] for k in mode} < {k[0] for k in freq}
-    dry, wet = _writes(rn, 'Dry Level'), _writes(rn, 'Wet Level')
+    mixn = next((q for q in rn['params'] if q['name'] in MIXES and q['slot'] not in {r['slot'] for r in ro['params']}),
+                None)
     if p['group'] == 'xover':
-        assert not dry and not wet
+        assert mixn is None
         return
+    mix = _writes(rn, mixn['name'])
     assert {k[0] for k in freq} == {(s,) for s in pdist.HP + pdist.LP} and {k[0] for k in mode} == {(s,) for s in pdist.LP}
-    assert set(dry) == {((pdist.MIX,), 2)} and set(wet) == {((pdist.MIX,), 1)} and _type(rn, (pdist.MIX,)) == '0x84'
-    e = dry[((pdist.MIX,), 2)]['expr']
-    if p['level'] is None:                               # no single Level knob: Dry Level alone
-        assert pdist._knobs(e, set()) == {'Dry Level'}
-        return
-    # Level reaches the dry signal, 0 dB at its default: dry dB = Dry Level + L(Level) - L(default)
+    assert set(mix) == {((pdist.MIX,), 1), ((pdist.MIX,), 2)} and _type(rn, (pdist.MIX,)) == '0x84'
+    wet, dry = mix[((pdist.MIX,), 1)]['expr'], mix[((pdist.MIX,), 2)]['expr']
     knobs = {q['slot']: q['default'] for q in rn['params']}
-    assert pmap.evaluate(e, knobs) == pytest.approx(-60.0, abs=1e-4)
+
+    def at(m, over=None):
+        k = {**knobs, mixn['slot']: m, **(over or {})}
+        return pmap.evaluate(wet, k), pmap.evaluate(dry, k)
+    # 0 %: the clean input alone at 0 dB; 100 %: the stock block alone; 50 %: both -4.5 dB, dry raised by the delta
+    assert at(0.0) == pytest.approx((pdist.MIX_FLOOR, 0.0), abs=1e-3)
+    assert at(1.0)[0] == pytest.approx(0.0, abs=1e-4) and at(1.0)[1] < -100
+    w5, d5 = at(0.5)
+    assert w5 == pytest.approx(-4.515, abs=0.01) and d5 - w5 == pytest.approx(pdist.MIX_DELTA, abs=1e-3)
+    assert pdist._knobs(wet, set()) == {mixn['name']}
+    slots = _slots(dry, set()) - {mixn['slot']} - ({p['level'][0]} if p['level'] else set())
+    assert slots == (set() if p['gain'] is None else {p['gain']})     # the delta's gain knob, if any
+    if p['level'] is None:                               # no single Level knob: Mix (and the gain knob) alone
+        return
+    # Level reaches the dry signal, 0 dB at its default: dry dB = mix part + L(Level) - L(default)
     lv = next(q for q in rn['params'] if q['slot'] == p['level'][0])
-    knobs[lv['slot']] = lv['max']
     top_db = lv['max'] if p['level'][1] is None else p['level'][1][-1]
-    assert pmap.evaluate(e, knobs) == pytest.approx(-60.0 + top_db, abs=1e-3) and top_db > 0
+    assert at(0.0, {lv['slot']: lv['max']})[1] == pytest.approx(top_db, abs=1e-3) and top_db > 0
 
 
 @pytest.mark.firmware
@@ -399,7 +425,8 @@ def test_each_models_stock_writes_survive_renumbered(full, name):
     shift = (lambda path: (path[0] if path[0] <= p['at'] else path[0] + n,) + tuple(path[1:])) \
         if p['group'] == 'xover' else (lambda path: (pdist.S,) + (tuple(path) if list(path) != [0] else ()))
     stock = sorted((shift(w['path']), w['pid'], repr(w['expr'])) for w in ro['writes'])
-    mine = {'Frequency', 'Dry Level', 'Wet Level', _mode_disp(ro)}
+    mine = {'Frequency', _mode_disp(ro)} | {q['name'] for q in rn['params'] if q['name'] in MIXES and
+                                            q['slot'] not in {r['slot'] for r in ro['params']}}
     new = sorted((tuple(w['path']), w['pid'], repr(w['expr'])) for w in rn['writes']
                  if not pdist._knobs(w['expr'], set()) & mine)
     assert new == stock
@@ -502,16 +529,16 @@ def test_knobs_go_before_a_hidden_smart(full, name):
     old = _params(stock, name)
     assert old[-1][0] == 'Smart' and old[-1][2] == pdist.HIDDEN_SLOT and pdist.insert_at(_model(stock, name)['params']) == len(old) - 1
     slots = [p[2] for p in old[:-1]]
-    want = slots + list(range(slots[-1] + 1, slots[-1] + 5)) + [pdist.HIDDEN_SLOT]
-    assert [p[0] for p in _params(new, name)] == [p[0] for p in old[:-1]] + ['Frequency', 'Dry Level', 'Wet Level',
-                                                                             'Mode', 'Smart']
+    k = pdist.N_KNOBS
+    want = slots + list(range(slots[-1] + 1, slots[-1] + 1 + k)) + [pdist.HIDDEN_SLOT]
+    assert [p[0] for p in _params(new, name)] == [p[0] for p in old[:-1]] + ['Frequency', 'Mix', 'Mode', 'Smart']
     assert [p[2] for p in _params(new, name)] == want
     ms, m = _model(stock, name), _model(new, name)
     assert _row(stock, ms['words'][2]) == (len(old) - 1, len(old) - 1, len(old))
-    assert ms['words'][6] == len(old) - 1 and m['words'][6] == len(old) + 3        # no state for Smart
+    assert ms['words'][6] == len(old) - 1 and m['words'][6] == len(old) - 1 + k    # no state for Smart
     pm = pt.Blob(eb.blob(_w4(new), m['blob_index'])).pm
     d = [pm[pm[6] + 4 * k: pm[6] + 4 * k + 4] for k in range(pm[21])]
-    assert [(r[1], r[2]) for r in d] == list(enumerate(want)) and pm[22] == len(old) + 3
+    assert [(r[1], r[2]) for r in d] == list(enumerate(want)) and pm[22] == len(old) - 1 + k
 
 
 @pytest.mark.firmware

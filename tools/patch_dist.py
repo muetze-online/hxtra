@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """patch_dist.py IN OUT [--models NAME,...] [--cost N] [--donor STOCK.hxf]
 
-Mono distortions with test build D's four knobs (docs/research/sharc/cores/teemah.md, Test build D), every model in
-one pass: the core mono distortions, the legacy ones and Bronze Master (candidates), but SKIP:
+Mono distortions with Freq, Mix and Mode (test build D's knobs, docs/research/sharc/cores/teemah.md, Test build D, with
+Mix in place of Dry and Wet Level: branch bass-mix), every model in one pass: the core mono distortions, the
+legacy ones and Bronze Master (candidates), but SKIP:
 
   Full      (Mode 0): y = w * T(HP(x)) + d * L * x        (the low-passes type 0)
   Crossover (Mode 1): y = w * T(HP(x)) + d * L * LP(x)
 
 T is the stock block with its own Level, HP and LP a 4th-order Linkwitz-Riley crossover at Freq (two 0x102 sections
-a side), w and d the Wet and Dry Level, L the change of the block's Level from its default (the model's own Level
-curve, 0 dB at the default), so Level sets the volume of both and Wet and Dry their ratio. The knobs follow the stock
-ones: Freq (Off, 20..1000 Hz), Dry Level (-60..+18 dB), Wet Level (-60..+9 dB), Mode (Full / Xover); the defaults
-(Off, -60 dB, 0 dB, Full) sound like the stock block: at Freq's "Off" end (19.9 Hz, as stock Low Cut) the high-passes
+a side), w and d the mixer's two gains from Mix (MIX_WET, MIX_DRY: 0 % the clean input at 0 dB, 100 % the stock
+block, 50 % both equally loud), L the change of the block's Level from its default (the model's own Level curve, 0 dB
+at the default), so Level sets the volume of both and Mix their ratio. The knobs follow the stock ones: Freq (Off,
+20..1000 Hz), Mix (0..100 %, Megaphone's record; named Blend where the model has a Mix), Mode (Full / Xover); the
+defaults (Off, 100 %, Full) sound like the stock block: at Freq's "Off" end (19.9 Hz, as stock Low Cut) the high-passes
 take type 0 and pass the drive path through (an op 0x40 test of Freq into an op 0x2a select, Rollout D9).
 
 Groups (docs/research/sharc/cores/teemah.md, Rollout D6):
@@ -25,14 +27,13 @@ Groups (docs/research/sharc/cores/teemah.md, Rollout D6):
   Entry 4  Blob 0: one copy of the composite table for all new composites, one new composite per stock root (models
            that share a root share it); the record of the nested stock root sums its members (sub_record). Model
            blobs rebuilt with patch_teemah.Blob: group mix nested one level down in the stock form (nest_blob: a new
-           root map passes each stock knob on to the nested stock map), group xover renumbered; four input nodes,
+           root map passes each stock knob on to the nested stock map), group xover renumbered; three input nodes,
            new members registered. Written by e4_write: the whole Entry 4 laid out again without gaps (directory at
            word 6, blobs in index order), so no dead copy takes room in the partition; no blob is lost.
-  Entry 3  per model the four parameters in one pass (e3_add_params): the parameter and state tables are copied once;
-           Freq is the Auto Filter's record, Dry and Wet Double Double's, Mode a list of stock strings sharing one
-           meta table.
+  Entry 3  per model the three parameters in one pass (e3_add_params): the parameter and state tables are copied once;
+           Freq is the Auto Filter's record, Mix Megaphone's, Mode a list of stock strings sharing one meta table.
   Entry 2  the SHARC's Blob 0 buffer enlarged (kit_patch_amp.expand_sharc_blob0_buffer, a no-op when done before).
-  Entry 0  per model the UI row counts n + 4 and the Static Model Table cost + --cost (100: fits 8 Pocket Fuzz or 6 Dark Dove on the unit).
+  Entry 0  per model the UI row counts n + 3 and the Static Model Table cost + --cost (100: fits 8 Pocket Fuzz or 6 Dark Dove on the unit).
 
 Run it after every step that adds models and before patch_comp.py (build.py, HX_DIST_XOVER)."""
 import argparse
@@ -86,17 +87,40 @@ GAIN = {'0x80': 'db', '0x225': 'lin'}                 # members whose pid 1 the 
 # paths into buffers of their own, then the drive path (the one with the clipper 0x832) in place, nested composites
 # all, so the mix group's nesting would put them three levels deep (silent on the unit, 2026-11-22)
 XOVER = {'HD2_DistObsidian7000Mono': 'split', 'HD2_DistMinotaurMono': 'parallel'}
-ALL_KNOBS, XOVER_KNOBS = ('freq', 'dry', 'wet', 'mode'), ('freq', 'mode')
+ALL_KNOBS, XOVER_KNOBS = ('freq', 'mix', 'mode'), ('freq', 'mode')
 # (parameter, state) names of the Mode knob; the second (stock strings of the Split XOver) where the model has a Mode
 # of its own (Pillars), shown as "Crossover" / "Xover" there
 MODE_NAMES = ((pt.MODE_NAME, pt.MODE_NAME + 'State'), ('Xover', 'XoverState'))
 MODE_DISP2 = ('Crossover', 'Xover')
 FREQ, DRY, WET, MODE = 19.9, pt.LEVEL_MIN, 0.0, 0      # defaults: the stock sound (Freq Off)
+MIX_DEFAULT = 1.0                                         # Mix's default: wet alone, the stock sound
+# Mix m (0..1, shown in percent) writes both gains of the 0x84 mixer through 9-point curves (op 0x3, linear between
+# m = 0, 1/8, .., 1): wet dB = C_w(m), dry dB = C_d(m) + w(m) * D(gain) + L(Level). C_w = 30 log10 sin(pi m / 2) and
+# C_d = 30 log10 cos(pi m / 2), a -4.5 dB law (each -4.5 dB at m = 0.5: between the -3 dB of uncorrelated and the
+# -6 dB of correlated signals, as dry and driven share their fundamental), -120 dB at the far end; w(m) = sin(pi m)
+# up to m = 0.5, then 1, raises the dry signal by D (how much louder the drive is than the clean input, dB) on the
+# way to the middle, so at 50 % both are equally loud and at 0 % the dry signal is the input at 0 dB. D is a curve
+# on the model's gain knob (GAIN_KNOBS), constant MIX_DELTA until measured per model (hx_freqresp).
+MIX_FLOOR = -120.0
+MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Level's top
+
+
+def _db30(v):
+    return 30 * math.log10(v) if v > 1e-9 else MIX_FLOOR
+
+
+MIX_WET = [_db30(math.sin(math.pi * k / 16)) for k in range(9)]
+MIX_DRY = [_db30(math.cos(math.pi * k / 16)) for k in range(9)]
+MIX_RISE = [math.sin(math.pi * min(k / 8, 0.5)) for k in range(9)]
+MIX_NAMES = ('Mix', 'Blend')                           # Entry 3 name: Blend where the model has a Mix of its own
+GAIN_KNOBS = ('Gain', 'Drive', 'Fuzz', 'Sustain', 'Grit', 'Dist')   # D's knob: the first of these the model has
+GAIN_KNOB = {'HD2_DistToneSovereignMono': 'Gain 2', 'HD2_DistClawthornDriveMono': None,   # else; None: D constant
+             KILLER_Z: 'Dist'}                         # Killer Z's Gain is its Level
 # Freq's "Off" end (as stock Low Cut, 19.9 Hz): the high-passes take type 0 (through) while Freq <= FREQ_ON, so the
 # drive path is the stock block; above it they are the LR4 high-pass at Freq
 FREQ_OFF, FREQ_ON = 19.9, 19.95
 HP_TYPE, LP_TYPE, Q = 4, 3, 0.7071                     # LR4: two 2nd-order sections a side (patch_teemah)
-N_KNOBS = 4
+N_KNOBS = 3
 COST = 100
 f2u = pt.f2u
 
@@ -188,7 +212,10 @@ def plan_model(fw, m):
                 list(range(2, 2 + k)) or len(clean) != k or len(set(clean) | {wet_in[0]}) != k + 1):
             raise SystemExit(f"{m['name']}: not clean paths off the in-port's buffer and then a drive path in place")
         return dict(plan, at=par[k]['path'][0] - 1, drive=wet_in, clean=clean)
-    plan = {'group': 'mix', 'root': root, 'knobs': ALL_KNOBS, 'level': None, 'at': None}
+    names = {p['name']: p['slot'] for p in m['params']}
+    gname = GAIN_KNOB.get(m['name'], next((n for n in GAIN_KNOBS if n in names), None))
+    plan = {'group': 'mix', 'root': root, 'knobs': ALL_KNOBS, 'level': None, 'at': None,
+            'gain': None if gname is None else names[gname]}
     lname = LEVEL.get(m['name'], LEVEL_KNOBS)
     if lname is None:
         return plan
@@ -210,6 +237,7 @@ def plan_model(fw, m):
     else:
         assert lv['min'] < 0.0 <= lv['max'] and lv['default'] == 0.0, f"{m['name']}: Level in dB, default not 0"
         plan['level'] = (lv['slot'], None)
+    assert plan['gain'] != lv['slot'], f"{m['name']}: the gain knob is its Level"
     return plan
 
 
@@ -530,7 +558,7 @@ def freq_meta(e3):
 
 
 def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAMES[0], fmeta=None):
-    """Entry 3 with Freq, Dry Level, Wet Level and Mode (those of `knobs`, in this order, Mode last; Mode named
+    """Entry 3 with Freq, Mix and Mode (those of `knobs`, in this order, Mode last; Mode named
     mode_names) added to model_name's parameters (at insert_at: before a hidden one on a slot from HIDDEN_SLOT, so
     the shown ones stay first) and appended to its states, its tables copied once (patch_comp.e3_add_knobs's layout);
     records as patch_teemah.e3_add_param / e3_add_list write them. Returns (Entry 3, first new slot)."""
@@ -546,10 +574,11 @@ def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAME
     assert n_par == len(old) and old == sorted(set(old)), f'{model_name}: parameters not one per slot'
     assert n_st in (n_par, at), f'{model_name}: {n_st} states for {n_par} parameters, not one each but hidden ones'
     first = old[at - 1] + 1                                 # slot ids may have gaps (252 stock models): after the last
-    new = [n for n in (pt.FREQ_SRC[1], pt.DRY_SRC[1], pt.WET_SRC[1], mode_names[0])]
+    mix_name = mix_name_of(m)
+    new = [n for n in (pt.FREQ_SRC[1], mix_name, mode_names[0])]
     assert not {p['name'] for p in m['params']} & set(new), f'{model_name} has {new} already'
     params, states = [], []
-    floats = {'freq': pt.FREQ_SRC + (FREQ, None), 'dry': pt.DRY_SRC + (DRY, pt.DRY_MAX), 'wet': pt.WET_SRC + (WET, None)}
+    floats = {'freq': pt.FREQ_SRC + (FREQ, None), 'mix': pt.MIX_SRC + (MIX_DEFAULT, None)}
     n_new = len(knobs)
     for k, (src_model, src_param, dflt, top) in enumerate(floats[x] for x in knobs if x != 'mode'):
         src = kp.find_model(info, src_model)
@@ -562,6 +591,8 @@ def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAME
             prec[0], prec[1], prec[5] = fmeta[1], fmeta[0], f2u(FREQ_OFF)
         if top is not None:
             prec[6] = f2u(top)
+        if src_param == pt.MIX_SRC[1] and mix_name != src_param:
+            prec[2] = S[mix_name]
         srec[4] = n_st + k
         params.append(struct.pack('<8I', *prec))
         states.append(struct.pack('<5I', *srec))
@@ -579,6 +610,25 @@ def e3_add_params(e3, model_name, meta, S, knobs=ALL_KNOBS, mode_names=MODE_NAME
     struct.pack_into('<14I', e3, m['off'], *d)
     struct.pack_into('<I', e3, 8, len(e3))
     return bytes(e3), first
+
+
+def mix_name_of(m):
+    """The Mix knob's Entry 3 name for model m: Mix, or Blend where m has a Mix of its own (Megaphone, Bitcrusher)."""
+    have = {p['name'] for p in m['params']}
+    return next(n for n in MIX_NAMES if n not in have)
+
+
+def mix_exprs(plan):
+    """('expr', tree) for the mixer's wet gain (pid 1) and dry gain (pid 2) from the Mix knob (MIX_WET, MIX_DRY,
+    MIX_RISE, MIX_DELTA on the gain knob); the dry signal follows Level as Dry Level did (plan['level'])."""
+    m = ('in',)
+    delta = (('curve', [MIX_DELTA] * 9, ('knob', plan['gain'])) if plan.get('gain') is not None
+             else ('curve', [MIX_DELTA] * 9, m))
+    dry = ('add', ('curve', MIX_DRY, m), ('mul', ('curve', MIX_RISE, m), delta))
+    lv = plan['level']
+    if lv is not None:
+        dry = ('add', dry, ('knob', lv[0]) if lv[1] is None else ('curve', lv[1], ('knob', lv[0])))
+    return ('expr', ('curve', MIX_WET, m)), ('expr', dry)
 
 
 HIDDEN_SLOT = pt.HIDDEN_SLOT                           # Bronze Master's Smart: hidden, no state, writes nothing
@@ -691,11 +741,9 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
             nest_blob(blob, new_comp[root])
         blob.add_param(s['freq'], f2u(FREQ), [(k, 2, None) for k in sl['hp'] + sl['lp']] +
                        [(k, 1, ('gt_select', FREQ_ON, 0, HP_TYPE)) for k in sl['hp']])
-        if 'dry' in s:
-            lv = p['level']
-            how = None if lv is None else ('plus', lv[0]) if lv[1] is None else ('plus_curve', lv[0], lv[1])
-            blob.add_param(s['dry'], f2u(DRY), [(sl['mix'], 2, how)])
-            blob.add_param(s['wet'], f2u(WET), [(sl['mix'], 1, None)])
+        if 'mix' in s:
+            wet, dry = mix_exprs(p)
+            blob.add_param(s['mix'], f2u(MIX_DEFAULT), [(sl['mix'], 1, wet), (sl['mix'], 2, dry)])
         blob.add_param(s['mode'], MODE, [(k, 1, ('select', 0, LP_TYPE)) for k in sl['lp']],
                        input_op=patch_comp.INT_INPUT_OP)
         new = sl['hp'] + sl['lp'] + ((sl['mix'],) if sl['mix'] else ())
