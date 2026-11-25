@@ -8,7 +8,8 @@ LINK = re.compile(r"\]\(([^)\s]+)\)")
 
 
 def slug(heading):
-    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+    # As GitHub: HTML tags (a heading's icon) go after the strip, so the space after an icon leaves a leading "-".
+    return re.sub(r"[^\w\- ]", "", re.sub(r"<[^>]*>", "", heading.strip()).lower()).replace(" ", "-")
 
 
 def anchors(path):
