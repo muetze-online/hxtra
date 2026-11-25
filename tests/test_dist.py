@@ -306,15 +306,16 @@ def test_a_model_without_a_static_model_table_row_is_left_out():
 
 @pytest.mark.firmware
 def test_the_skipped_models_stay_stock(full):
-    """Kinky Boost and Vital Boost are clean boosts with no drive to split off (the author's choice, 2026-11-22).
+    """Kinky Boost and Vital Boost are clean boosts with no drive to split off (the author's choice, 2026-11-22), and
+    Regal Bass DI a clean bass DI (2026-11-25).
     The others of earlier SKIP lists are crossed over now: the tap models (Pocket Fuzz, KWB, Swedish Chainsaw, Alpaca
     Rouge, Ballistic Fuzz, Dark Dove Fuzz, Bighorn Fuzz, Valve Driver) nested; Clawthorn Drive and Bitcrusher nested
     with their root's switches on the stock root (Rollout D8); Minotaur, which went silent nested one level deeper
     (three composites under its stock root, 2026-11-22), in group xover. The skipped ones keep their stock
     parameters and blob."""
     stock, new, _, _ = full
-    assert set(pdist.SKIP) == {'HD2_DistKinkyBoostMono', 'HD2_DistVitalBoostMono'}
-    assert len(PATCHED) == 59
+    assert set(pdist.SKIP) == {'HD2_DistKinkyBoostMono', 'HD2_DistVitalBoostMono', 'HD2_DistRegalBassDIMono'}
+    assert len(PATCHED) == 58
     for n in pdist.SKIP:
         i = _model(stock, n)['blob_index']
         assert repr(_params(new, n)) == repr(_params(stock, n))
@@ -526,7 +527,7 @@ def test_full_build_keeps_every_other_model_and_blob_stock(full):
     assert all(eb.blob(wo, i) == eb.blob(wn, i) for i in range(1, wo[2]) if i not in changed)
     bo, bn = eb.blob(wo, 0), eb.blob(wn, 0)
     roots = {p['root'] for p in plans.values()}
-    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 43
+    assert bn[:len(bo)][0x11:] == bo[0x11:] and bn[0xf] == bo[0xf] + len(roots) == bo[0xf] + 42
 
 
 @pytest.mark.firmware

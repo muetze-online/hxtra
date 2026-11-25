@@ -206,7 +206,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - **Frequency** (Off, 20–1000 Hz) sets where the drive starts. **Mode** sets what the clean signal carries: the full range (Full) or only what lies below Frequency (Xover, a 4th-order Linkwitz-Riley crossover), so the clean lows and the driven top meet at Frequency.
 - **Dry Level** (−60 to +18 dB) and **Wet Level** (−60 to +9 dB) set the balance; the block's own Level still sets the volume of the whole block.
 - At the defaults (Frequency Off, Dry −60 dB, Wet 0 dB, Full) a block sounds as on stock firmware, so presets saved before sound as they did.
-- Every mono distortion, the 17 legacy ones included. Obsidian 7000 and Minotaur, which mix clean paths of their own, get Frequency and Mode only; Pillars names the new Mode knob Crossover. Kinky Boost, Vital Boost and the stereo distortions stay stock; Xenomorph Fuzz gets the knobs only in a build without NAM A2 Lite.
+- Every mono distortion, the 17 legacy ones included. Obsidian 7000 and Minotaur, which mix clean paths of their own, get Frequency and Mode only; Pillars names the new Mode knob Crossover. Kinky Boost, Vital Boost, Regal Bass DI and the stereo distortions stay stock; Xenomorph Fuzz gets the knobs only in a build without NAM A2 Lite.
 - Each of these blocks then counts 1% more toward the DSP limit. It goes with every choice on the setup page, 3 NAM A2 Lite blocks included.
 
 <a href="https://muetze-online.github.io/hxtra-bass/web/features.html#distortion-crossover"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>

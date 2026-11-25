@@ -51,7 +51,7 @@ To add features, set their switches (the [features page](https://muetze-online.g
 | [Metronome](https://muetze-online.github.io/hxtra-bass/web/features.html#metronome) | `HX_CLICK=1` |
 | [USB & Send Routing](https://muetze-online.github.io/hxtra-bass/web/features.html#usb-monitoring) | `HX_USB_MONITOR=1` |
 | [Compressor Gain Reduction Meter](https://muetze-online.github.io/hxtra-bass/web/features.html#gr-meter) | `HX_GR=1` |
-| [Distortion Crossover](https://muetze-online.github.io/hxtra-bass/web/features.html#distortion-crossover) (Freq, Dry Level, Wet Level, Mode on the mono distortions, the legacy ones included, but Kinky Boost and Vital Boost; Xenomorph Fuzz only with `HX_NAM_SLOTS=0`, as NAM A2 Lite takes its place otherwise; [how it works](research/sharc/cores/teemah.md#rollout-d8-root-switches-minotaur-and-xenomorph-2026-11-22)) | `HX_DIST_XOVER=1` |
+| [Distortion Crossover](https://muetze-online.github.io/hxtra-bass/web/features.html#distortion-crossover) (Freq, Dry Level, Wet Level, Mode on the mono distortions, the legacy ones included, but Kinky Boost, Vital Boost and Regal Bass DI; Xenomorph Fuzz only with `HX_NAM_SLOTS=0`, as NAM A2 Lite takes its place otherwise; [how it works](research/sharc/cores/teemah.md#rollout-d8-root-switches-minotaur-and-xenomorph-2026-11-22)) | `HX_DIST_XOVER=1` |
 | [NAM A2 Lite](https://muetze-online.github.io/hxtra-bass/web/features.html#nam-a2-lite) | `HX_NAM_SLOTS=3`, `2`, `1`, `0` (off); unset, the most that fit |
 | [Boot screen](#boot-screen) | `--splash`, `--splash-text` |
 

@@ -163,7 +163,7 @@ Test build D for every mono distortion in one pass (plan: bass's `Distortion Cro
   - Switches (Freq 20 Hz, Wet alone): Clawthorn Low Boost on raises the drive path by 24 dB at 25 Hz, 13 dB at 100 Hz, 4 dB at 500 Hz; Bitcrusher Low Cut 200 Hz and High Cut 2 kHz give −3.4 dB at 198 Hz and −3.3 dB at 2 kHz, flat between. The switches work in the nested form.
   - Minotaur (no Dry/Wet; Full against stock): −6.5 dB below 160 Hz (the drive path high-passed, the clean paths stay), within ±0.4 dB above 800 Hz; Xover against Full +2.8 to +4.1 dB at 250..400 Hz (the coherent LR4 sum), −0.3 to −2.8 dB above 1 kHz (clean highs low-passed). It plays, nothing after it goes silent.
   - No dropouts or repeated blocks; the click counter fires on Xenomorph (7) and Bitcrusher (9) with the drive path alone, as on Ram's Head in D7.
-- **Supersedes** the SKIP and Minotaur paragraphs of Rollout D7: `SKIP` now holds Kinky Boost and Vital Boost only.
+- **Supersedes** the SKIP and Minotaur paragraphs of Rollout D7: `SKIP` now holds Kinky Boost and Vital Boost only (Regal Bass DI joined them on 2026-11-25: a clean bass DI, no drive to split off).
 - **Measuring tool**: `hx_xover_resp.py --set KNOB=VALUE` (Entry 3 name, cast to the knob's type) and `--tag SUFFIX` for takes with a knob changed.
 
 ## Rollout D9: Freq "Off" bypasses the high-pass (2026-11-22)

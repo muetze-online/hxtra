@@ -67,6 +67,7 @@ LEGACY = (
 SKIP = {                                               # candidates left as they are, and why
     'HD2_DistKinkyBoostMono': 'a clean boost with no drive to split off, and no single Level (2026-11-22)',
     'HD2_DistVitalBoostMono': 'a clean boost with no drive to split off, and no single Level (2026-11-22)',
+    'HD2_DistRegalBassDIMono': 'a clean bass DI with no drive to split off (2026-11-25)',
 }
 LEVEL_KNOBS = ('Level', 'Volume')                      # Entry 3 names; Volume shows as "Level"
 LEVEL = {                                              # the Level knob where not LEVEL_KNOBS; None: no single one
