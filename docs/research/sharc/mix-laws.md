@@ -28,7 +28,7 @@ Dry 0, 0, 0, 0, −3, −6, −12, −21, −120 dB; wet the mirror image. The d
 
 - The first three come close to an amplitude-linear crossfade (correlated sum within 2 dB of flat), as a passive blend pot would; they look like curves fitted to the pedals. Their dry inputs are not the plain block input: the Scrambler's passes the shared input stage (`0x102`, `0x832`), the ZeroAmp's three `0x102` filters.
 - Bronze Master's Blend is linear in dB on both sides and only shifts the balance.
-- For comparison, an amplitude-linear law (1 − m, m) through the same 9-point dB curve: correlated −0.8..0, uncorrelated −3.0..−0.1 dB. A truly linear law needs the gain computed before the dB step (op `0x28`, linear → dB, [hypothesis] as noted for Teemah!), not a 9-point table.
+- For comparison, an amplitude-linear law (1 − m, m) through the same 9-point dB curve: correlated −0.8..0, uncorrelated −3.0..−0.1 dB. A truly linear law needs the gain computed in amplitude and then converted (op `0x28`, linear → dB, [model-blobs.md](model-blobs.md#map-ops-verified-offline-unless-tagged)), not a 9-point table. Stock does this: Smart Harmony's Mix sets its `0x89` with wet = `0x28`(min((2m)³, 1)) and dry = `0x28`(min((2(1 − m))³, 1)), so −18.06 dB on the fading side at m = 0.25 and both at 0 dB at m = 0.5; the Volume Pedal's Position goes through `0x28` to its `0x80` (−12.04 dB at 0.25) [verified offline, `tools/sharc/pmap.py --sweep`]. Op `0x28` feeds 129 writers in 33 stock models (filter, modulation, synth, reverb, pitch, volume, delay), none of them a distortion.
 
 ## Modulation models without a Mix knob
 
