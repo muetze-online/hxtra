@@ -402,7 +402,8 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     assert at(0.0) == pytest.approx((pdist.MIX_FLOOR, 0.0), abs=1e-3)
     assert at(1.0)[0] == pytest.approx(0.0, abs=1e-4) and at(1.0)[1] < -100
     w5, d5 = at(0.5)
-    assert w5 == pytest.approx(-4.515, abs=0.01) and d5 - w5 == pytest.approx(pdist.MIX_DELTA, abs=1e-3)
+    g = 0.5 if p['gain'] is None else knobs[p['gain']]
+    assert w5 == pytest.approx(-4.515, abs=0.01) and d5 - w5 == pytest.approx(pdist.pt.curve_at(p['delta'], g), abs=1e-3)
     assert pdist._knobs(wet, set()) == {mixn['name']}
     slots = _slots(dry, set()) - {mixn['slot']} - ({p['level'][0]} if p['level'] else set())
     assert slots == (set() if p['gain'] is None else {p['gain']})     # the delta's gain knob, if any
@@ -776,3 +777,22 @@ def test_patch_dist_gives_back_the_entry3_tables_add_model_left_dead():
     e3 = kp.get_entry_swapped(pdist.patch_dist(added, log=lambda *_: None), 3)
     assert struct.unpack_from('<10I', e3, 0)[3] == pc.STR_HOME
     assert len(e3) < len(before)
+
+
+def test_teemah_mix_delta_is_the_measured_table(full):
+    """Teemah!'s dry boost at 50 % follows its gain knob along the table measured at -24 dBFS (MIX_DELTAS); the other
+    models keep the constant MIX_DELTA until measured."""
+    import pmap
+    _, _, plans, reports = full
+    name = 'HD2_DistTeemahMono'
+    p, (ro, rn) = plans[name], reports[name]
+    assert p['delta'] == pdist.MIX_DELTAS[name]
+    assert all(q['delta'] == [pdist.MIX_DELTA] * 9 for n, q in plans.items()
+               if q['group'] == 'mix' and n not in pdist.MIX_DELTAS)
+    mixn = next(q for q in rn['params'] if q['name'] in MIXES and q['slot'] not in {r['slot'] for r in ro['params']})
+    mix = _writes(rn, mixn['name'])
+    wet, dry = mix[((pdist.MIX,), 1)]['expr'], mix[((pdist.MIX,), 2)]['expr']
+    knobs = {q['slot']: q['default'] for q in rn['params']}
+    for k, d in enumerate(pdist.MIX_DELTAS[name]):
+        kn = {**knobs, mixn['slot']: 0.5, p['gain']: k / 8}
+        assert pmap.evaluate(dry, kn) - pmap.evaluate(wet, kn) == pytest.approx(d, abs=1e-3)

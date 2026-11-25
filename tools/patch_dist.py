@@ -102,9 +102,14 @@ MIX_DEFAULT = 1.0                                         # Mix's default: wet a
 # -6 dB of correlated signals, as dry and driven share their fundamental), 0 (-120 dB) at the far end; w(m) = sin(pi m)
 # up to m = 0.5, then 1, raises the dry signal by D (how much louder the drive is than the clean input, dB) on the
 # way to the middle, so at 50 % both are equally loud and at 0 % the dry signal is the input at 0 dB. D is a curve
-# on the model's gain knob (GAIN_KNOBS), constant MIX_DELTA until measured per model (hx_freqresp).
+# on the model's gain knob (GAIN_KNOBS): MIX_DELTAS where measured, else constant MIX_DELTA.
 MIX_FLOOR = -120.0                                     # op 0x28's dB for 0
 MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Level's top
+# D measured per model at the gain knob's 9 points 0, 1/8 .. 1 (0..1 knob): white noise at -24 dBFS RMS into USB 5/6
+# (as loud below 1 kHz as the bass recording, peak -23.5 dBFS, -37.4 LUFS), Freq Off, Mode Full, level of Mix 100 % against
+# the input over the third-octave bands 40..250 Hz, linear part plus distortion (tools/hx_xover_resp.py --sweep,
+# 2026-11-25)
+MIX_DELTAS = {'HD2_DistTeemahMono': [0.5, 1.6, 2.6, 3.1, 3.6, 4.2, 4.8, 5.8, 6.5]}
 MIX_WET = [max(math.sin(math.pi * k / 16), 0.0) ** 1.5 for k in range(9)]           # linear amplitude
 MIX_DRY = [max(math.cos(math.pi * k / 16), 0.0) ** 1.5 if k < 8 else 0.0 for k in range(9)]
 MIX_RISE = [math.sin(math.pi * min(k / 8, 0.5)) for k in range(9)]
@@ -211,7 +216,10 @@ def plan_model(fw, m):
     names = {p['name']: p['slot'] for p in m['params']}
     gname = GAIN_KNOB.get(m['name'], next((n for n in GAIN_KNOBS if n in names), None))
     plan = {'group': 'mix', 'root': root, 'knobs': ALL_KNOBS, 'level': None, 'at': None,
-            'gain': None if gname is None else names[gname]}
+            'gain': None if gname is None else names[gname], 'delta': MIX_DELTAS.get(m['name'], [MIX_DELTA] * 9)}
+    if m['name'] in MIX_DELTAS:
+        g = next(p for p in r['params'] if p['name'] == gname)
+        assert (g['min'], g['max']) == (0.0, 1.0), f"{m['name']}: measured D on {gname}, not a 0..1 knob"
     lname = LEVEL.get(m['name'], LEVEL_KNOBS)
     if lname is None:
         return plan
@@ -616,10 +624,10 @@ def mix_name_of(m):
 
 def mix_exprs(plan):
     """('expr', tree) for the mixer's wet gain (pid 1) and dry gain (pid 2) from the Mix knob (MIX_WET, MIX_DRY,
-    MIX_RISE, MIX_DELTA on the gain knob); the dry signal follows Level as Dry Level did (plan['level'])."""
+    MIX_RISE, plan['delta'] on the gain knob); the dry signal follows Level as Dry Level did (plan['level'])."""
     m = ('in',)
-    delta = (('curve', [MIX_DELTA] * 9, ('knob', plan['gain'])) if plan.get('gain') is not None
-             else ('curve', [MIX_DELTA] * 9, m))
+    delta = (('curve', plan['delta'], ('knob', plan['gain'])) if plan.get('gain') is not None
+             else ('curve', plan['delta'], m))
     dry = ('add', ('todb', ('curve', MIX_DRY, m)), ('mul', ('curve', MIX_RISE, m), delta))
     lv = plan['level']
     if lv is not None:
