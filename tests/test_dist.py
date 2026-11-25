@@ -1,4 +1,5 @@
 """tools/patch_dist.py: mono distortions with Freq, Mix (branch bass-mix) and Mode, every model in one pass."""
+import math
 import struct
 
 import pytest
@@ -398,12 +399,13 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     def at(m, over=None):
         k = {**knobs, mixn['slot']: m, **(over or {})}
         return pmap.evaluate(wet, k), pmap.evaluate(dry, k)
-    # 0 %: the clean input alone at 0 dB; 100 %: the stock block alone; 50 %: both -4.5 dB, dry raised by the delta
+    # 0 %: the clean input alone at 0 dB; 100 %: the stock block alone; 50 %: both at the model's law, dry raised by the delta
     assert at(0.0) == pytest.approx((pdist.MIX_FLOOR, 0.0), abs=1e-3)
     assert at(1.0)[0] == pytest.approx(0.0, abs=1e-4) and at(1.0)[1] < -100
     w5, d5 = at(0.5)
     g = 0.5 if p['gain'] is None else knobs[p['gain']]
-    assert w5 == pytest.approx(-4.515, abs=0.01) and d5 - w5 == pytest.approx(pdist.pt.curve_at(p['delta'], g), abs=1e-3)
+    law = 20 * p['law'] * math.log10(math.sin(math.pi / 4))        # -4.515 dB (exponent 1.5), -6.02 dB (2)
+    assert w5 == pytest.approx(law, abs=0.01) and d5 - w5 == pytest.approx(pdist.pt.curve_at(p['delta'], g), abs=1e-3)
     assert pdist._knobs(wet, set()) == {mixn['name']}
     slots = _slots(dry, set()) - {mixn['slot']} - ({p['level'][0]} if p['level'] else set())
     assert slots == (set() if p['gain'] is None else {p['gain']})     # the delta's gain knob, if any
@@ -786,7 +788,8 @@ def test_teemah_mix_delta_is_the_measured_table(full):
     _, _, plans, reports = full
     name = 'HD2_DistTeemahMono'
     p, (ro, rn) = plans[name], reports[name]
-    assert p['delta'] == pdist.MIX_DELTAS[name]
+    assert p['delta'] == pdist.MIX_DELTAS[name] and p['law'] == 2.0
+    assert all(q['law'] == pdist.MIX_LAW for n, q in plans.items() if q['group'] == 'mix' and n not in pdist.MIX_LAWS)
     assert all(q['delta'] == [pdist.MIX_DELTA] * 9 for n, q in plans.items()
                if q['group'] == 'mix' and n not in pdist.MIX_DELTAS)
     mixn = next(q for q in rn['params'] if q['name'] in MIXES and q['slot'] not in {r['slot'] for r in ro['params']})

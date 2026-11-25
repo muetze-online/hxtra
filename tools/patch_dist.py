@@ -110,8 +110,21 @@ MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Leve
 # the input over the third-octave bands 40..250 Hz, linear part plus distortion (tools/hx_xover_resp.py --sweep,
 # 2026-11-25)
 MIX_DELTAS = {'HD2_DistTeemahMono': [0.5, 1.6, 2.6, 3.1, 3.6, 4.2, 4.8, 5.8, 6.5]}
-MIX_WET = [max(math.sin(math.pi * k / 16), 0.0) ** 1.5 for k in range(9)]           # linear amplitude
-MIX_DRY = [max(math.cos(math.pi * k / 16), 0.0) ** 1.5 if k < 8 else 0.0 for k in range(9)]
+MIX_LAW = 1.5                                          # exponent: sin^1.5 / cos^1.5, each -4.5 dB at 50 %
+
+
+def mix_curves(law=MIX_LAW):
+    """(wet, dry) 9-point curves in linear amplitude for the exponent `law`: 2 is -6 dB at 50 % (amplitudes sum
+    to 1: dry and wet correlated), 1 is -3 dB (powers sum to 1: uncorrelated)."""
+    return ([max(math.sin(math.pi * k / 16), 0.0) ** law for k in range(9)],
+            [max(math.cos(math.pi * k / 16), 0.0) ** law if k < 8 else 0.0 for k in range(9)])
+
+
+MIX_WET, MIX_DRY = mix_curves()
+# the exponent per model where measured: the law that keeps the 50 % sum at the wet end's level, from the dry/wet
+# correlation rho in the bass (L = 10 log10(2 (1 + rho)) dB each); Teemah! rho 0.97..0.80 over Gain, best L 5.6..6.0
+# dB (Messungen/Mix-Regler Teemah, mixlaw.py, 2026-11-25)
+MIX_LAWS = {'HD2_DistTeemahMono': 2.0}
 MIX_RISE = [math.sin(math.pi * min(k / 8, 0.5)) for k in range(9)]
 MIX_NAMES = ('Mix', 'Blend')                           # Entry 3 name: Blend where the model has a Mix of its own
 GAIN_KNOBS = ('Gain', 'Drive', 'Fuzz', 'Sustain', 'Grit', 'Dist')   # D's knob: the first of these the model has
@@ -216,7 +229,7 @@ def plan_model(fw, m):
     names = {p['name']: p['slot'] for p in m['params']}
     gname = GAIN_KNOB.get(m['name'], next((n for n in GAIN_KNOBS if n in names), None))
     plan = {'group': 'mix', 'root': root, 'knobs': ALL_KNOBS, 'level': None, 'at': None,
-            'gain': None if gname is None else names[gname], 'delta': MIX_DELTAS.get(m['name'], [MIX_DELTA] * 9)}
+            'gain': None if gname is None else names[gname], 'delta': MIX_DELTAS.get(m['name'], [MIX_DELTA] * 9), 'law': MIX_LAWS.get(m['name'], MIX_LAW)}
     if m['name'] in MIX_DELTAS:
         g = next(p for p in r['params'] if p['name'] == gname)
         assert (g['min'], g['max']) == (0.0, 1.0), f"{m['name']}: measured D on {gname}, not a 0..1 knob"
@@ -623,16 +636,17 @@ def mix_name_of(m):
 
 
 def mix_exprs(plan):
-    """('expr', tree) for the mixer's wet gain (pid 1) and dry gain (pid 2) from the Mix knob (MIX_WET, MIX_DRY,
+    """('expr', tree) for the mixer's wet gain (pid 1) and dry gain (pid 2) from the Mix knob (mix_curves of plan['law'],
     MIX_RISE, plan['delta'] on the gain knob); the dry signal follows Level as Dry Level did (plan['level'])."""
     m = ('in',)
     delta = (('curve', plan['delta'], ('knob', plan['gain'])) if plan.get('gain') is not None
              else ('curve', plan['delta'], m))
-    dry = ('add', ('todb', ('curve', MIX_DRY, m)), ('mul', ('curve', MIX_RISE, m), delta))
+    wcur, dcur = mix_curves(plan.get('law', MIX_LAW))
+    dry = ('add', ('todb', ('curve', dcur, m)), ('mul', ('curve', MIX_RISE, m), delta))
     lv = plan['level']
     if lv is not None:
         dry = ('add', dry, ('knob', lv[0]) if lv[1] is None else ('curve', lv[1], ('knob', lv[0])))
-    return ('expr', ('todb', ('curve', MIX_WET, m))), ('expr', dry)
+    return ('expr', ('todb', ('curve', wcur, m))), ('expr', dry)
 
 
 HIDDEN_SLOT = pt.HIDDEN_SLOT                           # Bronze Master's Smart: hidden, no state, writes nothing
