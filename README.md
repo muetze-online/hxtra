@@ -347,7 +347,7 @@ This fork works the same way: I chose Distortion Crossover and how it behaves, m
 ### <img src="docs/assets/icons/faq-presets.svg" width="28" height="28" align="top" alt=""> Will this break my presets?
 - **No.** Presets made on stock firmware open in HXtra bass.
 - A preset saved with snapshots 4–6 still loads on stock firmware, as snapshots 1–3.
-- HX Edit opens, exports and imports HXtra bass presets, but its exports (`.hlx`) hold snapshots 1–3 only. A backup (`.hxb`) can't be made on HXtra bass: make it on stock firmware before you install (see [Known issues](#known-issues)).
+- HX Edit opens, exports and imports HXtra bass presets, but its exports (`.hlx`) hold snapshots 1–3 only and don't keep the Distortion Crossover knobs. A backup (`.hxb`) can't be made on HXtra bass: make it on stock firmware before you install (see [Known issues](#known-issues)).
 - Presets made with an older release of [hx-stomp-nam-lite](https://github.com/nocaseguy/hx-stomp-nam-lite) won't load their NAM blocks in HXtra bass, so add NAM to those presets again. Presets from its current release open as they are.
 
 &nbsp;
@@ -423,7 +423,7 @@ Planned for later versions of this fork (not built yet):
 
 ## Known issues
 
-- **Back up your presets before you install.** HX Edit can't make a backup on HXtra bass (File > Create Backup... fails), and going back to stock firmware deletes the presets you changed on HXtra bass (both seen on an HX Stomp, 2026-11-25). So make the backup on stock firmware before you install HXtra bass. To keep a preset you changed on HXtra bass, export it in HX Edit before you go back (exports hold snapshots 1–3 only; not tested on HXtra bass yet).
+- **Back up your presets before you install.** HX Edit can't make a backup on HXtra bass (File > Create Backup... fails), and going back to stock firmware deletes the presets you changed on HXtra bass (both seen on an HX Stomp, 2026-11-25). So make the backup on stock firmware before you install HXtra bass. To keep a preset you changed on HXtra bass, export it in HX Edit before you go back: exporting a preset and importing it again works on HXtra bass, but the export doesn't keep the Distortion Crossover knobs (Frequency, Dry Level, Wet Level, Mode), so set them again after an import (seen on an HX Stomp, 2026-11-25), and it holds snapshots 1–3 only.
 - With the breathing line on, the BPM beat dot sometimes draws half lit.
 - Tapping the tempo doesn't yet move the Metronome's beat onto your taps.
 - A preset made before 1.2 (on stock firmware or an earlier HXtra) that is close to the DSP limit may open empty. With FX Loop Noise Gate in your build, each FX Loop and Return block counts 0.2% more (0.4% stereo); with Input Sidechain, each Noise Gate block counts 0.1% more (0.2% stereo). To fix it, remove a block from the preset on stock firmware, or untick those features on the setup page.
