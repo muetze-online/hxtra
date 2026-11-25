@@ -429,7 +429,6 @@ Planned for later versions of this fork (not built yet):
 - Distortion Crossover: HX Edit doesn't show the four new knobs (it has its own list of each block's knobs). Opening a preset saved with them on stock firmware is not tested yet.
 - Distortion Crossover: at Wet Level −60 dB a high-gain block can stay faintly audible.
 - Distortion Crossover: a preset close to the DSP limit may not load once its distortions count 1% more each; remove a block or leave the feature out of your build.
-- v1.2.1-bass.2 has only been run from RAM on an HX Stomp, not yet installed permanently.
 
 Found something else? [Open an issue](https://github.com/muetze-online/hxtra/issues/new/choose).
 
