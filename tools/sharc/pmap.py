@@ -4,7 +4,7 @@
 For each model: its Entry 3 parameters, its signal chain (composite members in order, the
 node tree's overrides applied, init values with the blob's init records over the composite's)
 and, per writer, the expression that feeds it, back to the knobs. Nested maps (table F, one
-per composite member, in member order) are followed: a writer to a composite's path with
+row per node-tree child, in tree order, filled for composites) are followed: a writer to a composite's path with
 pid k feeds slot k of that member's map. Layout and ops: docs/research/sharc/model-blobs.md.
 
     python3 tools/sharc/pmap.py [--hxf F] MODEL...            text, MODEL = name or display name
@@ -32,7 +32,9 @@ def fl(v):
 def fv(v):
     """A word as a float when it looks like one, else the integer."""
     x = fl(v)
-    return round(x, 6) if 1e-6 <= abs(x) < 1e8 else v
+    if 1e-6 <= abs(x) < 1e8:
+        return round(x, 6)
+    return float(f"{x:.6g}") if 1e-7 <= abs(x) < 1e-6 else v     # float32(±1e-6) is ±9.99999997e-07
 
 
 class Firmware:
@@ -100,13 +102,15 @@ def node_tree(b):
     """path -> overriding type id (None where the node keeps the composite's member)."""
     out = {}
 
-    def walk(o, prefix, top):
+    def walk(o, prefix, top, seen):
+        if o in seen or o + 4 > len(b):
+            raise ValueError(f'node tree: bad node offset {o:#x}')
         slot, t, co, cc = b[o: o + 4]
         p = prefix if top else prefix + (slot,)
         out[p] = None if t == 0xffffffff else t
         for j in range(cc):
-            walk(co + 4 * j, p, False)
-    walk(b[2], (), True)
+            walk(co + 4 * j, p, False, seen | {o})
+    walk(b[2], (), True, frozenset())
     return out
 
 
@@ -116,8 +120,13 @@ def is_comp(t):
 
 def model_report(fw, m):
     b = fw.blob(m['blob_index'])
-    nt = node_tree(b)
+    try:
+        nt = node_tree(b)
+    except ValueError as e:
+        raise ValueError(f"{m['name']}: blob {m['blob_index']} is not a model blob ({e})") from None
     root = nt[()]
+    if root is None or not is_comp(root):
+        raise ValueError(f"{m['name']}: blob {m['blob_index']} is not a model blob (root {root})")
     inits = init_records(b)
     params = {p['slot']: p for p in m['params']}
 
@@ -147,13 +156,16 @@ def model_report(fw, m):
         for w in (n for n in mp['nodes'].values() if n['op'] == 1):
             src = [s for s, d, _, _ in mp['edges'] if d == w['id']]
             writes.append((w['path'], w['pid'], expr(mp, src[0], slotname, memo) if src else None, w['kind']))
-        c = fw.comp(member_type(comp_path))
-        subs = [k + 1 for k, mm in enumerate(c['members'])
-                if is_comp(nt.get(tuple(comp_path) + (k + 1,)) or mm['type_id'])]
-        rows = [r for r in mp['F'] if any(r)]
-        assert len(rows) == len(subs), f"{m['displayName']}: {len(rows)} nested maps for {len(subs)} composites"
-        for s, r in zip(subs, rows):
-            p = tuple(comp_path) + (s,)
+        # Table F has one row per child of this composite's node-tree node, in tree order (not
+        # member order); a row is filled, {map_off, ..}, exactly where that child is a composite.
+        # A composite member with no node-tree entry (Simple Delay's 0x6000d7) has no map and
+        # runs on its init values.
+        kids = [p for p in nt if len(p) == len(comp_path) + 1 and p[:len(comp_path)] == tuple(comp_path)]
+        assert len(mp['F']) == len(kids), f"{m['displayName']}: {len(mp['F'])} table F rows for {len(kids)} children"
+        for p, r in zip(kids, mp['F']):
+            assert bool(any(r)) == is_comp(member_type(p)), f"{m['displayName']}: table F row of {list(p)}"
+            if not any(r):
+                continue
             feeds = {pid: e for wp, pid, e, kind in writes if wp == p and kind}    # a switch (kind 0) feeds none
 
             def sn(slot, feeds=feeds, p=p):
