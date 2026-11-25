@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="190" viewBox="0 0 1280 190" role="img" aria-label="100% safe for your HX Stomp: HXtra never touches the bootloader, so the stock firmware can always go back on">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="190" viewBox="0 0 1280 190" role="img" aria-label="100% safe for your HX Stomp: HXtra bass never touches the bootloader, so the stock firmware can always go back on">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#1a7f37"/>
@@ -11,5 +11,5 @@
     <path d="M8.5 12l2.5 2.5 4.8-5"/>
   </g>
   <text x="230" y="92" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="58" font-weight="800" fill="#fff" letter-spacing="-1">100% safe for your HX Stomp</text>
-  <text x="232" y="140" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#fff" fill-opacity=".92">HXtra never touches the bootloader, so the stock firmware can always go back on.</text>
+  <text x="232" y="140" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#fff" fill-opacity=".92">HXtra bass never touches the bootloader, so the stock firmware can always go back on.</text>
 </svg>

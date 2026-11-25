@@ -7,13 +7,13 @@
 [![Last commit](https://img.shields.io/github/last-commit/muetze-online/hxtra-bass/bass?style=flat-square)](https://github.com/muetze-online/hxtra-bass/commits/bass)
 
 <!-- demo: tour, a short loop of the virtual HX Stomp from tools/hx_mirror.py -->
-<p><img src="https://github.com/user-attachments/assets/99592c3e-ca54-4d37-9175-e349437fe3bb" width="480" alt="A tour of HXtra on the HX Stomp: the BPM display, the Breathing Line, DSP usage in the Edit view, six snapshots and the Rainbow TAP LED"></p>
+<p><img src="https://github.com/user-attachments/assets/99592c3e-ca54-4d37-9175-e349437fe3bb" width="480" alt="A tour of HXtra bass on the HX Stomp: the BPM display, the Breathing Line, DSP usage in the Edit view, six snapshots and the Rainbow TAP LED"></p>
 
 </div>
 
 > **HXtra bass, v1.2.1-bass.2:** a bass player's fork of [HXtra v1.2.1](https://github.com/wisemandenny/hxtra) by wisemandenny. It has everything in v1.2.1, plus [Distortion Crossover](#-distortion-crossover): clean lows under a driven top. Not an official HXtra release; report bugs in it [here](https://github.com/muetze-online/hxtra-bass/issues), not upstream. [Release notes](https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2) · [Try it from RAM first](RAM_RUN.md)
 
-<a href="https://muetze-online.github.io/hxtra-bass/web/#recovery"><img src="docs/assets/safe.svg" alt="100% safe for your HX Stomp: HXtra never touches the bootloader, so the stock firmware can always go back on." width="100%"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/#recovery"><img src="docs/assets/safe.svg" alt="100% safe for your HX Stomp: HXtra bass never touches the bootloader, so the stock firmware can always go back on." width="100%"></a>
 
 <table>
 <tr>
@@ -23,7 +23,7 @@
 
 <img src="docs/assets/icons/try.svg" width="40" height="40" align="absmiddle" alt=""> **[Try before you install](https://muetze-online.github.io/hxtra-bass/web/#try-without-installing)**
 
-Run HXtra from the HX Stomp's memory for one session. Nothing is written to the unit, and a power-cycle brings back what you had.
+Run HXtra bass from the HX Stomp's memory for one session. Nothing is written to the unit, and a power-cycle brings back what you had.
 
 &nbsp;
 
@@ -45,7 +45,7 @@ If an install ever stops at the splash screen, hold Page Right while powering on
 
 <img src="docs/assets/icons/install.svg" width="40" height="40" align="absmiddle" alt=""> **[Install from your browser](https://muetze-online.github.io/hxtra-bass/web/)**
 
-The setup page builds HXtra locally from your own firmware file, right in your browser. Your firmware file never leaves your computer, and there's no software to set up.
+The setup page builds HXtra bass locally from your own firmware file, right in your browser. Your firmware file never leaves your computer, and there's no software to set up.
 
 &nbsp;
 
@@ -59,7 +59,7 @@ The setup page builds HXtra locally from your own firmware file, right in your b
 
 ## Features
 
-HXtra's settings and block knobs have teal labels, so you can tell them from the stock ones at a glance.
+HXtra bass's settings and block knobs have teal labels, so you can tell them from the stock ones at a glance.
 
 <sub>*Demos were recorded from a real HX Stomp's screen, along with its audio and button presses, then overlaid on a simulated HX Stomp.*</sub>
 
@@ -312,7 +312,7 @@ A developer build streams the HX Stomp's screen over USB, and `tools/hx_mirror.p
 <td width="50%" valign="top">
 
 ### 100% reverse engineered
-The HX Stomp has no SDK, no documentation, no source code and no debug symbols. Everything HXtra changes had to be found first by reading raw disassembly of a stripped binary that runs on two processors: the Cortex-M4 that runs the screen and footswitches, and the SHARC DSP that processes the audio.
+The HX Stomp has no SDK, no documentation, no source code and no debug symbols. Everything HXtra bass changes had to be found first by reading raw disassembly of a stripped binary that runs on two processors: the Cortex-M4 that runs the screen and footswitches, and the SHARC DSP that processes the audio.
 
 &nbsp;
 
@@ -345,10 +345,10 @@ This fork works the same way: I chose Distortion Crossover and how it behaves, m
 <td width="50%" valign="top">
 
 ### <img src="docs/assets/icons/faq-presets.svg" width="28" height="28" align="top" alt=""> Will this break my presets?
-- **No.** Presets made on stock firmware open in HXtra.
+- **No.** Presets made on stock firmware open in HXtra bass.
 - A preset saved with snapshots 4–6 still loads on stock firmware, as snapshots 1–3.
-- HX Edit opens, exports and imports HXtra presets, but its exports (`.hlx`) and backups (`.hxb`) hold snapshots 1–3 only.
-- Presets made with an older release of [hx-stomp-nam-lite](https://github.com/nocaseguy/hx-stomp-nam-lite) won't load their NAM blocks in HXtra, so add NAM to those presets again. Presets from its current release open as they are.
+- HX Edit opens, exports and imports HXtra bass presets, but its exports (`.hlx`) and backups (`.hxb`) hold snapshots 1–3 only.
+- Presets made with an older release of [hx-stomp-nam-lite](https://github.com/nocaseguy/hx-stomp-nam-lite) won't load their NAM blocks in HXtra bass, so add NAM to those presets again. Presets from its current release open as they are.
 
 &nbsp;
 
@@ -357,8 +357,8 @@ This fork works the same way: I chose Distortion Crossover and how it behaves, m
 <tr>
 <td valign="top">
 
-### <img src="docs/assets/icons/faq-dsp.svg" width="28" height="28" align="top" alt=""> Does HXtra use up extra DSP?
-HXtra itself doesn't: it runs on the processor that drives the screen and footswitches. A few features put code on the DSP and use a little:
+### <img src="docs/assets/icons/faq-dsp.svg" width="28" height="28" align="top" alt=""> Does HXtra bass use up extra DSP?
+HXtra bass itself doesn't: it runs on the processor that drives the screen and footswitches. A few features put code on the DSP and use a little:
 
 - **Compressor Gain Reduction Meter**, on the compressors that have it
 - **Metronome**, while the block is in a preset
@@ -387,7 +387,7 @@ Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite bl
 ### <img src="docs/assets/icons/faq-platforms.svg" width="28" height="28" align="top" alt=""> Which operating systems are supported?
 *Only macOS and Windows are fully supported.*
 
-- The setup page builds HXtra on Windows, macOS and Linux, in any modern browser.
+- The setup page builds HXtra bass on Windows, macOS and Linux, in any modern browser.
 - Its Run from RAM step needs Chrome or Edge.
 - Installing uses Line 6 Updater, which runs on Windows and macOS.
 - Building from the command line needs clang to assemble the features' code: Apple's Command Line Tools on a Mac, or clang on Linux and WSL (`apt install clang`). Both give the same build, MD5 included.
@@ -400,7 +400,7 @@ Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite bl
 ### <img src="docs/assets/icons/faq-legal.svg" width="28" height="28" align="top" alt=""> Is this legal?
 *This isn't legal advice, and where you live matters.*
 
-- **No locks are broken.** The firmware isn't encrypted or signed, so HXtra doesn't violate copy protection. That is what anti-circumvention laws such as the US DMCA (§1201) forbid.
+- **No locks are broken.** The firmware isn't encrypted or signed, so HXtra bass doesn't violate copy protection. That is what anti-circumvention laws such as the US DMCA (§1201) forbid.
 - **Reverse engineering for compatible software is protected** in the US (*Sega v. Accolade*), the EU (Software Directive, Articles 5(3) and 6), the UK (CDPA ss. 50B and 50BA) and Canada (Copyright Act s. 30.61).
 - **This repo does not contain Line 6 IP** The patcher holds only addresses, table layouts and a few short runs of stock bytes it checks before writing. You bring your own copy of the official firmware, and the build changes it on your computer.
 - **Changing the firmware on your own unit** is private use. US law lets the owner of a program's copy adapt it to run it on their machine (17 U.S.C. §117), other countries are less clear, and Line 6's license terms may forbid it: that is a contract matter between you and Line 6.
@@ -443,4 +443,4 @@ Found something else? [Open an issue](https://github.com/muetze-online/hxtra-bas
 
 ## License
 
-HXtra is [GPL-3.0-or-later](LICENSE). Third-party notices are in [NOTICE](NOTICE). This is a modified version of HXtra v1.2.1: Distortion Crossover was added in November 2026; the changes since v1.2.1 are in the fork's [release notes](https://github.com/muetze-online/hxtra-bass/releases). Line 6, Helix, HX Stomp, HX Effects and HX Edit are trademarks of Yamaha Guitar Group, Inc. HXtra is not affiliated with, endorsed by or supported by Line 6 or Yamaha Guitar Group.
+HXtra bass is [GPL-3.0-or-later](LICENSE). Third-party notices are in [NOTICE](NOTICE). This is a modified version of HXtra v1.2.1: Distortion Crossover was added in November 2026; the changes since v1.2.1 are in the fork's [release notes](https://github.com/muetze-online/hxtra-bass/releases). Line 6, Helix, HX Stomp, HX Effects and HX Edit are trademarks of Yamaha Guitar Group, Inc. HXtra bass is not affiliated with, endorsed by or supported by Line 6 or Yamaha Guitar Group.
