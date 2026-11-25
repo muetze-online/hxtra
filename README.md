@@ -1,19 +1,19 @@
 <div align="center">
 
-<a href="https://muetze-online.github.io/hxtra/web/"><img src="docs/assets/banner.svg" alt="HXtra bass: custom firmware for the Line 6 HX Stomp" width="100%"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/"><img src="docs/assets/banner.svg" alt="HXtra bass: custom firmware for the Line 6 HX Stomp" width="100%"></a>
 
-[![Release](https://img.shields.io/github/v/release/muetze-online/hxtra?style=flat-square&color=ff2e93&label=release)](https://github.com/muetze-online/hxtra/releases/latest)
-[![License: GPL-3.0](https://img.shields.io/github/license/muetze-online/hxtra?style=flat-square&color=blue)](LICENSE)
-[![Last commit](https://img.shields.io/github/last-commit/muetze-online/hxtra/bass?style=flat-square)](https://github.com/muetze-online/hxtra/commits/bass)
+[![Release](https://img.shields.io/github/v/release/muetze-online/hxtra-bass?style=flat-square&color=ff2e93&label=release)](https://github.com/muetze-online/hxtra-bass/releases/latest)
+[![License: GPL-3.0](https://img.shields.io/github/license/muetze-online/hxtra-bass?style=flat-square&color=blue)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/muetze-online/hxtra-bass/bass?style=flat-square)](https://github.com/muetze-online/hxtra-bass/commits/bass)
 
 <!-- demo: tour, a short loop of the virtual HX Stomp from tools/hx_mirror.py -->
 <p><img src="https://github.com/user-attachments/assets/99592c3e-ca54-4d37-9175-e349437fe3bb" width="480" alt="A tour of HXtra on the HX Stomp: the BPM display, the Breathing Line, DSP usage in the Edit view, six snapshots and the Rainbow TAP LED"></p>
 
 </div>
 
-> **HXtra bass, v1.2.1-bass.2:** a bass player's fork of [HXtra v1.2.1](https://github.com/wisemandenny/hxtra) by wisemandenny. It has everything in v1.2.1, plus [Distortion Crossover](#-distortion-crossover): clean lows under a driven top. Not an official HXtra release; report bugs in it [here](https://github.com/muetze-online/hxtra/issues), not upstream. [Release notes](https://github.com/muetze-online/hxtra/releases/tag/v1.2.1-bass.2) · [Try it from RAM first](RAM_RUN.md)
+> **HXtra bass, v1.2.1-bass.2:** a bass player's fork of [HXtra v1.2.1](https://github.com/wisemandenny/hxtra) by wisemandenny. It has everything in v1.2.1, plus [Distortion Crossover](#-distortion-crossover): clean lows under a driven top. Not an official HXtra release; report bugs in it [here](https://github.com/muetze-online/hxtra-bass/issues), not upstream. [Release notes](https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2) · [Try it from RAM first](RAM_RUN.md)
 
-<a href="https://muetze-online.github.io/hxtra/web/#recovery"><img src="docs/assets/safe.svg" alt="100% safe for your HX Stomp: HXtra never touches the bootloader, so the stock firmware can always go back on." width="100%"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/#recovery"><img src="docs/assets/safe.svg" alt="100% safe for your HX Stomp: HXtra never touches the bootloader, so the stock firmware can always go back on." width="100%"></a>
 
 <table>
 <tr>
@@ -21,7 +21,7 @@
 
 &nbsp;
 
-<img src="docs/assets/icons/try.svg" width="40" height="40" align="absmiddle" alt=""> **[Try before you install](https://muetze-online.github.io/hxtra/web/#try-without-installing)**
+<img src="docs/assets/icons/try.svg" width="40" height="40" align="absmiddle" alt=""> **[Try before you install](https://muetze-online.github.io/hxtra-bass/web/#try-without-installing)**
 
 Run HXtra from the HX Stomp's memory for one session. Nothing is written to the unit, and a power-cycle brings back what you had.
 
@@ -32,7 +32,7 @@ Run HXtra from the HX Stomp's memory for one session. Nothing is written to the 
 
 &nbsp;
 
-<img src="docs/assets/icons/recover.svg" width="40" height="40" align="absmiddle" alt=""> **[Always recoverable](https://muetze-online.github.io/hxtra/web/#recovery)**
+<img src="docs/assets/icons/recover.svg" width="40" height="40" align="absmiddle" alt=""> **[Always recoverable](https://muetze-online.github.io/hxtra-bass/web/#recovery)**
 
 If an install ever stops at the splash screen, hold Page Right while powering on and reinstall stock with Line 6 Updater. Every feature ran on a real HX Stomp before release.
 
@@ -43,7 +43,7 @@ If an install ever stops at the splash screen, hold Page Right while powering on
 
 &nbsp;
 
-<img src="docs/assets/icons/install.svg" width="40" height="40" align="absmiddle" alt=""> **[Install from your browser](https://muetze-online.github.io/hxtra/web/)**
+<img src="docs/assets/icons/install.svg" width="40" height="40" align="absmiddle" alt=""> **[Install from your browser](https://muetze-online.github.io/hxtra-bass/web/)**
 
 The setup page builds HXtra locally from your own firmware file, right in your browser. Your firmware file never leaves your computer, and there's no software to set up.
 
@@ -55,7 +55,7 @@ The setup page builds HXtra locally from your own firmware file, right in your b
 
 ## Installation
 
-<p align="center"><a href="https://muetze-online.github.io/hxtra/web/"><img src="docs/assets/install-hxtra.svg" alt="Install HXtra bass" width="60%"></a></p>
+<p align="center"><a href="https://muetze-online.github.io/hxtra-bass/web/"><img src="docs/assets/install-hxtra.svg" alt="Install HXtra bass" width="60%"></a></p>
 
 ## Features
 
@@ -70,7 +70,7 @@ HXtra's settings and block knobs have teal labels, so you can tell them from the
 - **Tuner button** (Hold, Press): "Hold" opens the tuner when you hold TAP (stock behavior); "Press" opens it with a press, and TAP no longer taps the tempo.
 - **Tuner lock** (Off, On): On locks the tuner's other settings (Output, Reference, Type, Trails, Offsets).
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#tuner-settings"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#tuner-settings"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/bpm.svg" width="40" height="28" align="top" alt=""> BPM Display
 
@@ -80,7 +80,7 @@ HXtra's settings and block knobs have teal labels, so you can tell them from the
 - **Color** (White, Gray, Red, Orange, Yellow, Green, Cyan, Blue, Purple, Tempo): the tempo text's and the beat dot's colour. Tempo follows the TAP footswitch's colour (Tap LED Color).
 - **Dot position** (Left, Right, Both, Off): where the beat dot blinks with TAP, beside the preset number. Off hides it; with both Off the BPM display is off.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#bpm"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#bpm"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/breathing-line.svg" width="28" height="28" align="top" alt=""> Breathing Line
 
@@ -90,7 +90,7 @@ HXtra's settings and block knobs have teal labels, so you can tell them from the
 - **Type** (Off, Steady, Breathe, Cylon, Comet, Heart, Sparkle): how it moves; Off gives back the stock line.
 - **Speed** (1–10, Tempo): the speed of the animation. 1 = 8s/cycle, 10 = 0.8s/cycle; Tempo follows the tempo.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#breathing-line"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#breathing-line"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/dsp-usage.svg" width="32" height="32" align="top" alt=""> DSP Usage Display
 
@@ -101,7 +101,7 @@ HXtra's settings and block knobs have teal labels, so you can tell them from the
 - **Edit Blocks** (On, Off): the shares on the Edit view's blocks.
 - **Total** (Small, Large, Off): the total in the top right corner. Small, the default, draws it in the meter's small digits; Large in the title's font; Off leaves the corner to the title, so a long preset name isn't covered.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#dsp-usage-display"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#dsp-usage-display"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/gr-meter.svg" width="28" height="28" align="top" alt=""> Compressor Gain Reduction Meter
 
@@ -113,7 +113,7 @@ HXtra's settings and block knobs have teal labels, so you can tell them from the
 
 The meter also shows while you edit the compressor, so you can dial in Threshold, Ratio, Attack and Release while you play.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#gr-meter"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#gr-meter"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/long-press.svg" width="28" height="28" align="top" alt=""> Virtual Footswitches (FS6-10)
 
@@ -123,7 +123,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - **Parameters**: assign one to the same FS in Controller Assign, and it follows the footswitch too.
 - **MIDI**: **underneath, FS6 … FS10 are MIDI CC 20 … 24.** HX Edit shows them that way, and a MIDI controller sending those CCs switches them as well.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#virtual-footswitches"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#virtual-footswitches"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/long-press.svg" width="28" height="28" align="top" alt=""> Foot Switch Long Press
 
@@ -133,7 +133,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - **FS6 … FS10 Function** (Tuner, Stomp, Bank Up, Bank Dn, PresetUp, PresetDn, SnpshtUp, SnpshtDn, FS Mode&gt;, &lt;FS Mode, AllBypas, TogglEXP, GlobalEQ): what that virtual footswitch does, as FS3 … FS5 Function do for the real ones. Stomp, the default, toggles its blocks; GlobalEQ opens Global EQ, and any footswitch press goes back to Home.
 - **Switch a virtual footswitch**: hold the footswitch whose Hold is set to that FS. By default, holding FS1 switches FS6, and so on up to FS5 and FS10.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#long-press"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#long-press"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/snapshots.svg" width="104" height="32" align="top" alt=""> More Snapshots (4-6)
 
@@ -141,7 +141,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - Once a preset has snapshots 4–6, next and previous snapshot (SnpshtUp, SnpshtDn, MIDI CC 69) step through all six: next on 3 goes to 4, and next on 6 back to 1.
 - MIDI CC 69 selects any of the six directly: values 0–2 for snapshots 1–3, 3–5 for 4–6.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#more-snapshots"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#more-snapshots"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/tap-command.svg" width="28" height="28" align="top" alt=""> Tap Command
 
@@ -149,7 +149,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 - **Tap** (a Command for an FS slot, after Hotkey): the footswitch taps the tempo as TAP does, only in the presets where you put it, and its ring blinks the tempo. The footswitch must be a Stomp switch (Global Settings › Footswitches for FS3 … FS5). On stock firmware the footswitch doesn't tap.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#tap-command"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#tap-command"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/tap-color.svg" width="28" height="28" align="top" alt=""> TAP LED Color
 
@@ -157,7 +157,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 - **Tap LED Color** (Red, DkOrange, LtOrange, Yellow, Green, Teal, Blue, Violet, Pink, White, Rainbow, Random, Off): the colour of the TAP footswitch's blinking LED ring, and the icon and label of TAP/TUNER on the Home screen. Rainbow fades the ring a small step through the rainbow on each beat; Random picks a new colour at each beat. Both keep the label white. Off stops the blink: it takes the place of the stock Tap Tempo LED setting.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#tap-led-color"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#tap-led-color"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/preset-color.svg" width="28" height="28" align="top" alt=""> Preset Mode LED Color
 
@@ -166,7 +166,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - **This Preset** (None, Red, DkOrange, LtOrange, Yellow, Green, Teal, Blue, Violet, Pink, White): the current preset's own colour, kept when you save the preset. In Preset footswitch mode its ring and its switch icon on the Home screen are lit in that colour while it is selected, and dimmed while it is not.
 - **Preset LED Color** (Red, DkOrange, LtOrange, Yellow, Green, Teal, Blue, Violet, Pink, White): the colour of a preset without its own while it is selected. Such a preset's ring stays off while it is not, as stock.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#preset-led-color"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#preset-led-color"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/metronome.svg" width="35" height="28" align="top" alt=""> Metronome
 
@@ -177,7 +177,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - **Accent** (Off, 2 … 12): every nth beat is a downbeat, a higher click.
 - **Thru** (Off, On): On plays your signal with the click under it; Off plays the click alone.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#metronome"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#metronome"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/usb-monitor.svg" width="28" height="28" align="top" alt=""> USB & Send Routing
 
@@ -196,7 +196,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 - Renames blocks to the gear they were based on: e.g. Deez One Mod becomes Boss DS-1 Mod.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#real-block-names"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#real-block-names"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/dist-xover.svg" width="28" height="28" align="top" alt=""> Distortion Crossover
 
@@ -209,7 +209,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - Every mono distortion, the 17 legacy ones included. Obsidian 7000 and Minotaur, which mix clean paths of their own, get Frequency and Mode only; Pillars names the new Mode knob Crossover. Kinky Boost, Vital Boost and the stereo distortions stay stock; Xenomorph Fuzz gets the knobs only in a build without NAM A2 Lite.
 - Each of these blocks then counts 1% more toward the DSP limit. It goes with every choice on the setup page, 3 NAM A2 Lite blocks included.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#distortion-crossover"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#distortion-crossover"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/fx-gate.svg" width="28" height="28" align="top" alt=""> FX Loop Noise Gate
 
@@ -218,7 +218,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - A noise gate on what comes back from the loop, like the Input block's, so a noisy pedal in the loop no longer takes a Noise Gate block.
 - Each FX Loop and Return block then counts 0.2% (mono) or 0.4% (stereo) more toward the DSP limit.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#fx-loop-gate"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#fx-loop-gate"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/gate-sidechain.svg" width="28" height="28" align="top" alt=""> Noise Gate Input Sidechain
 
@@ -228,7 +228,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 - Each Noise Gate block then counts 0.1% (mono) or 0.2% (stereo) more toward the DSP limit.
 - *Experimental:* tested with recorded signals, not yet with a played instrument, so it may need tuning. It works only with a cable in the HX Stomp's guitar input.
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html#gate-sidechain"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html#gate-sidechain"><img src="docs/assets/icons/watch-demo.svg" width="124" height="28" alt="Watch demo"></a>
 
 ### <img src="docs/assets/icons/nam.svg" width="28" height="28" align="top" alt=""> NAM A2 Lite
 
@@ -236,7 +236,7 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 <div align="center">
 
-<a href="https://muetze-online.github.io/hxtra/web/features.html"><img src="docs/assets/feature-guide.svg" alt="Read the feature guide" width="45%"></a>
+<a href="https://muetze-online.github.io/hxtra-bass/web/features.html"><img src="docs/assets/feature-guide.svg" alt="Read the feature guide" width="45%"></a>
 
 </div>
 
@@ -291,7 +291,7 @@ Every feature's M4 code runs on an emulated Cortex-M4 ([unicorn](https://www.uni
 <td valign="top">
 
 ### <img src="docs/assets/icons/dev-mirror.svg" width="28" height="28" align="top" alt=""> Screen mirror and demo videos
-A developer build streams the HX Stomp's screen over USB, and `tools/hx_mirror.py` records it with every control event and renders the demo videos on the [feature tour](https://muetze-online.github.io/hxtra/web/features.html).
+A developer build streams the HX Stomp's screen over USB, and `tools/hx_mirror.py` records it with every control event and renders the demo videos on the [feature tour](https://muetze-online.github.io/hxtra-bass/web/features.html).
 
 &nbsp;
 
@@ -337,7 +337,7 @@ This fork works the same way: I chose Distortion Crossover and how it behaves, m
 <td width="50%" valign="top">
 
 ### <img src="docs/assets/icons/faq-stock.svg" width="28" height="28" align="top" alt=""> How do I go back to stock firmware?
-[See the recovery guide on the setup page](https://muetze-online.github.io/hxtra/web/#recovery)
+[See the recovery guide on the setup page](https://muetze-online.github.io/hxtra-bass/web/#recovery)
 
 &nbsp;
 
@@ -430,7 +430,7 @@ Planned for later versions of this fork (not built yet):
 - Distortion Crossover: at Wet Level −60 dB a high-gain block can stay faintly audible.
 - Distortion Crossover: a preset close to the DSP limit may not load once its distortions count 1% more each; remove a block or leave the feature out of your build.
 
-Found something else? [Open an issue](https://github.com/muetze-online/hxtra/issues/new/choose).
+Found something else? [Open an issue](https://github.com/muetze-online/hxtra-bass/issues/new/choose).
 
 ## Acknowledgements
 
@@ -442,4 +442,4 @@ Found something else? [Open an issue](https://github.com/muetze-online/hxtra/iss
 
 ## License
 
-HXtra is [GPL-3.0-or-later](LICENSE). Third-party notices are in [NOTICE](NOTICE). This is a modified version of HXtra v1.2.1: Distortion Crossover was added in November 2026; the changes since v1.2.1 are in the fork's [release notes](https://github.com/muetze-online/hxtra/releases). Line 6, Helix, HX Stomp, HX Effects and HX Edit are trademarks of Yamaha Guitar Group, Inc. HXtra is not affiliated with, endorsed by or supported by Line 6 or Yamaha Guitar Group.
+HXtra is [GPL-3.0-or-later](LICENSE). Third-party notices are in [NOTICE](NOTICE). This is a modified version of HXtra v1.2.1: Distortion Crossover was added in November 2026; the changes since v1.2.1 are in the fork's [release notes](https://github.com/muetze-online/hxtra-bass/releases). Line 6, Helix, HX Stomp, HX Effects and HX Edit are trademarks of Yamaha Guitar Group, Inc. HXtra is not affiliated with, endorsed by or supported by Line 6 or Yamaha Guitar Group.

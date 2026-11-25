@@ -1,6 +1,6 @@
 # Teemah! (overdrive)
 
-The Teemah! model, its node tree and its stock primitives, as groundwork for a Blend/crossover extension (fork muetze-online/hxtra, branch `bass`). Status tags as in [conventions.md](../../conventions.md).
+The Teemah! model, its node tree and its stock primitives, as groundwork for a Blend/crossover extension (fork muetze-online/hxtra-bass, branch `bass`). Status tags as in [conventions.md](../../conventions.md).
 
 ## Model [verified offline]
 
