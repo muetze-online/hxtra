@@ -95,22 +95,18 @@ MODE_DISP2 = ('Crossover', 'Xover')
 FREQ, DRY, WET, MODE = 19.9, pt.LEVEL_MIN, 0.0, 0      # defaults: the stock sound (Freq Off)
 MIX_DEFAULT = 1.0                                         # Mix's default: wet alone, the stock sound
 # Mix m (0..1, shown in percent) writes both gains of the 0x84 mixer through 9-point curves (op 0x3, linear between
-# m = 0, 1/8, .., 1): wet dB = C_w(m), dry dB = C_d(m) + w(m) * D(gain) + L(Level). C_w = 30 log10 sin(pi m / 2) and
-# C_d = 30 log10 cos(pi m / 2), a -4.5 dB law (each -4.5 dB at m = 0.5: between the -3 dB of uncorrelated and the
-# -6 dB of correlated signals, as dry and driven share their fundamental), -120 dB at the far end; w(m) = sin(pi m)
+# m = 0, 1/8, .., 1): wet dB = C_w(m), dry dB = C_d(m) + w(m) * D(gain) + L(Level). C_w = dB(sin(pi m / 2) ^ 1.5) and
+# C_d = dB(cos(pi m / 2) ^ 1.5), the curves in linear amplitude and op 0x28 to dB after them (curves in dB put the
+# far end's -120 dB on a straight line to m = 1/8 and lose the first and last eighth: wet at m = 1/16 -71 dB instead
+# of -30; in amplitude the error is 0.3 dB from m = 1/8 on and 3 dB at 1/16), a -4.5 dB law (each -4.5 dB at m = 0.5: between the -3 dB of uncorrelated and the
+# -6 dB of correlated signals, as dry and driven share their fundamental), 0 (-120 dB) at the far end; w(m) = sin(pi m)
 # up to m = 0.5, then 1, raises the dry signal by D (how much louder the drive is than the clean input, dB) on the
 # way to the middle, so at 50 % both are equally loud and at 0 % the dry signal is the input at 0 dB. D is a curve
 # on the model's gain knob (GAIN_KNOBS), constant MIX_DELTA until measured per model (hx_freqresp).
-MIX_FLOOR = -120.0
+MIX_FLOOR = -120.0                                     # op 0x28's dB for 0
 MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Level's top
-
-
-def _db30(v):
-    return 30 * math.log10(v) if v > 1e-9 else MIX_FLOOR
-
-
-MIX_WET = [_db30(math.sin(math.pi * k / 16)) for k in range(9)]
-MIX_DRY = [_db30(math.cos(math.pi * k / 16)) for k in range(9)]
+MIX_WET = [max(math.sin(math.pi * k / 16), 0.0) ** 1.5 for k in range(9)]           # linear amplitude
+MIX_DRY = [max(math.cos(math.pi * k / 16), 0.0) ** 1.5 if k < 8 else 0.0 for k in range(9)]
 MIX_RISE = [math.sin(math.pi * min(k / 8, 0.5)) for k in range(9)]
 MIX_NAMES = ('Mix', 'Blend')                           # Entry 3 name: Blend where the model has a Mix of its own
 GAIN_KNOBS = ('Gain', 'Drive', 'Fuzz', 'Sustain', 'Grit', 'Dist')   # D's knob: the first of these the model has
@@ -624,11 +620,11 @@ def mix_exprs(plan):
     m = ('in',)
     delta = (('curve', [MIX_DELTA] * 9, ('knob', plan['gain'])) if plan.get('gain') is not None
              else ('curve', [MIX_DELTA] * 9, m))
-    dry = ('add', ('curve', MIX_DRY, m), ('mul', ('curve', MIX_RISE, m), delta))
+    dry = ('add', ('todb', ('curve', MIX_DRY, m)), ('mul', ('curve', MIX_RISE, m), delta))
     lv = plan['level']
     if lv is not None:
         dry = ('add', dry, ('knob', lv[0]) if lv[1] is None else ('curve', lv[1], ('knob', lv[0])))
-    return ('expr', ('curve', MIX_WET, m)), ('expr', dry)
+    return ('expr', ('todb', ('curve', MIX_WET, m))), ('expr', dry)
 
 
 HIDDEN_SLOT = pt.HIDDEN_SLOT                           # Bronze Master's Smart: hidden, no state, writes nothing

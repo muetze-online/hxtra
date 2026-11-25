@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """hx_xover_resp.py IMAGE OUTDIR [--models 302,386,431,595] [--freq 250] [--level -40] [--secs 6] [--wavdir DIR]
-                   [--set KNOB=VALUE ...] [--tag SUFFIX]
+                   [--set KNOB=VALUE ...] [--sweep KNOB=V1,V2,... ...] [--tag SUFFIX]
 : the Distortion Crossover (HX_DIST_XOVER) of HXtra bass measured on the HX Stomp over USB.
 
 IMAGE is the .hxf running on the unit (its Entry 3 gives each model's knobs, its parameter map their defaults).
@@ -190,16 +190,22 @@ def main():
     ap.add_argument("--reanalyse", action="store_true", help="evaluate the takes in --wavdir, no unit")
     ap.add_argument("--set", action="append", default=[], metavar="KNOB=VALUE",
                     help="an Entry 3 knob (e.g. ODLowBoost=1) set in every case of each model that has it")
+    ap.add_argument("--sweep", action="append", default=[], metavar="KNOB=V1,V2,...",
+                    help="one take per value (several --sweep: every combination) on top of each case; the take's "
+                         "key gets _KNOBVALUE per swept knob (branch bass-mix: Mix and Gain)")
     ap.add_argument("--tag", default="", help="appended to each take's key (and wav name), so takes with other "
                     "--set values keep their own")
     a = ap.parse_args()
     try:
         sets = tuple((k, float(v)) for k, v in (s.split("=", 1) for s in a.set))
+        sweeps = [(k, [float(x) for x in v.split(",")]) for k, v in (s.split("=", 1) for s in a.sweep)]
     except ValueError:
-        sys.exit("--set takes KNOB=VALUE, VALUE a number")
+        sys.exit("--set takes KNOB=VALUE and --sweep KNOB=V1,V2,..., the values numbers")
+    import itertools
+    combos = list(itertools.product(*[[(k, x) for x in vs] for k, vs in sweeps])) or [()]
     pids = [int(p) for p in a.models.split(",")]
     cases = [c for c in CASES if c[0] in a.cases.split(",")]
-    writes = len(pids) * len(cases) + 2
+    writes = len(pids) * len(cases) * len(combos) + 2
     if writes > MAX_WRITES:
         sys.exit(f"{writes} preset writes: more than {MAX_WRITES} a boot; fewer models or cases")
     if not a.reanalyse:
@@ -226,7 +232,13 @@ def main():
                 if level is None:
                     continue
                 v[level[0]] = level[1]
-            runs.append((f"{pid}_{tag}{a.tag}", pid, v))
+            for combo in combos:
+                w = list(v)
+                for knob, val in combo:
+                    if knob not in idx:
+                        sys.exit(f"{name} has no knob {knob!r} to sweep")
+                    w[idx[knob]] = type(w[idx[knob]])(val)
+                runs.append((f"{pid}_{tag}" + "".join(f"_{k}{x:g}" for k, x in combo) + a.tag, pid, w))
     res = {}
 
     def evaluate(key, wav):
@@ -284,8 +296,8 @@ def main():
         lines += ["", f"## {lay[pid][0]} ({pid})", "",
                   "| Fall | " + " | ".join(f"{hz} Hz" for hz in SHOW_HZ) + " | RMS | Aussetzer/Wdh./Klicks | xcorr |",
                   "|---|" + "---|" * (len(SHOW_HZ) + 3)]
-        for tag, *_ in cases:
-            key = f"{pid}_{tag}{a.tag}"
+        for key in (k for k, q, _ in runs if q == pid):
+            tag = key[len(f"{pid}_"):]
             if key not in res:
                 lines.append(f"| {tag} | nicht gesetzt |")
                 continue
