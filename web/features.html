@@ -57,6 +57,10 @@
   .group > h2, .group > .note { margin: 0; }
   .group > h2 { font-size: 28px; margin-top: 12px; }
   .group > .note { margin-top: -12px; }
+  .rel { font-size: 21px; margin: 24px 0 4px; }
+  .rel + .note { margin: 0 0 12px; }
+  .group > .rel { margin: 16px 0 0; }
+  .group > .rel + .note { margin: -12px 0 0; }
   .settings { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); min-width: 0; }
   .settings > * { margin: 0; }
   .settings h3 { font: 600 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -104,7 +108,7 @@
 <div class="wrap">
   <header>
     <div class="top">
-      <span class="eyebrow"><a href="./">HXtra</a><span id="release" hidden></span></span>
+      <span class="eyebrow"><a href="./">HXtra bass</a><span id="release" hidden></span></span>
       <label class="lang">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
         <span class="sr" data-i18n="lang">Language</span>
@@ -116,6 +120,28 @@
 
   <section id="overview">
     <p data-i18n="overview.labels">HXtra's settings and block knobs have teal labels, so you can tell them from the stock ones at a glance.</p>
+    <h3 class="rel" data-i18n="rel.bass.name">HXtra bass</h3>
+    <p class="note" data-i18n="rel.bass.note">Added by muetze in this fork, since <a href="https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2">v1.2.1-bass.2</a>.</p>
+    <div class="tbl"><table>
+    <thead>
+    <tr>
+    <th data-i18n="th.feature">Feature</th>
+    <th data-i18n="th.desc">Description</th>
+    <th data-i18n="th.floc">Feature location</th>
+    <th data-i18n="th.sloc">Settings location</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td><a href="#distortion-crossover" data-i18n="distortion-crossover.name">Distortion Crossover</a></td>
+    <td data-i18n="distortion-crossover.desc">Four knobs on the mono distortions: the drive hears only the input above Frequency, and Dry Level mixes the clean input back in, full range or only below Frequency, so the lows of a bass stay clean under a distorted top.</td>
+    <td data-i18n="distortion-crossover.floc">The mono distortion blocks</td>
+    <td data-i18n="distortion-crossover.where">The block's Frequency, Dry Level, Wet Level and Mode knobs</td>
+    </tr>
+</tbody>
+    </table></div>
+    <h3 class="rel" data-i18n="rel.up.name">From HXtra v1.2.1</h3>
+    <p class="note" data-i18n="rel.up.note">By wisemandenny, from <a href="https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1">HXtra v1.2.1</a>; HXtra bass has all of them.</p>
     <div class="tbl"><table>
     <thead>
     <tr>
@@ -143,12 +169,6 @@
     <td data-i18n="gr-meter.desc">Shows how hard a compressor is working, on the Home screen and in its Edit view, so you can dial in Threshold, Ratio, Attack and Release while you play.</td>
     <td data-i18n="gr-meter.floc">Home screen and the compressor's Edit view</td>
     <td data-i18n="gr-meter.where">The compressor's Mtr Size, Mtr Pos and Mtr Dir knobs, on the Deluxe, LA Studio, Kinky, Ampeg Opto, Rochester and Red Squeeze compressors</td>
-    </tr>
-    <tr>
-    <td><a href="#distortion-crossover" data-i18n="distortion-crossover.name">Distortion Crossover</a></td>
-    <td data-i18n="distortion-crossover.desc">Four knobs on the mono distortions: the drive hears only the input above Frequency, and Dry Level mixes the clean input back in, full range or only below Frequency, so the lows of a bass stay clean under a distorted top.</td>
-    <td data-i18n="distortion-crossover.floc">The mono distortion blocks</td>
-    <td data-i18n="distortion-crossover.where">The block's Frequency, Dry Level, Wet Level and Mode knobs</td>
     </tr>
     <tr>
     <td><a href="#dsp-usage-display" data-i18n="dsp-usage-display.name">DSP Usage Display</a></td>
@@ -241,6 +261,61 @@
   <section class="group" id="demos">
     <h2 data-i18n="overview.name">Demos</h2>
     <p class="note" data-i18n="demos.note">Demos were recorded from a real HX Stomp's screen, along with its audio and button presses, then overlaid on a simulated HX Stomp.</p>
+    <h3 class="rel" data-i18n="rel.bass.name">HXtra bass</h3>
+    <p class="note" data-i18n="rel.bass.note">Added by muetze in this fork, since <a href="https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2">v1.2.1-bass.2</a>.</p>
+    <section class="card feat" id="distortion-crossover">
+      <h2><img class="ico" src="../docs/assets/icons/dist-xover.svg" width="28" height="28" alt=""><span data-i18n="distortion-crossover.name">Distortion Crossover</span></h2>
+      <!-- demo: distortion-crossover -->
+      <div class="demos">
+        <figure><video src="https://github.com/user-attachments/assets/fa4cc74a-2cfe-4094-a19c-df5c521e7651" width="1280" height="960" controls preload="metadata" playsinline></video></figure>
+      </div>
+      <p data-i18n="distortion-crossover.p1">The mono distortion blocks get up to four knobs after their own, for bass and for parallel drive. Not every block gets all four: Obsidian 7000 and Minotaur, which mix clean paths of their own, get only Frequency and Mode. Dry Level mixes the block's unprocessed input back in at the end, Wet Level sets the effect signal, and the block's own Level knob still sets its overall volume, as before. Frequency picks where the effect starts: only the part of the input above it goes into the effect. Mode decides what the dry signal that bypasses the effect carries: the full range (Full) or only the frequencies below Frequency (Xover, a 4th-order Linkwitz-Riley crossover). At their defaults the block sounds as on stock firmware.</p>
+  <ul>
+  <li data-i18n="distortion-crossover.li1"><strong>Which blocks:</strong> every mono distortion but those under <em>Not supported</em> below. Pillars, which has a Mode knob of its own, names the new one Crossover (Xover). The 17 legacy distortions are included (Bronze Master keeps its own Blend too); the stereo distortions stay as they are.</li>
+  <li data-i18n="distortion-crossover.li6"><strong>Not supported</strong> (they stay as on stock firmware): Kinky Boost and Vital Boost, clean boosts with no drive to split off, and Regal Bass DI, a clean bass DI. Xenomorph Fuzz gets the knobs only in a build without NAM A2 Lite, which otherwise takes its place.</li>
+  <li data-i18n="distortion-crossover.li2"><strong>Level</strong> (Volume on some blocks) sets the volume of the whole block, the dry signal included; Wet Level and Dry Level set the balance between the two.</li>
+  <li data-i18n="distortion-crossover.li3"><strong>−60 dB is not quite off:</strong> at Wet Level −60 dB a high-gain block can stay faintly audible.</li>
+  <li data-i18n="distortion-crossover.li4"><strong>DSP:</strong> each of these blocks counts 1% more toward the DSP limit, whatever its knobs are set to. A preset already at the limit with such a block may not load.</li>
+  <li data-i18n="distortion-crossover.li5"><strong>Presets</strong> saved before sound as they did: the new knobs start at their defaults. HX Edit doesn't show the new knobs, as it has its own list of each block's knobs; opening a preset saved with them on stock firmware is not tested yet.</li>
+  </ul>
+      <div class="settings">
+        <h3 data-i18n="settings">Settings</h3>
+        <p class="where" data-i18n="distortion-crossover.where">The block's Frequency, Dry Level, Wet Level and Mode knobs</p>
+        <div class="tbl"><table>
+        <thead>
+        <tr>
+        <th data-i18n="th.knob">Knob</th>
+        <th data-i18n="th.values">Values</th>
+        <th data-i18n="th.what">What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><strong>Frequency</strong></td>
+        <td>Off, 20–1000 Hz, <strong>Off</strong></td>
+        <td data-i18n="distortion-crossover.what1">The crossover frequency: the drive hears the input above it. At Off it hears all of it, exactly as on stock firmware.</td>
+        </tr>
+        <tr>
+        <td><strong>Dry Level</strong></td>
+        <td>−60 to +18 dB, <strong>−60 dB</strong></td>
+        <td data-i18n="distortion-crossover.what2">The clean input in the mix: full range with Mode on Full, below Frequency on Xover.</td>
+        </tr>
+        <tr>
+        <td><strong>Wet Level</strong></td>
+        <td>−60 to +9 dB, <strong>0 dB</strong></td>
+        <td data-i18n="distortion-crossover.what3">The drive in the mix.</td>
+        </tr>
+        <tr>
+        <td><strong>Mode</strong></td>
+        <td><strong>Full</strong>, Xover</td>
+        <td data-i18n="distortion-crossover.what4">Full mixes in the clean input as it is; Xover only below Frequency, so clean lows and the drive's top meet at Frequency.</td>
+        </tr>
+        </tbody>
+        </table></div>
+      </div>
+    </section>
+    <h3 class="rel" data-i18n="rel.up.name">From HXtra v1.2.1</h3>
+    <p class="note" data-i18n="rel.up.note">By wisemandenny, from <a href="https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1">HXtra v1.2.1</a>; HXtra bass has all of them.</p>
     <section class="card feat" id="bpm">
       <h2><img class="ico" src="../docs/assets/icons/bpm.svg" width="40" height="28" alt=""><span data-i18n="bpm.name">BPM Display</span></h2>
       <!-- demo: bpm -->
@@ -379,53 +454,6 @@
       </div>
     </section>
 
-    <section class="card feat" id="distortion-crossover">
-      <h2><img class="ico" src="../docs/assets/icons/dist-xover.svg" width="28" height="28" alt=""><span data-i18n="distortion-crossover.name">Distortion Crossover</span></h2>
-      <p data-i18n="distortion-crossover.p1">The mono distortion blocks get up to four knobs after their own, for bass and for parallel drive. Not every block gets all four: Obsidian 7000 and Minotaur, which mix clean paths of their own, get only Frequency and Mode. Dry Level mixes the block's unprocessed input back in at the end, Wet Level sets the effect signal, and the block's own Level knob still sets its overall volume, as before. Frequency picks where the effect starts: only the part of the input above it goes into the effect. Mode decides what the dry signal that bypasses the effect carries: the full range (Full) or only the frequencies below Frequency (Xover, a 4th-order Linkwitz-Riley crossover). At their defaults the block sounds as on stock firmware.</p>
-  <ul>
-  <li data-i18n="distortion-crossover.li1"><strong>Which blocks:</strong> every mono distortion but those under <em>Not supported</em> below. Pillars, which has a Mode knob of its own, names the new one Crossover (Xover). The 17 legacy distortions are included (Bronze Master keeps its own Blend too); the stereo distortions stay as they are.</li>
-  <li data-i18n="distortion-crossover.li6"><strong>Not supported</strong> (they stay as on stock firmware): Kinky Boost and Vital Boost, clean boosts with no drive to split off, and Regal Bass DI, a clean bass DI. Xenomorph Fuzz gets the knobs only in a build without NAM A2 Lite, which otherwise takes its place.</li>
-  <li data-i18n="distortion-crossover.li2"><strong>Level</strong> (Volume on some blocks) sets the volume of the whole block, the dry signal included; Wet Level and Dry Level set the balance between the two.</li>
-  <li data-i18n="distortion-crossover.li3"><strong>−60 dB is not quite off:</strong> at Wet Level −60 dB a high-gain block can stay faintly audible.</li>
-  <li data-i18n="distortion-crossover.li4"><strong>DSP:</strong> each of these blocks counts 1% more toward the DSP limit, whatever its knobs are set to. A preset already at the limit with such a block may not load.</li>
-  <li data-i18n="distortion-crossover.li5"><strong>Presets</strong> saved before sound as they did: the new knobs start at their defaults. HX Edit doesn't show the new knobs, as it has its own list of each block's knobs; opening a preset saved with them on stock firmware is not tested yet.</li>
-  </ul>
-      <div class="settings">
-        <h3 data-i18n="settings">Settings</h3>
-        <p class="where" data-i18n="distortion-crossover.where">The block's Frequency, Dry Level, Wet Level and Mode knobs</p>
-        <div class="tbl"><table>
-        <thead>
-        <tr>
-        <th data-i18n="th.knob">Knob</th>
-        <th data-i18n="th.values">Values</th>
-        <th data-i18n="th.what">What it does</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr>
-        <td><strong>Frequency</strong></td>
-        <td>Off, 20–1000 Hz, <strong>Off</strong></td>
-        <td data-i18n="distortion-crossover.what1">The crossover frequency: the drive hears the input above it. At Off it hears all of it, exactly as on stock firmware.</td>
-        </tr>
-        <tr>
-        <td><strong>Dry Level</strong></td>
-        <td>−60 to +18 dB, <strong>−60 dB</strong></td>
-        <td data-i18n="distortion-crossover.what2">The clean input in the mix: full range with Mode on Full, below Frequency on Xover.</td>
-        </tr>
-        <tr>
-        <td><strong>Wet Level</strong></td>
-        <td>−60 to +9 dB, <strong>0 dB</strong></td>
-        <td data-i18n="distortion-crossover.what3">The drive in the mix.</td>
-        </tr>
-        <tr>
-        <td><strong>Mode</strong></td>
-        <td><strong>Full</strong>, Xover</td>
-        <td data-i18n="distortion-crossover.what4">Full mixes in the clean input as it is; Xover only below Frequency, so clean lows and the drive's top meet at Frequency.</td>
-        </tr>
-        </tbody>
-        </table></div>
-      </div>
-    </section>
 
     <section class="card feat" id="dsp-usage-display">
       <h2><img class="ico" src="../docs/assets/icons/dsp-usage.svg" width="32" height="32" alt=""><span data-i18n="dsp-usage-display.name">DSP Usage Display</span></h2>
@@ -998,6 +1026,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, páginas 4 y 5",
     "overview.name": "Demos",
     "overview.labels": "Los ajustes y las perillas de bloque de HXtra tienen etiquetas de color verde azulado, para distinguirlos de los de serie de un vistazo.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "Añadidas por muetze en este fork, desde <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>.",
+    "rel.up.name": "De HXtra v1.2.1",
+    "rel.up.note": "De wisemandenny, de <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>; HXtra bass las tiene todas.",
     "demos.note": "Las demos se grabaron de la pantalla de un HX Stomp real, junto con su audio y las pulsaciones de los botones, y luego se superpusieron sobre un HX Stomp simulado.",
     "bpm.alt1": "La pantalla Home a 90 BPM: Font Size S, con el punto de pulso a la derecha del número de preset",
     "bpm.p1": "La pantalla de inicio muestra el tempo arriba a la izquierda y, junto al número de preset, un punto de pulso que se enciende con el anillo del footswitch TAP, en rojo al pulsarlo.",
@@ -1229,6 +1261,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, páginas 4 e 5",
     "overview.name": "Demonstrações",
     "overview.labels": "Os ajustes e os knobs de bloco do HXtra têm rótulos verde-azulados, para você distingui-los dos originais num relance.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "Adicionados por muetze neste fork, desde <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>.",
+    "rel.up.name": "Do HXtra v1.2.1",
+    "rel.up.note": "De wisemandenny, do <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>; o HXtra bass tem todos.",
     "demos.note": "As demonstrações foram gravadas da tela de um HX Stomp real, junto com o áudio e os botões pressionados, e depois sobrepostas a um HX Stomp simulado.",
     "bpm.alt1": "A tela Home a 90 BPM: Font Size S, com o ponto de batida à direita do número do preset",
     "bpm.p1": "A tela inicial mostra o andamento no canto superior esquerdo e, ao lado do número do preset, um ponto de batida que acende junto com o anel do footswitch TAP e fica vermelho quando você bate o TAP.",
@@ -1460,6 +1496,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, pages 4 et 5",
     "overview.name": "Démos",
     "overview.labels": "Les réglages et les potentiomètres de bloc de HXtra ont des libellés bleu sarcelle, pour les distinguer d'un coup d'œil de ceux d'origine.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "Ajoutées par muetze dans ce fork, depuis <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>.",
+    "rel.up.name": "Issues de HXtra v1.2.1",
+    "rel.up.note": "Par wisemandenny, issues de <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a> ; HXtra bass les a toutes.",
     "demos.note": "Les démos ont été enregistrées depuis l'écran d'un vrai HX Stomp, avec son audio et les appuis sur ses boutons, puis superposées à un HX Stomp simulé.",
     "bpm.alt1": "L'écran Home à 90 BPM : Font Size S, le point de pulsation à droite du numéro de preset",
     "bpm.p1": "L'écran d'accueil affiche le tempo en haut à gauche, et un point de pulsation à côté du numéro de preset, qui s'allume avec l'anneau du footswitch TAP, en rouge quand vous tapez.",
@@ -1691,6 +1731,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, Seiten 4 und 5",
     "overview.name": "Demos",
     "overview.labels": "Die Einstellungen und Block-Regler von HXtra haben petrolfarbene Beschriftungen, damit du sie auf einen Blick von den originalen unterscheidest.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "Von muetze in diesem Fork ergänzt, seit <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>.",
+    "rel.up.name": "Aus HXtra v1.2.1",
+    "rel.up.note": "Von wisemandenny, aus <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>; HXtra bass enthält sie alle.",
     "demos.note": "Die Demos wurden vom Bildschirm eines echten HX Stomp aufgenommen, samt Audio und Tastendrücken, und dann über einen simulierten HX Stomp gelegt.",
     "bpm.alt1": "Der Home-Bildschirm bei 90 BPM: Font Size S, der Beat-Punkt rechts neben der Preset-Nummer",
     "bpm.p1": "Der Home-Bildschirm zeigt oben links das Tempo und neben der Preset-Nummer einen Beat-Punkt, der mit dem Ring des TAP-Fußschalters aufleuchtet, rot bei einem Tap.",
@@ -1922,6 +1966,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, pagine 4 e 5",
     "overview.name": "Demo",
     "overview.labels": "Le impostazioni e le manopole di blocco di HXtra hanno etichette color verde acqua, così le distingui a colpo d'occhio da quelle originali.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "Aggiunte da muetze in questo fork, dalla <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>.",
+    "rel.up.name": "Da HXtra v1.2.1",
+    "rel.up.note": "Di wisemandenny, da <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>; HXtra bass le ha tutte.",
     "demos.note": "Le demo sono state registrate dallo schermo di un vero HX Stomp, insieme al suo audio e alle pressioni dei pulsanti, poi sovrapposte a un HX Stomp simulato.",
     "bpm.alt1": "La schermata Home a 90 BPM: Font Size S, con il punto di battuta a destra del numero del preset",
     "bpm.p1": "La schermata Home mostra il tempo in alto a sinistra e, accanto al numero del preset, un punto del battito che si accende con l'anello del footswitch TAP, rosso a ogni tap.",
@@ -2153,6 +2201,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches、4 ページ目と 5 ページ目",
     "overview.name": "デモ",
     "overview.labels": "HXtra の設定とブロックのノブはラベルがティール色になるので、標準のものと一目で見分けられます。",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "このフォークで muetze が追加した機能（<a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a> から）。",
+    "rel.up.name": "HXtra v1.2.1 から",
+    "rel.up.note": "wisemandenny による <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a> の機能。HXtra bass にはすべて含まれます。",
     "demos.note": "デモは実機の HX Stomp の画面を、音声やボタン操作とともに録画し、シミュレーションした HX Stomp に重ねたものです。",
     "bpm.alt1": "90 BPM の Home 画面：Font Size S、拍のドットはプリセット番号の右",
     "bpm.p1": "ホーム画面の左上にテンポを、プリセット番号の横にビート・ドットを表示します。ドットは TAP フットスイッチのリングと一緒に点灯し、タップした瞬間は赤くなります。",
@@ -2384,6 +2436,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches，第 4 和第 5 页",
     "overview.name": "演示",
     "overview.labels": "HXtra 的设置和模块旋钮使用青绿色标签，让你一眼就能和原厂的区分开。",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "muetze 在这个分支中添加的功能（自 <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a> 起）。",
+    "rel.up.name": "来自 HXtra v1.2.1",
+    "rel.up.note": "由 wisemandenny 开发，来自 <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>；HXtra bass 全部包含。",
     "demos.note": "演示录自真实 HX Stomp 的屏幕，连同它的声音和按键操作，再叠加到模拟的 HX Stomp 上。",
     "bpm.alt1": "90 BPM 时的 Home 画面：Font Size S，节拍点在预设编号右侧",
     "bpm.p1": "主屏幕左上角显示速度，预设编号旁有一个节拍点，与 TAP 脚踏开关的灯环同步亮起，踩下时为红色。",
@@ -2615,6 +2671,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, 4페이지와 5페이지",
     "overview.name": "데모",
     "overview.labels": "HXtra의 설정과 블록 노브는 레이블이 틸 색상이라 순정 항목과 한눈에 구분할 수 있습니다.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "muetze가 이 포크에 추가한 기능(<a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>부터).",
+    "rel.up.name": "HXtra v1.2.1에서",
+    "rel.up.note": "wisemandenny가 만든 <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>의 기능. HXtra bass에 모두 들어 있습니다.",
     "demos.note": "데모는 실제 HX Stomp의 화면을 오디오, 버튼 입력과 함께 녹화한 뒤, 시뮬레이션한 HX Stomp 위에 겹쳐 만들었습니다.",
     "bpm.alt1": "90 BPM의 Home 화면: Font Size S, 비트 점은 프리셋 번호 오른쪽",
     "bpm.p1": "홈 화면 왼쪽 위에 템포가, 프리셋 번호 옆에 박자 점이 표시됩니다. 박자 점은 TAP 풋스위치의 링과 함께 켜지며, 탭할 때는 빨간색입니다.",
@@ -2846,6 +2906,10 @@ var LANGS = {
     "virtual-footswitches.where": "Global Settings &gt; Footswitches, страницы 4 и 5",
     "overview.name": "Демо",
     "overview.labels": "У настроек и ручек блоков HXtra бирюзовые подписи, чтобы их можно было с одного взгляда отличить от штатных.",
+    "rel.bass.name": "HXtra bass",
+    "rel.bass.note": "Добавлено muetze в этом форке, начиная с <a href=\"https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2\">v1.2.1-bass.2</a>.",
+    "rel.up.name": "Из HXtra v1.2.1",
+    "rel.up.note": "От wisemandenny, из <a href=\"https://github.com/wisemandenny/hxtra/releases/tag/v1.2.1\">HXtra v1.2.1</a>; в HXtra bass есть все они.",
     "demos.note": "Демо записаны с экрана настоящего HX Stomp вместе со звуком и нажатиями кнопок, а затем наложены на симулированный HX Stomp.",
     "bpm.alt1": "Экран Home на 90 BPM: Font Size S, точка доли справа от номера пресета",
     "bpm.p1": "Главный экран показывает темп в левом верхнем углу и точку доли рядом с номером пресета, которая загорается вместе с кольцом футсвича TAP, при нажатии — красным.",

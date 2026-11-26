@@ -2,7 +2,8 @@ name: pages
 
 # Publishes the setup page (web/) and the features page (web/features.html, whose icons are docs/assets/icons/) for a release, with the files the in-browser build reads (build.py, tools/, src/m4/,
 # src/sharc/: tests/test_web_build.py checks they cover web/firmware-worker.js's SOURCES) in the repository's own layout, and the release's m4cache.json (tools/release.py attaches it) at the root: the page is at /web/.
-# A release publishes it; a manual run can take the page from another ref, keeping the release's m4cache.json.
+# A release publishes it; a manual run can take the page (web/, docs/assets/) from another ref, keeping the release's
+# build files and m4cache.json, so the page never builds firmware the release doesn't have.
 on:
   release:
     types: [published]
@@ -12,7 +13,7 @@ on:
         description: The release to publish again
         required: true
       ref:
-        description: Where to take the page and build files from, when only the page changed since the release (default, the release)
+        description: Where to take the page (web/, docs/assets/) from, when only the page changed since the release (default, the release); the build files always come from the release
         required: false
 
 permissions:
@@ -34,7 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || env.TAG }}
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - name: page from ref
+        if: inputs.ref
+        env:
+          REF: ${{ inputs.ref }}
+        run: git restore --staged --worktree --source "$(git rev-parse --verify -q "origin/$REF" || echo "$REF")" -- web docs/assets
       - name: site
         run: |
           mkdir -p _site/src
