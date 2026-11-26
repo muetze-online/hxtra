@@ -107,11 +107,12 @@ MIX_DEFAULT = 1.0                                         # Mix's default: wet a
 # L(Level), so at the reference level the block is as loud as its input at every Mix and Gain; Level raises both.
 MIX_FLOOR = -120.0                                     # op 0x28's dB for 0
 MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Level's top
-# D measured per model at the gain knob's 9 points 0, 1/8 .. 1 (0..1 knob): white noise at -24 dBFS RMS into USB 5/6
-# (as loud below 1 kHz as the bass recording, peak -23.5 dBFS, -37.4 LUFS), Freq Off, Mode Full, level of Mix 100 % against
-# the input over the third-octave bands 40..250 Hz, linear part plus distortion (tools/hx_xover_resp.py --sweep,
-# 2026-11-25)
-MIX_DELTAS = {'HD2_DistTeemahMono': [0.5, 1.6, 2.6, 3.1, 3.6, 4.2, 4.8, 5.8, 6.5]}
+# D measured per model at the gain knob's 9 points 0, 1/8 .. 1 (0..1 knob): a bass riff recorded through the unit
+# (peak -24.4 dBFS, -40.3 LUFS) played into USB 5/6 (tools/hx_xover_resp.py --signal), Freq Off, Mode Full, loudness
+# (ITU-R BS.1770-4, LUFS integrated) of Mix 100 % against Mix 0 %. White noise at -24 dBFS gave far less (Teemah! at
+# gain 1: 6.5 dB in the bass band, 16.0 LU with the riff), likely because a decaying bass note spends most of its time below its
+# peak, where the drive still saturates, and the drive's harmonics land where loudness weighs most (2026-11-26)
+MIX_DELTAS = {'HD2_DistTeemahMono': [0.5, 2.0, 5.6, 8.2, 10.2, 12.6, 14.4, 15.4, 16.0]}
 MIX_LAW = 1.5                                          # exponent: sin^1.5 / cos^1.5, each -4.5 dB at 50 %
 
 

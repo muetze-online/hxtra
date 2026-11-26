@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """hx_xover_resp.py IMAGE OUTDIR [--models 302,386,431,595] [--freq 250] [--level -40] [--secs 6] [--wavdir DIR]
-                   [--set KNOB=VALUE ...] [--sweep KNOB=V1,V2,... ...] [--tag SUFFIX]
+                   [--set KNOB=VALUE ...] [--sweep KNOB=V1,V2,... ...] [--tag SUFFIX] [--signal WAV]
 : the Distortion Crossover (HX_DIST_XOVER) of HXtra bass measured on the HX Stomp over USB.
 
 IMAGE is the .hxf running on the unit (its Entry 3 gives each model's knobs, its parameter map their defaults).
@@ -29,6 +29,10 @@ back at the end. One preset write a case, one for the input block, one for the r
 3.80 stops answering after about 30 a boot; this script refuses more than 28). --reanalyse reads the takes in
 --wavdir again instead of measuring (the noise level and length must be the ones they were recorded with).
 
+--signal WAV plays that recording (its first channel, 48 kHz) into USB 5/6 instead of the noise, once a take,
+and only records: no spectra, no response.csv; summary.md lists each take's RMS, peak and dropouts, and the takes
+are for a loudness tool (BS.1770) to compare. --level and --secs do not apply then.
+
 Helpers (built once; HX_MAC_HELPERS names their folder, default build/):
   swiftc -O tools/mac/noise_mac.swift -o build/noise_mac
   swiftc -O tools/mac/record_mac.swift -o build/record_mac
@@ -44,6 +48,7 @@ import pmap
 ROOT = hs.ROOT
 HELPERS = os.environ.get("HX_MAC_HELPERS", os.path.join(ROOT, "build"))
 NOISE, RECORDER = os.path.join(HELPERS, "noise_mac"), os.path.join(HELPERS, "record_mac")
+PLAYF32 = os.path.join(HELPERS, "playf32_mac")
 FS, NFFT = 48000, 8192
 CASES = (("wet", 0, -60.0, 0.0), ("full0", 0, 0.0, -60.0), ("full18", 0, 18.0, -60.0),
          ("xover0", 1, 0.0, -60.0), ("off", 0, -60.0, -60.0), ("lvlmax", 0, 0.0, -60.0))
@@ -126,6 +131,16 @@ def take(wav, secs, level_db):
     return np.asarray(x, dtype=np.float64)
 
 
+def take_signal(wav, f32, n):
+    """Record USB 1 while playf32_mac plays the float32 file f32 (n samples) once into USB 5/6."""
+    secs = n / FS + 2.5
+    rec = subprocess.Popen([RECORDER, "HX Stomp", f"{secs:.2f}", wav], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+    time.sleep(0.8)
+    subprocess.run([PLAYF32, "HX Stomp", f32, "5,6"], capture_output=True, timeout=secs + 30)
+    rec.wait(timeout=secs + 30)
+
+
 def align(y, u):
     """(lag, peak/median ratio): y[k] ~ u[k + lag], the lag where |xcorr| peaks."""
     n = 1 << int(np.ceil(np.log2(len(u) + len(y))))
@@ -195,6 +210,7 @@ def main():
                          "key gets _KNOBVALUE per swept knob (branch bass-mix: Mix and Gain)")
     ap.add_argument("--tag", default="", help="appended to each take's key (and wav name), so takes with other "
                     "--set values keep their own")
+    ap.add_argument("--signal", help="a recording (WAV, 48 kHz; first channel) played instead of the noise; takes only")
     a = ap.parse_args()
     try:
         sets = tuple((k, float(v)) for k, v in (s.split("=", 1) for s in a.set))
@@ -209,13 +225,19 @@ def main():
     if writes > MAX_WRITES:
         sys.exit(f"{writes} preset writes: more than {MAX_WRITES} a boot; fewer models or cases")
     if not a.reanalyse:
-        for tool in (NOISE, RECORDER):
+        for tool in (PLAYF32 if a.signal else NOISE, RECORDER):
             if not os.path.exists(tool):
                 sys.exit(f"missing {tool}: build it as the docstring says (HX_MAC_HELPERS names the folder)")
     wavdir = a.wavdir or a.outdir
     os.makedirs(a.outdir, exist_ok=True); os.makedirs(wavdir, exist_ok=True)
     lay = defaults(a.image, pids)
-    u = noise(int((a.secs + 3.5) * FS), a.level)
+    if a.signal:
+        sig, rate = hs.read_wav(a.signal)
+        assert rate == FS, f"{a.signal}: {rate} Hz, not {FS}"
+        f32 = os.path.join(a.outdir, "signal.f32")
+        np.asarray(sig, dtype="<f4").tofile(f32)
+    else:
+        u = noise(int((a.secs + 3.5) * FS), a.level)
     runs = []
     for pid in pids:
         name, vals, idx, level = lay[pid]
@@ -242,6 +264,11 @@ def main():
     res = {}
 
     def evaluate(key, wav):
+        if a.signal:
+            rms, peak, rep, drop, clicks = hs.scan(wav)
+            res[key] = dict(rms=rms, peak=peak, rep=rep, drop=drop, clicks=clicks)
+            print(f"{key:12} rms {rms:6.1f} dBFS  peak {peak:6.1f}  drop {drop} rep {rep} click {clicks}", flush=True)
+            return
         y = np.asarray(hs.read_wav(wav)[0], dtype=np.float64)
         rms, peak, rep, drop, clicks = hs.scan(wav)
         lag, q, c, h2, rs, sxx = analyse(y, u)
@@ -270,13 +297,27 @@ def main():
                     continue
                 time.sleep(0.5)
                 wav = os.path.join(wavdir, key + ".wav")
-                take(wav, a.secs, a.level)
+                if a.signal:
+                    take_signal(wav, f32, len(sig))
+                else:
+                    take(wav, a.secs, a.level)
                 evaluate(key, wav)
         finally:
             r = ctl("load-preset", backup)
             print("edit buffer restored" if "verified" in r.stdout else f"edit buffer NOT restored:\n{r.stdout}{r.stderr}")
     if not res:
         sys.exit("nothing recorded")
+    if a.signal:
+        lines = [f"# Distortion Crossover, Aufnahme durchgespielt ({time.strftime('%Y-%m-%d %H:%M')})", "",
+                 f"Image `{os.path.basename(a.image)}`, Freq {a.freq:g} Hz, Signal `{os.path.basename(a.signal)}`.", "",
+                 "| Aufnahme | RMS dBFS | Spitze dBFS | Aussetzer/Wdh./Klicks |", "|---|---|---|---|"]
+        for key, _, _ in runs:
+            r = res.get(key)
+            lines.append(f"| {key} | nicht gesetzt |" if r is None else
+                         f"| {key} | {r['rms']:.1f} | {r['peak']:.1f} | {r['drop']}/{r['rep']}/{r['clicks']} |")
+        open(os.path.join(a.outdir, "summary.md"), "w").write("\n".join(lines) + "\n")
+        print("\n".join(lines))
+        return
     cols = {}
     for key, r in res.items():
         c = r["c"]
