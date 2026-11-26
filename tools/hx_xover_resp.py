@@ -234,7 +234,7 @@ def main():
     if a.signal:
         sig, rate = hs.read_wav(a.signal)
         assert rate == FS, f"{a.signal}: {rate} Hz, not {FS}"
-        f32 = os.path.join(a.outdir, "signal.f32")
+        f32 = os.path.join(wavdir, "signal.f32")           # beside the takes, not among the results
         np.asarray(sig, dtype="<f4").tofile(f32)
     else:
         u = noise(int((a.secs + 3.5) * FS), a.level)
