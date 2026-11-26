@@ -399,16 +399,22 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     def at(m, over=None):
         k = {**knobs, mixn['slot']: m, **(over or {})}
         return pmap.evaluate(wet, k), pmap.evaluate(dry, k)
-    # 0 %: the clean input alone at 0 dB; 100 %: the stock block alone; 50 %: both at the model's law, dry raised by the delta
-    assert at(0.0) == pytest.approx((pdist.MIX_FLOOR, 0.0), abs=1e-3)
-    assert at(1.0)[0] == pytest.approx(0.0, abs=1e-4) and at(1.0)[1] < -100
-    w5, d5 = at(0.5)
+    # 0 %: the clean input alone at 0 dB; 100 %: the stock block alone (auto gain: lowered by the delta); 50 %: both
+    # at the model's law, the dry signal the delta above the wet one
     g = 0.5 if p['gain'] is None else knobs[p['gain']]
+    dg = pdist.pt.curve_at(p['delta'], g)
+    auto = bool(p.get('auto'))
+    assert auto == (name in pdist.MIX_DELTAS)
+    assert at(0.0)[0] < -100 and at(0.0)[1] == pytest.approx(0.0, abs=1e-3)
+    assert at(1.0)[0] == pytest.approx(-dg if auto else 0.0, abs=1e-3) and at(1.0)[1] < -100
+    w5, d5 = at(0.5)
     law = 20 * p['law'] * math.log10(math.sin(math.pi / 4))        # -4.515 dB (exponent 1.5), -6.02 dB (2)
-    assert w5 == pytest.approx(law, abs=0.01) and d5 - w5 == pytest.approx(pdist.pt.curve_at(p['delta'], g), abs=1e-3)
-    assert pdist._knobs(wet, set()) == {mixn['name']}
+    assert d5 - w5 == pytest.approx(dg, abs=1e-3)
+    assert (d5 if auto else w5) == pytest.approx(law, abs=0.01)
+    gains = set() if p['gain'] is None else {p['gain']}             # the delta's gain knob, if any
+    assert _slots(wet, set()) - {mixn['slot']} == (gains if auto else set())
     slots = _slots(dry, set()) - {mixn['slot']} - ({p['level'][0]} if p['level'] else set())
-    assert slots == (set() if p['gain'] is None else {p['gain']})     # the delta's gain knob, if any
+    assert slots == (set() if auto else gains)
     if p['level'] is None:                               # no single Level knob: Mix (and the gain knob) alone
         return
     # Level reaches the dry signal, 0 dB at its default: dry dB = mix part + L(Level) - L(default)
@@ -802,9 +808,9 @@ def test_patch_dist_gives_back_the_entry3_tables_add_model_left_dead():
     assert len(e3) < len(before)
 
 
-def test_teemah_mix_delta_is_the_measured_table(full):
-    """Teemah!'s dry boost at 50 % follows its gain knob along the table measured at -24 dBFS (MIX_DELTAS); the other
-    models keep the constant MIX_DELTA until measured."""
+def test_measured_mix_delta_is_auto_gain(full):
+    """A model with a table measured at -24 dBFS (MIX_DELTAS) has auto gain: the wet signal lowered by the table on
+    its gain knob at every Mix, the dry one D above it at 50 %; the other models keep the constant MIX_DELTA."""
     import pmap
     _, _, plans, reports = full
     name = 'HD2_DistTeemahMono'
@@ -817,6 +823,10 @@ def test_teemah_mix_delta_is_the_measured_table(full):
     mix = _writes(rn, mixn['name'])
     wet, dry = mix[((pdist.MIX,), 1)]['expr'], mix[((pdist.MIX,), 2)]['expr']
     knobs = {q['slot']: q['default'] for q in rn['params']}
+    assert len(pdist.MIX_DELTAS[name]) == 9 and p['auto']
     for k, d in enumerate(pdist.MIX_DELTAS[name]):
+        for m in (0.5, 0.75, 1.0):
+            kn = {**knobs, mixn['slot']: m, p['gain']: k / 8}
+            assert pmap.evaluate(wet, kn) == pytest.approx(20 * math.log10(math.sin(math.pi * m / 2) ** 2) - d, abs=0.02)
         kn = {**knobs, mixn['slot']: 0.5, p['gain']: k / 8}
         assert pmap.evaluate(dry, kn) - pmap.evaluate(wet, kn) == pytest.approx(d, abs=1e-3)

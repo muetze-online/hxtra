@@ -102,7 +102,9 @@ MIX_DEFAULT = 1.0                                         # Mix's default: wet a
 # -6 dB of correlated signals, as dry and driven share their fundamental), 0 (-120 dB) at the far end; w(m) = sin(pi m)
 # up to m = 0.5, then 1, raises the dry signal by D (how much louder the drive is than the clean input, dB) on the
 # way to the middle, so at 50 % both are equally loud and at 0 % the dry signal is the input at 0 dB. D is a curve
-# on the model's gain knob (GAIN_KNOBS): MIX_DELTAS where measured, else constant MIX_DELTA.
+# on the model's gain knob (GAIN_KNOBS): MIX_DELTAS where measured, else constant MIX_DELTA. Where D is measured
+# (auto gain, plan['auto']), the wet signal is lowered by D instead: wet dB = C_w(m) - D(gain), dry dB = C_d(m) +
+# L(Level), so at the reference level the block is as loud as its input at every Mix and Gain; Level raises both.
 MIX_FLOOR = -120.0                                     # op 0x28's dB for 0
 MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Level's top
 # D measured per model at the gain knob's 9 points 0, 1/8 .. 1 (0..1 knob): white noise at -24 dBFS RMS into USB 5/6
@@ -237,6 +239,7 @@ def plan_model(fw, m):
     if m['name'] in MIX_DELTAS:
         g = next(p for p in r['params'] if p['name'] == gname)
         assert (g['min'], g['max']) == (0.0, 1.0), f"{m['name']}: measured D on {gname}, not a 0..1 knob"
+        plan['auto'] = True                                # auto gain: the wet signal lowered by D (mix_exprs)
     lname = LEVEL.get(m['name'], LEVEL_KNOBS)
     if lname is None:
         return plan
@@ -643,16 +646,23 @@ def mix_name_of(m):
 
 def mix_exprs(plan):
     """('expr', tree) for the mixer's wet gain (pid 1) and dry gain (pid 2) from the Mix knob (mix_curves of plan['law'],
-    MIX_RISE, plan['delta'] on the gain knob); the dry signal follows Level as Dry Level did (plan['level'])."""
+    plan['delta'] on the gain knob); the dry signal follows Level as Dry Level did (plan['level']). plan['auto'] (a
+    measured delta): the wet signal lowered by D at every Mix, so the block stays as loud as its input at the
+    reference level; else the dry signal raised by D along MIX_RISE."""
     m = ('in',)
-    delta = (('curve', plan['delta'], ('knob', plan['gain'])) if plan.get('gain') is not None
-             else ('curve', plan['delta'], m))
     wcur, dcur = mix_curves(plan.get('law', MIX_LAW))
-    dry = ('add', ('todb', ('curve', dcur, m)), ('mul', ('curve', MIX_RISE, m), delta))
+    if plan.get('auto'):
+        wet = ('add', ('todb', ('curve', wcur, m)), ('curve', [-d for d in plan['delta']], ('knob', plan['gain'])))
+        dry = ('todb', ('curve', dcur, m))
+    else:
+        delta = (('curve', plan['delta'], ('knob', plan['gain'])) if plan.get('gain') is not None
+                 else ('curve', plan['delta'], m))
+        wet = ('todb', ('curve', wcur, m))
+        dry = ('add', ('todb', ('curve', dcur, m)), ('mul', ('curve', MIX_RISE, m), delta))
     lv = plan['level']
     if lv is not None:
         dry = ('add', dry, ('knob', lv[0]) if lv[1] is None else ('curve', lv[1], ('knob', lv[0])))
-    return ('expr', ('todb', ('curve', wcur, m))), ('expr', dry)
+    return ('expr', wet), ('expr', dry)
 
 
 HIDDEN_SLOT = pt.HIDDEN_SLOT                           # Bronze Master's Smart: hidden, no state, writes nothing
