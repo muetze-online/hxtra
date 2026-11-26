@@ -757,6 +757,27 @@ def test_freq_off_passes_the_drive_path_through(full, name):
     assert [c['init'][1] for c in rn['chain'] if (tuple(c['path']), 1) in off] == [0, 0]
 
 
+
+@pytest.mark.parametrize('name', ['HD2_DistTeemahMono', 'HD2_DistMinotaurMono', 'HD2_DistObsidian7000Mono'])
+def test_freq_off_opens_the_clean_low_passes(full, name):
+    """At Freq's "Off" end the clean side's low-passes sit at LP_OFF (20 kHz), so Mode Xover is no crossover there
+    and sounds as Full below Mix 100 %; from 20 Hz on they follow Freq: in the map's writers and in their init
+    records."""
+    import pmap
+    _, _, plans, reports = full
+    rn = reports[name][1]
+    fr = _writes(rn, 'Frequency')
+    lp = {k[0] for k in _writes(rn, _mode_disp(reports[name][0]))}
+    w = {k: e for k, e in fr.items() if k[1] == 2 and k[0] in lp}
+    assert len(w) == len(lp) >= 2
+    slot = next(q['slot'] for q in rn['params'] if q['name'] == 'Frequency')
+    for e in w.values():
+        assert [pmap.evaluate(e['expr'], {slot: f}) for f in (19.9, 20.0, 250.0)] == pytest.approx(
+            [pdist.LP_OFF, 20.0, 250.0])
+    inits = [c['init'][2] for c in rn['chain'] if tuple(c['path']) in lp]
+    assert len(inits) == len(lp) and inits == pytest.approx([pdist.LP_OFF] * len(lp))
+
+
 @pytest.mark.firmware
 def test_patch_dist_gives_back_the_entry3_tables_add_model_left_dead():
     """The first add-model (NAM, Metronome) copies Entry 3's string section and model table to the tail and leaves the

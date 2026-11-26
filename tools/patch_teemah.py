@@ -362,7 +362,8 @@ class Blob:
             elif how is not None and how[0] == 'expr':
                 # a tree of ('in',) this knob, ('knob', slot) another knob's input node, ('curve', 9 values, t)
                 # op 0x3, ('add', a, b) op 0x14, ('mul', a, b) op 0x18 (stock's 676 nodes: 3 state words, data 0, 0),
-                # ('todb', t) op 0x28, linear to dB, -120 for 0 (stock's 170 nodes: 2 state words, no data)
+                # ('todb', t) op 0x28, linear to dB, -120 for 0 (stock's 170 nodes: 2 state words, no data), ('gt', t, x)
+                # op 0x40, ('sel', cond, a, b) op 0x2a
                 def build(t):
                     if t[0] == 'in':
                         return inp
@@ -385,6 +386,34 @@ class Blob:
                         n = len(nodes)
                         nodes.append([nodes[0][0], 0, n, 0x28, 1, 2, 0, 0, 0, 0])
                         ct.append([x, n, 0, 0])
+                        return n
+                    if t[0] == 'gt':
+                        # (t > threshold): op 0x40, the threshold its data word (port 1), as gt_select
+                        x = build(t[1])
+                        data = len(pm)
+                        pm.append(f2u(t[2]))
+                        n = len(nodes)
+                        nodes.append([data, 0, n, 0x40, 1, 3, 1, 1, 0, 0])
+                        ct.append([x, n, 0, 0])
+                        return n
+                    if t[0] == 'sel':
+                        # cond ? b : a, op 0x2a; a, b ('const', v) as its data words or a tree into port 1 / 2, as the
+                        # delays' SyncSelect feeds port 2
+                        c = build(t[1])
+                        words, edges = [], []
+                        for port, u in ((1, t[2]), (2, t[3])):
+                            if u[0] == 'const':
+                                words.append(f2u(u[1]))
+                            else:
+                                words.append(0)
+                                edges.append((build(u), port))
+                        data = len(pm)
+                        pm.extend(words)
+                        n = len(nodes)
+                        nodes.append([data, 0, n, 0x2a, 1, 4, 2, 2, 0, 0])
+                        ct.append([c, n, 0, 0])
+                        for x, port in edges:
+                            ct.append([x, n, 0, port])
                         return n
                     assert t[0] in ('add', 'mul') and len(t) == 3, t
                     a_, b_ = build(t[1]), build(t[2])

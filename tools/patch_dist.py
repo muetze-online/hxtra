@@ -134,6 +134,10 @@ GAIN_KNOB = {'HD2_DistToneSovereignMono': 'Gain 2', 'HD2_DistClawthornDriveMono'
 # drive path is the stock block; above it they are the LR4 high-pass at Freq
 FREQ_OFF, FREQ_ON = 19.9, 19.95
 HP_TYPE, LP_TYPE, Q = 4, 3, 0.7071                     # LR4: two 2nd-order sections a side (patch_teemah)
+# ... and the clean side's low-passes go to LP_OFF (through for the bass), so "Off" is no crossover in either Mode
+# (Xover at 19.9 Hz would leave the clean side silent below Mix 100 %)
+LP_OFF = 20000.0
+LP_FREQ = ('expr', ('sel', ('gt', ('in',), FREQ_ON), ('const', LP_OFF), ('in',)))
 N_KNOBS = 3
 COST = 100
 f2u = pt.f2u
@@ -304,9 +308,10 @@ def build_xover(b0, root, plan):
             r[6] = typ
         return (r, ins, outs, init, None)                  # no connection, as Teemah!'s members
 
-    def biquad(typ, buf):
+    def biquad(typ, buf, lp=False):
         typ = 0 if typ == HP_TYPE and FREQ <= FREQ_ON else typ
-        return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
+        f = LP_OFF if lp and FREQ <= FREQ_ON else FREQ
+        return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(f)), (3, f2u(0.0)), (4, f2u(Q))])
 
     lp_t = LP_TYPE if MODE else 0
     drive, clean = plan['drive'], plan['clean']
@@ -316,7 +321,7 @@ def build_xover(b0, root, plan):
         assert drive == [wet_in] and old[L][1] == old[L][2] == drive, f'{root:#x}: drive path {old[L][1:3]}'
     assert len(drive) == 1 and drive[0] not in clean and len(set(clean)) == len(clean), f'{root:#x}: {drive} {clean}'
     assert all(b < h[1] for b in drive + clean), f'{root:#x}: a buffer beyond its {h[1]}'
-    new = [biquad(HP_TYPE, drive[0]) for _ in (0, 1)] + [biquad(lp_t, b) for b in clean for _ in (0, 1)]
+    new = [biquad(HP_TYPE, drive[0]) for _ in (0, 1)] + [biquad(lp_t, b, True) for b in clean for _ in (0, 1)]
     n = len(new)
     members = old[:L] + new + old[L:]
     smap = {s: s if s <= L else s + n for s in range(1, len(old) + 1)}
@@ -369,9 +374,10 @@ def outer_members(b0, root):
             r[6] = typ
         return (r, ins, outs, init, None)                  # no connection, as Teemah!'s members
 
-    def biquad(typ, buf):
+    def biquad(typ, buf, lp=False):
         typ = 0 if typ == HP_TYPE and FREQ <= FREQ_ON else typ
-        return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(FREQ)), (3, f2u(0.0)), (4, f2u(Q))])
+        f = LP_OFF if lp and FREQ <= FREQ_ON else FREQ
+        return prim(tmpl[1][0], [buf], [buf], [(1, typ), (2, f2u(f)), (3, f2u(0.0)), (4, f2u(Q))])
 
     lp_t = LP_TYPE if MODE else 0
     nest = prim(tmpl[2][0], [0], [0], [], typ=root)
@@ -379,7 +385,7 @@ def outer_members(b0, root):
     mix = prim(tmpl[5][0], [0, 1], [0], [(1, f2u(WET)), (2, f2u(DRY))], typ=0x84)
     mix[0][13], mix[0][14] = 2, 2                          # 0x84: DM 2, PM 2 (registry row 0x200340)
     members = [(old[0][0], [], [0], old[0][3], None), prim(tmpl[0][0], [0], [1], [], typ=0, flags=1),
-               biquad(HP_TYPE, 0), biquad(HP_TYPE, 0), nest, biquad(lp_t, 1), biquad(lp_t, 1), mix,
+               biquad(HP_TYPE, 0), biquad(HP_TYPE, 0), nest, biquad(lp_t, 1, True), biquad(lp_t, 1, True), mix,
                (old[-1][0], [0], [], old[-1][3], None)]
     assert members[S - 1][0][6] == root and members[MIX - 1][0][6] == 0x84
     assert all(members[k - 1][0][6] == 0x102 for k in HP + LP)
@@ -757,7 +763,7 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
             blob.renumber(smap, new_comp[root], old_comp=root)
         else:
             nest_blob(blob, new_comp[root])
-        blob.add_param(s['freq'], f2u(FREQ), [(k, 2, None) for k in sl['hp'] + sl['lp']] +
+        blob.add_param(s['freq'], f2u(FREQ), [(k, 2, None) for k in sl['hp']] + [(k, 2, LP_FREQ) for k in sl['lp']] +
                        [(k, 1, ('gt_select', FREQ_ON, 0, HP_TYPE)) for k in sl['hp']])
         if 'mix' in s:
             wet, dry = mix_exprs(p)
