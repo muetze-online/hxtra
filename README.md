@@ -240,6 +240,10 @@ The meter also shows while you edit the compressor, so you can dial in Threshold
 
 </div>
 
+## HX Edit with HXtra knobs
+
+HX Edit only knows the knobs in its own catalog, so it hides the ones HXtra adds and leaves them out of `.hlx` and `.hls` exports. `tools/hxedit_patch.py` teaches a **copy** of HX Edit the knobs of your build: the copy shows them, and its exports and imports keep them. It runs on a Mac and needs the `.hxf` you installed. Step by step: [docs/hx-edit.md](docs/hx-edit.md).
+
 ## Engineering
 
 <table>
@@ -347,7 +351,7 @@ This fork works the same way: I chose Distortion Crossover and how it behaves, m
 ### <img src="docs/assets/icons/faq-presets.svg" width="28" height="28" align="top" alt=""> Will this break my presets?
 - **No.** Presets made on stock firmware open in HXtra bass.
 - A preset saved with snapshots 4–6 still loads on stock firmware, as snapshots 1–3.
-- HX Edit opens, exports and imports HXtra bass presets, but its exports (`.hlx`) hold snapshots 1–3 only and don't keep the Distortion Crossover knobs. A backup (`.hxb`) can't be made on HXtra bass: make it on stock firmware before you install (see [Known issues](#known-issues)).
+- HX Edit opens, exports and imports HXtra bass presets. Its exports (`.hlx`, `.hls`) hold snapshots 1–3 only, and they keep the knobs HXtra adds only with a [patched copy of HX Edit](docs/hx-edit.md). HX Edit's full backup (`.hxb`) doesn't work with firmware 3.80, stock or HXtra (see [Known issues](#known-issues)).
 - Presets made with an older release of [hx-stomp-nam-lite](https://github.com/nocaseguy/hx-stomp-nam-lite) won't load their NAM blocks in HXtra bass, so add NAM to those presets again. Presets from its current release open as they are.
 
 &nbsp;
@@ -402,7 +406,8 @@ Partly. On the setup page you pick the **DSP features**: how many NAM A2 Lite bl
 
 - **No locks are broken.** The firmware isn't encrypted or signed, so HXtra bass doesn't violate copy protection. That is what anti-circumvention laws such as the US DMCA (§1201) forbid.
 - **Reverse engineering for compatible software is protected** in the US (*Sega v. Accolade*), the EU (Software Directive, Articles 5(3) and 6), the UK (CDPA ss. 50B and 50BA) and Canada (Copyright Act s. 30.61).
-- **This repo does not contain Line 6 IP** The patcher holds only addresses, table layouts and a few short runs of stock bytes it checks before writing. You bring your own copy of the official firmware, and the build changes it on your computer.
+- **This repo does not contain Line 6 IP.** The patcher holds only addresses, table layouts and a few short runs of stock bytes it checks before writing. You bring your own copy of the official firmware, and the build changes it on your computer.
+- **HX Edit is patched the same way.** `tools/hxedit_patch.py` holds no Line 6 data: it reads the knobs from your `.hxf` and changes catalog files in your own copy of HX Edit. Don't share the patched app, for the same reason as the `.hxf`.
 - **Changing the firmware on your own unit** is private use. US law lets the owner of a program's copy adapt it to run it on their machine (17 U.S.C. §117), other countries are less clear, and Line 6's license terms may forbid it: that is a contract matter between you and Line 6.
 - **Don't share the built `.hxf`.** It is Line 6's firmware with changes, and passing it on would infringe their copyright.
 - No NAM captures are included either; you bring your own.
@@ -423,11 +428,12 @@ Planned for later versions of this fork (not built yet):
 
 ## Known issues
 
-- **Back up your presets before you install.** HX Edit can't make a backup on HXtra bass (File > Create Backup... fails), and going back to stock firmware deletes the presets you changed on HXtra bass (both seen on an HX Stomp, 2026-11-25). So make the backup on stock firmware before you install HXtra bass. To keep a preset you changed on HXtra bass, export it in HX Edit before you go back: exporting a preset and importing it again works on HXtra bass, but the export doesn't keep the Distortion Crossover knobs (Frequency, Dry Level, Wet Level, Mode), so set them again after an import (seen on an HX Stomp, 2026-11-25), and it holds snapshots 1–3 only.
+- **Export your presets before you go back to stock firmware.** Going back deletes the presets you changed on HXtra bass (seen on an HX Stomp, 2026-11-25). Export them in HX Edit first (a preset as `.hlx`, a setlist as `.hls`). Exports from the installed HX Edit don't keep the knobs HXtra adds, so set them again after an import; exports from a [patched copy](docs/hx-edit.md) keep them. Either way an export holds snapshots 1–3 only.
+- HX Edit's full backup (File > Create Backup..., `.hxb`) fails with firmware 3.80, on stock firmware as well, so it isn't caused by HXtra (seen on an HX Stomp and a Helix Floor, 2026-11-27). Global settings and IRs can't be backed up that way for now.
 - With the breathing line on, the BPM beat dot sometimes draws half lit.
 - Tapping the tempo doesn't yet move the Metronome's beat onto your taps.
 - A preset made before 1.2 (on stock firmware or an earlier HXtra) that is close to the DSP limit may open empty. With FX Loop Noise Gate in your build, each FX Loop and Return block counts 0.2% more (0.4% stereo); with Input Sidechain, each Noise Gate block counts 0.1% more (0.2% stereo). To fix it, remove a block from the preset on stock firmware, or untick those features on the setup page.
-- Distortion Crossover: HX Edit doesn't show the four new knobs (it has its own list of each block's knobs).
+- Distortion Crossover: the installed HX Edit doesn't show the four new knobs (it has its own list of each block's knobs). A [patched copy](docs/hx-edit.md) does.
 - Distortion Crossover: at Wet Level −60 dB a high-gain block can stay faintly audible.
 - Distortion Crossover: a preset close to the DSP limit may not load once its distortions count 1% more each; remove a block or leave the feature out of your build.
 

@@ -104,3 +104,7 @@ python3 tools/hxf_ram.py run build/HX_Stomp_v3.80.0_HXtra.hxf --stock HX_Stomp_v
 The setup page's **Run from RAM** step does the same in Chrome or Edge. Presets and IRs you change during the run are lost at power-off. [RAM_RUN.md](../RAM_RUN.md) explains how it works and its limits.
 
 Then install it with Line 6 Updater, as the [setup page](https://muetze-online.github.io/hxtra-bass/web/)'s install step says.
+
+## HX Edit for your build
+
+Keep the `.hxf` you install: `tools/hxedit_patch.py` uses it to teach a copy of HX Edit the knobs your build adds, so HX Edit shows them and its exports keep them. See [hx-edit.md](hx-edit.md).

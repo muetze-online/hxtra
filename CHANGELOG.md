@@ -2,6 +2,11 @@
 
 Major changes, newest first. The repository has no version numbers, so each entry is dated and names its commit. Status labels follow the README: "ran on" means a person ran that build on that unit.
 
+## 2026-11-27
+
+- **HX Edit with HXtra knobs** ([docs/hx-edit.md](docs/hx-edit.md)). `tools/hxedit_patch.py` teaches a copy of HX Edit the knobs your build adds (Distortion Crossover, GR meter, FX Loop gate, Input Sidechain), so it shows them and its `.hlx` and `.hls` exports keep them. It reads the knobs from your `.hxf` and holds no Line 6 data; `probe` checks on the unit that the copy fits the running build. Ran on an HX Stomp with v1.2.1-bass.2 from RAM and HX Edit 3.82 on macOS.
+- **Known issues corrected:** HX Edit's full backup (`.hxb`) fails with firmware 3.80 on stock firmware too, so it isn't caused by HXtra.
+
 ## 2026-11-06
 
 - **Loudness normalisation.** The converter (`tools/nam2ir.py` and the web page) stores a capture's loudness in the `.wav`, and the amp brings its output to −18 dB, as the NAM plugin's Normalized mode does. `.wav` files from older converters play as before. A capture converted again plays at a new volume. The converter also refuses captures not trained at 48 kHz and models that aren't the A2 shape. Builds: HX Stomp a37659d0 (ran on an HX Stomp from RAM; test suite 48 pass, 0 fail, 1 skip), HX Stomp XL 8918ab60 (not run on an XL), HX Effects 2efb9879 (not run on an HX Effects).
