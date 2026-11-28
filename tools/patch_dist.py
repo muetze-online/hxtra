@@ -106,6 +106,7 @@ MIX_DEFAULT = 1.0                                         # Mix's default: wet a
 # (auto gain, plan['auto']), the wet signal is lowered by D instead: wet dB = C_w(m) - D(gain), dry dB = C_d(m) +
 # L(Level), so at the reference level the block is as loud as its input at every Mix and Gain; Level raises both.
 MIX_FLOOR = -120.0                                     # op 0x28's dB for 0
+MIX_END = 0.001                                        # Mix below (above 1 - it): wet (dry) at MIX_FLOOR
 MIX_DELTA = pt.DRY_MAX                                 # 18 dB, the old Dry Level's top
 # D measured per model at the gain knob's 9 points 0, 1/8 .. 1 (0..1 knob): a bass riff recorded through the unit
 # (peak -24.4 dBFS, -40.3 LUFS) played into USB 5/6 (tools/hx_xover_resp.py --signal), Freq Off, Mode Full, loudness
@@ -128,6 +129,122 @@ MIX_WET, MIX_DRY = mix_curves()
 # correlation rho in the bass (L = 10 log10(2 (1 + rho)) dB each); Teemah! rho 0.97..0.80 over Gain, best L 5.6..6.0
 # dB (Messungen/Mix-Regler Teemah, mixlaw.py, 2026-11-25)
 MIX_LAWS = {'HD2_DistTeemahMono': 2.0}
+# All other mix models (M3, 2026-11-27/28): D as above (Riff, LUFS, Wet at Mix 100 % against Dry at Mix 0 %); the
+# exponent per gain point (a 9-point curve on the gain knob, mix_exprs: dB(sin^p) = p * dB(sin)) from the loudness of
+# the unit's own 50 % sum at gains 0, 1/2, 1, never from summed takes: P(z) = a^2 P(x) + b^2 P(w) + 2ab rho sqrt(P(x)
+# P(w)) gives the effective correlation rho, p = ln(1 / sqrt(2 + 2 rho)) / ln(cos 45 deg), rho linear in between and
+# at most 1, p at least 0.5, to 0.05 (Werkzeuge/Messung/mixlaw_power.py). Within 1 LU of the dry signal at every Mix
+# and Gain but Tycoctavia Fuzz (2.3 LU) and DM4 Buzz Saw (1.1 LU), whose wet cancels part of the dry fundamental
+# (rho down to -0.58). Valve Driver, DM4 Classic Distortion, Deranged Master and Pocket Fuzz are silent at gain 0:
+# D there is D at 1/8.
+MIX_DELTAS.update({
+    'HD2_DistArbitratorFuzzMono': [-0.1, 0.0, 0.1, 0.2, 0.2, 0.4, 0.5, 0.6, 0.7],
+    'HD2_DistCompulsiveDriveMono': [-7.8, 0.0, 2.1, 3.1, 3.8, 4.3, 4.7, 5.0, 5.3],
+    'HD2_DistHedgehogD9Mono': [4.3, 5.8, 6.9, 7.6, 8.4, 8.9, 9.2, 9.5, 9.6],
+    'HD2_DistIndustrialFuzzMono': [9.1, 9.2, 9.3, 9.5, 9.6, 9.7, 9.8, 9.7, 9.5],
+    'HD2_DistMegaphoneMono': [-8.2, -9.4, -9.7, -9.8, -9.9, -9.9, -10.0, -10.1, -10.2],
+    'HD2_DistScream808Mono': [2.1, 2.5, 3.4, 4.4, 5.4, 6.7, 8.0, 8.9, 9.6],
+    'HD2_DistTopSecretODMono': [-0.9, 0.5, 2.4, 4.5, 6.1, 6.9, 7.7, 8.3, 8.5],
+    'HD2_DistTriangleFuzzMono': [-5.7, 2.7, 3.6, 4.1, 4.5, 5.0, 5.3, 5.7, 6.1],
+    'HD2_DistTycoctaviaFuzzMono': [12.8, 13.0, 13.2, 13.5, 13.8, 14.0, 14.2, 14.2, 13.9],
+    'HD2_DistValveDriverMono': [-27.7, -27.7, 4.0, 9.1, 10.9, 11.9, 13.3, 14.0, 14.1],
+    'HD2_DistVerminDistMono': [-24.7, -0.1, 6.1, 8.6, 9.7, 10.6, 11.1, 11.4, 11.6],
+    'HD2_DistKWBMono': [-13.0, -12.3, -9.0, -4.6, -1.3, 0.3, 1.6, 2.7, 3.1],
+    'HD2_DistWringerFuzzMono': [6.1, 6.7, 7.3, 7.9, 8.3, 8.8, 9.2, 9.5, 9.7],
+    'HD2_DistStuporODMono': [-7.9, -2.5, 2.8, 4.5, 5.4, 6.2, 6.8, 7.3, 7.6],
+    'HD2_DistThrifterFuzzMono': [3.6, 3.9, 4.1, 4.0, 4.2, 4.5, 4.7, 5.0, 5.4],
+    'HD2_DM4BuzzSaw': [-4.7, -3.4, -2.3, -1.4, -0.9, -0.4, 0.0, 0.0, 3.1],
+    'HD2_DM4ClassicDistortion': [-21.1, -21.1, -7.3, 4.4, 7.8, 10.0, 10.9, 11.2, 11.4],
+    'HD2_DM4ColorDrive': [-9.2, -7.0, -4.8, -3.3, -1.8, 2.8, 6.6, 7.7, 8.3],
+    'HD2_DM4FacialFuzz': [10.2, 10.6, 11.3, 12.0, 12.9, 14.1, 15.2, 15.8, 16.3],
+    'HD2_DM4FuzzPi': [-4.7, -0.5, 3.9, 6.0, 7.4, 8.2, 9.1, 9.7, 10.0],
+    'HD2_DM4HeavyDistortion': [1.3, 7.7, 10.0, 12.2, 13.7, 14.4, 15.0, 15.2, 15.3],
+    'HD2_DM4JetFuzz': [10.4, 12.0, 12.8, 13.3, 13.7, 13.9, 14.1, 14.2, 14.2],
+    'HD2_DM4JumboFuzz': [-1.1, 1.4, 3.6, 5.9, 7.2, 8.6, 9.9, 10.7, 11.4],
+    'HD2_DM4Line6Distortion': [2.8, 9.5, 12.2, 14.3, 15.7, 16.2, 16.7, 17.0, 17.3],
+    'HD2_DM4Line6Drive': [-4.9, -2.7, 2.5, 7.5, 9.6, 13.1, 14.9, 17.2, 18.0],
+    'HD2_DM4OctaveFuzz': [3.1, 5.1, 6.7, 7.3, 7.7, 7.7, 7.7, 7.6, 7.4],
+    'HD2_DM4Overdrive': [-4.2, 0.7, 3.5, 8.6, 9.9, 11.2, 11.9, 12.0, 12.4],
+    'HD2_DM4Screamer': [0.1, 3.0, 5.5, 7.1, 7.9, 9.1, 10.4, 11.4, 11.9],
+    'HD2_DM4SubOctFuzz': [-21.8, -7.7, 0.5, 8.8, 12.3, 13.8, 14.6, 15.0, 15.3],
+    'HD2_DM4TubeDrive': [-18.1, -9.2, -0.2, 8.2, 12.1, 13.8, 16.9, 18.9, 19.5],
+    'HD2_DistDeezOneModMono': [-0.9, -0.6, -0.1, 0.3, 0.9, 1.6, 2.4, 3.5, 4.2],
+    'HD2_DistDeezOneVintageMono': [4.0, 4.3, 4.6, 5.3, 6.0, 6.7, 7.6, 8.8, 9.1],
+    'HD2_DistDerangedMasterMono': [-27.0, -27.0, -10.8, -5.5, -1.6, 5.7, 14.4, 18.7, 19.9],
+    'HD2_DistAmpegScramblerODMono': [-7.3, -6.2, -4.6, -3.3, -2.2, -1.3, 3.2, 5.3, 5.9],
+    'HD2_DistZeroAmpBassDIMono': [-6.9, -6.7, -6.5, -6.0, -5.0, -2.3, 3.5, 6.3, 7.7],
+    'HD2_DistDhyanaDriveMono': [-10.2, -4.2, 5.0, 8.3, 9.2, 9.7, 10.2, 10.4, 10.5],
+    'HD2_DistHeirApparentMono': [-1.2, 0.4, 2.0, 3.9, 5.7, 7.6, 9.4, 11.1, 13.3],
+    'HD2_DistToneSovereignMono': [-4.5, -2.9, -1.2, 0.8, 2.8, 5.2, 7.3, 9.5, 12.1],
+    'HD2_DistAlpacaRougeMono': [15.8, 16.6, 19.8, 21.5, 22.5, 23.1, 23.6, 23.8, 23.8],
+    'HD2_DistLegendaryDriveMono': [-11.7, 7.8, 13.3, 15.7, 16.3, 16.6, 17.1, 17.1, 17.1],
+    'HD2_DistRamsHeadMono': [5.3, 9.2, 9.7, 9.9, 10.0, 10.2, 10.3, 10.6, 10.7],
+    'HD2_DistHorizonDriveMono': [1.7, 6.7, 8.5, 9.3, 9.7, 10.1, 10.3, 10.5, 10.5],
+    'HD2_DistSwedishChainsawMono': [-3.6, 3.4, 3.8, 3.9, 4.0, 4.5, 4.9, 5.2, 5.5],
+    'HD2_DistBallisticFuzzMono': [-2.5, -0.5, 1.8, 2.5, 2.8, 3.1, 3.4, 3.7, 3.8],
+    'HD2_DistPocketFuzzMono': [0.8, 0.8, 3.8, 5.7, 6.5, 6.9, 7.3, 7.6, 7.6],
+    'HD2_DistRatatouilleDistMono': [-9.1, -7.8, 0.6, 3.2, 4.4, 5.1, 6.1, 6.4, 6.5],
+    'Line6BronzeMaster': [-4.4, 2.1, 7.0, 9.3, 9.5, 9.7, 10.1, 10.8, 10.8],
+    'KillerZ': [-1.6, 3.1, 4.5, 7.2, 8.1, 8.5, 8.9, 9.0, 9.1],
+    'HD2_DistVitalDistMono': [-24.2, -8.9, -0.5, 3.1, 4.5, 6.9, 11.4, 12.8, 13.1],
+    'HD2_DistPillarsMono': [-5.3, -3.6, 0.4, 2.6, 3.9, 6.2, 7.5, 8.2, 8.3],
+    'HD2_DistDarkDoveFuzzMono': [-1.4, 3.6, 5.6, 6.3, 6.7, 7.1, 7.6, 7.8, 8.0],
+    'HD2_DistPrizeDriveMono': [-12.2, -4.5, 2.1, 3.2, 4.1, 4.6, 6.7, 7.1, 6.9],
+})
+MIX_LAWS.update({
+    'HD2_DistArbitratorFuzzMono': [1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.7],
+    'HD2_DistCompulsiveDriveMono': [1.9, 1.8, 1.75, 1.65, 1.55, 1.55, 1.55, 1.55, 1.55],
+    'HD2_DistHedgehogD9Mono': [1.35, 1.35, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4],
+    'HD2_DistIndustrialFuzzMono': [0.95, 1.05, 1.15, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
+    'HD2_DistMegaphoneMono': [1.7, 1.7, 1.75, 1.75, 1.8, 1.8, 1.8, 1.8, 1.8],
+    'HD2_DistScream808Mono': [1.75, 1.7, 1.7, 1.7, 1.65, 1.65, 1.6, 1.6, 1.6],
+    'HD2_DistTopSecretODMono': [2.0, 1.95, 1.9, 1.85, 1.8, 1.7, 1.55, 1.4, 1.2],
+    'HD2_DistTriangleFuzzMono': [1.55, 1.55, 1.6, 1.6, 1.6, 1.55, 1.5, 1.45, 1.4],
+    'HD2_DistTycoctaviaFuzzMono': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+    'HD2_DistValveDriverMono': [1.3, 1.3, 1.3, 1.3, 1.3, 1.25, 1.25, 1.25, 1.25],
+    'HD2_DistVerminDistMono': [2.0, 1.95, 1.9, 1.8, 1.7, 1.7, 1.65, 1.65, 1.6],
+    'HD2_DistKWBMono': [2.0, 2.0, 2.0, 1.95, 1.95, 1.85, 1.7, 1.55, 1.35],
+    'HD2_DistWringerFuzzMono': [0.65, 0.7, 0.75, 0.75, 0.8, 0.8, 0.85, 0.85, 0.85],
+    'HD2_DistStuporODMono': [0.55, 0.7, 0.8, 0.9, 1.05, 1.0, 1.0, 1.0, 1.0],
+    'HD2_DistThrifterFuzzMono': [1.75, 1.7, 1.7, 1.7, 1.65, 1.65, 1.6, 1.6, 1.6],
+    'HD2_DM4BuzzSaw': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+    'HD2_DM4ClassicDistortion': [1.1, 1.1, 1.1, 1.1, 1.1, 1.15, 1.25, 1.3, 1.4],
+    'HD2_DM4ColorDrive': [1.35, 1.35, 1.35, 1.35, 1.35, 1.15, 0.9, 0.6, 0.5],
+    'HD2_DM4FacialFuzz': [1.9, 1.9, 1.85, 1.85, 1.85, 1.8, 1.75, 1.7, 1.65],
+    'HD2_DM4FuzzPi': [1.7, 1.65, 1.6, 1.6, 1.55, 1.5, 1.45, 1.4, 1.35],
+    'HD2_DM4HeavyDistortion': [1.6, 1.6, 1.6, 1.55, 1.55, 1.55, 1.55, 1.55, 1.55],
+    'HD2_DM4JetFuzz': [1.35, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3],
+    'HD2_DM4JumboFuzz': [1.05, 1.0, 0.95, 0.9, 0.9, 0.85, 0.85, 0.8, 0.8],
+    'HD2_DM4Line6Distortion': [0.85, 0.9, 1.0, 1.05, 1.1, 1.15, 1.2, 1.2, 1.25],
+    'HD2_DM4Line6Drive': [0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 1.0, 1.05, 1.1],
+    'HD2_DM4OctaveFuzz': [0.55, 0.55, 0.6, 0.6, 0.6, 0.65, 0.7, 0.7, 0.75],
+    'HD2_DM4Overdrive': [1.85, 1.85, 1.8, 1.75, 1.75, 1.6, 1.45, 1.3, 1.15],
+    'HD2_DM4Screamer': [1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3],
+    'HD2_DM4SubOctFuzz': [1.8, 1.75, 1.75, 1.7, 1.7, 1.7, 1.65, 1.65, 1.65],
+    'HD2_DM4TubeDrive': [1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.3, 1.3, 1.35],
+    'HD2_DistDeezOneModMono': [1.55, 1.55, 1.55, 1.55, 1.55, 1.5, 1.4, 1.35, 1.25],
+    'HD2_DistDeezOneVintageMono': [1.7, 1.7, 1.65, 1.65, 1.65, 1.6, 1.55, 1.55, 1.5],
+    'HD2_DistDerangedMasterMono': [0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85],
+    'HD2_DistAmpegScramblerODMono': [1.8, 1.8, 1.8, 1.8, 1.8, 1.75, 1.7, 1.7, 1.65],
+    'HD2_DistZeroAmpBassDIMono': [1.9, 1.9, 1.9, 1.9, 1.9, 1.85, 1.8, 1.8, 1.75],
+    'HD2_DistDhyanaDriveMono': [2.0, 1.95, 1.9, 1.8, 1.75, 1.75, 1.75, 1.75, 1.75],
+    'HD2_DistHeirApparentMono': [1.8, 1.75, 1.7, 1.65, 1.65, 1.5, 1.35, 1.2, 1.05],
+    'HD2_DistToneSovereignMono': [1.4, 1.35, 1.35, 1.3, 1.25, 1.15, 1.0, 0.85, 0.7],
+    'HD2_DistAlpacaRougeMono': [1.85, 1.85, 1.85, 1.85, 1.85, 1.85, 1.85, 1.85, 1.85],
+    'HD2_DistLegendaryDriveMono': [0.8, 0.75, 0.7, 0.6, 0.5, 0.6, 0.65, 0.75, 0.8],
+    'HD2_DistRamsHeadMono': [1.45, 1.5, 1.5, 1.55, 1.6, 1.6, 1.55, 1.55, 1.55],
+    'HD2_DistHorizonDriveMono': [1.7, 1.65, 1.6, 1.5, 1.45, 1.45, 1.4, 1.4, 1.4],
+    'HD2_DistSwedishChainsawMono': [1.55, 1.4, 1.3, 1.2, 1.05, 1.0, 1.0, 0.95, 0.95],
+    'HD2_DistBallisticFuzzMono': [1.75, 1.75, 1.75, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7],
+    'HD2_DistPocketFuzzMono': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.05],
+    'HD2_DistRatatouilleDistMono': [2.0, 1.95, 1.9, 1.85, 1.75, 1.75, 1.75, 1.75, 1.75],
+    'Line6BronzeMaster': [0.9, 0.9, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85],
+    'KillerZ': [1.1, 1.15, 1.15, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2],
+    'HD2_DistVitalDistMono': [1.8, 1.75, 1.75, 1.7, 1.65, 1.65, 1.65, 1.65, 1.65],
+    'HD2_DistPillarsMono': [1.6, 1.55, 1.5, 1.45, 1.45, 1.45, 1.45, 1.45, 1.45],
+    'HD2_DistDarkDoveFuzzMono': [1.55, 1.55, 1.55, 1.55, 1.6, 1.55, 1.55, 1.55, 1.5],
+    'HD2_DistPrizeDriveMono': [1.85, 1.85, 1.85, 1.85, 1.8, 1.8, 1.8, 1.75, 1.75],
+})
 MIX_RISE = [math.sin(math.pi * min(k / 8, 0.5)) for k in range(9)]
 MIX_NAMES = ('Mix', 'Blend')                           # Entry 3 name: Blend where the model has a Mix of its own
 GAIN_KNOBS = ('Gain', 'Drive', 'Fuzz', 'Sustain', 'Grit', 'Dist')   # D's knob: the first of these the model has
@@ -651,10 +768,19 @@ def mix_exprs(plan):
     measured delta): the wet signal lowered by D at every Mix, so the block stays as loud as its input at the
     reference level; else the dry signal raised by D along MIX_RISE."""
     m = ('in',)
-    wcur, dcur = mix_curves(plan.get('law', MIX_LAW))
+    law = plan.get('law', MIX_LAW)
+    wcur, dcur = mix_curves(1.0 if isinstance(law, list) else law)
     if plan.get('auto'):
-        wet = ('add', ('todb', ('curve', wcur, m)), ('curve', [-d for d in plan['delta']], ('knob', plan['gain'])))
-        dry = ('todb', ('curve', dcur, m))
+        g = ('knob', plan['gain'])
+        wdb, ddb = ('todb', ('curve', wcur, m)), ('todb', ('curve', dcur, m))
+        if isinstance(law, list):                          # exponent per gain: dB(sin^p) = p * dB(sin); the far
+            # end's -120 dB times p would be -60 dB at p = 0.5, so the ends are set to -120 by Mix itself (the floor
+            # as a flat curve, not a data word: pmap reads a select's data words as integers)
+            floor = ('curve', [MIX_FLOOR] * 9, m)
+            wdb = ('sel', ('gt', m, MIX_END), floor, ('mul', wdb, ('curve', law, g)))
+            ddb = ('sel', ('gt', m, 1.0 - MIX_END), ('mul', ddb, ('curve', law, g)), floor)
+        wet = ('add', wdb, ('curve', [0.0 - d for d in plan['delta']], g))   # 0.0 - d: no -0.0 (the sign bit alone reads as an int in pmap)
+        dry = ddb
     else:
         delta = (('curve', plan['delta'], ('knob', plan['gain'])) if plan.get('gain') is not None
                  else ('curve', plan['delta'], m))

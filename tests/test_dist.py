@@ -408,13 +408,14 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     assert at(0.0)[0] < -100 and at(0.0)[1] == pytest.approx(0.0, abs=1e-3)
     assert at(1.0)[0] == pytest.approx(-dg if auto else 0.0, abs=1e-3) and at(1.0)[1] < -100
     w5, d5 = at(0.5)
-    law = 20 * p['law'] * math.log10(math.sin(math.pi / 4))        # -4.515 dB (exponent 1.5), -6.02 dB (2)
+    pl = pdist.pt.curve_at(p['law'], g) if isinstance(p['law'], list) else p['law']   # per gain where measured
+    law = 20 * pl * math.log10(math.sin(math.pi / 4))              # -4.515 dB (exponent 1.5), -6.02 dB (2)
     assert d5 - w5 == pytest.approx(dg, abs=1e-3)
     assert (d5 if auto else w5) == pytest.approx(law, abs=0.01)
     gains = set() if p['gain'] is None else {p['gain']}             # the delta's gain knob, if any
     assert _slots(wet, set()) - {mixn['slot']} == (gains if auto else set())
     slots = _slots(dry, set()) - {mixn['slot']} - ({p['level'][0]} if p['level'] else set())
-    assert slots == (set() if auto else gains)
+    assert slots == (gains if not auto or isinstance(p['law'], list) else set())   # law per gain: dry on gain too
     if p['level'] is None:                               # no single Level knob: Mix (and the gain knob) alone
         return
     # Level reaches the dry signal, 0 dB at its default: dry dB = mix part + L(Level) - L(default)
@@ -809,24 +810,28 @@ def test_patch_dist_gives_back_the_entry3_tables_add_model_left_dead():
 
 
 def test_measured_mix_delta_is_auto_gain(full):
-    """A model with a table measured at -24 dBFS (MIX_DELTAS) has auto gain: the wet signal lowered by the table on
-    its gain knob at every Mix, the dry one D above it at 50 %; the other models keep the constant MIX_DELTA."""
+    """Each model with a table measured with a bass riff in LUFS (MIX_DELTAS) has auto gain: the wet signal lowered
+    by the table on its gain knob at every Mix along its own law (MIX_LAWS), the dry one D above it at 50 %; the
+    other models keep the constant MIX_DELTA and MIX_LAW."""
     import pmap
     _, _, plans, reports = full
-    name = 'HD2_DistTeemahMono'
-    p, (ro, rn) = plans[name], reports[name]
-    assert p['delta'] == pdist.MIX_DELTAS[name] and p['law'] == 2.0
+    assert pdist.MIX_DELTAS and set(pdist.MIX_LAWS) == set(pdist.MIX_DELTAS)
     assert all(q['law'] == pdist.MIX_LAW for n, q in plans.items() if q['group'] == 'mix' and n not in pdist.MIX_LAWS)
-    assert all(q['delta'] == [pdist.MIX_DELTA] * 9 for n, q in plans.items()
+    assert all(q['delta'] == [pdist.MIX_DELTA] * 9 and not q.get('auto') for n, q in plans.items()
                if q['group'] == 'mix' and n not in pdist.MIX_DELTAS)
-    mixn = next(q for q in rn['params'] if q['name'] in MIXES and q['slot'] not in {r['slot'] for r in ro['params']})
-    mix = _writes(rn, mixn['name'])
-    wet, dry = mix[((pdist.MIX,), 1)]['expr'], mix[((pdist.MIX,), 2)]['expr']
-    knobs = {q['slot']: q['default'] for q in rn['params']}
-    assert len(pdist.MIX_DELTAS[name]) == 9 and p['auto']
-    for k, d in enumerate(pdist.MIX_DELTAS[name]):
-        for m in (0.5, 0.75, 1.0):
-            kn = {**knobs, mixn['slot']: m, p['gain']: k / 8}
-            assert pmap.evaluate(wet, kn) == pytest.approx(20 * math.log10(math.sin(math.pi * m / 2) ** 2) - d, abs=0.02)
-        kn = {**knobs, mixn['slot']: 0.5, p['gain']: k / 8}
-        assert pmap.evaluate(dry, kn) - pmap.evaluate(wet, kn) == pytest.approx(d, abs=1e-3)
+    for name, table in pdist.MIX_DELTAS.items():
+        p, (ro, rn) = plans[name], reports[name]
+        assert p['group'] == 'mix' and p['auto'] and len(table) == 9
+        assert p['delta'] == table and p['law'] == pdist.MIX_LAWS[name]
+        mixn = next(q for q in rn['params'] if q['name'] in MIXES and q['slot'] not in {r['slot'] for r in ro['params']})
+        mix = _writes(rn, mixn['name'])
+        wet, dry = mix[((pdist.MIX,), 1)]['expr'], mix[((pdist.MIX,), 2)]['expr']
+        knobs = {q['slot']: q['default'] for q in rn['params']}
+        for k, d in enumerate(table):
+            for m in (0.5, 0.75, 1.0):
+                kn = {**knobs, mixn['slot']: m, p['gain']: k / 8}
+                law = p['law'][k] if isinstance(p['law'], list) else p['law']
+                want = 20 * math.log10(math.sin(math.pi * m / 2) ** law) - d
+                assert pmap.evaluate(wet, kn) == pytest.approx(want, abs=0.02), (name, k, m)
+            kn = {**knobs, mixn['slot']: 0.5, p['gain']: k / 8}
+            assert pmap.evaluate(dry, kn) - pmap.evaluate(wet, kn) == pytest.approx(d, abs=1e-3), (name, k)
