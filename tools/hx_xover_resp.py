@@ -113,10 +113,12 @@ def place(pid, vals, kind=1):
     return "verified" in r.stdout, r.stdout + r.stderr
 
 
-def usb_input(tmp):
+def usb_input(tmp, gate_off=False):
     j = os.path.join(tmp, "edit_usb.json")
     ctl("get-preset", "-o", j)
     d = json.load(open(j)); d["preset"]["0"]["22"][0]["20"]["5"] = 6        # the input block: USB 5/6
+    if gate_off:                                       # its noise gate [on, threshold dB, decay s]: off, so quiet
+        d["preset"]["0"]["22"][0]["20"]["7"]["4"][0] = False   # note tails stay in the take
     json.dump(d, open(j, "w"))
     return "verified" in ctl("load-preset", j).stdout
 
@@ -210,6 +212,8 @@ def main():
                          "key gets _KNOBVALUE per swept knob (branch bass-mix: Mix and Gain)")
     ap.add_argument("--tag", default="", help="appended to each take's key (and wav name), so takes with other "
                     "--set values keep their own")
+    ap.add_argument("--gate-off", action="store_true", help="the input block's noise gate off (on at -60 dB in the "
+                    "edit buffer: it cuts the tails of a quiet recording)")
     ap.add_argument("--signal", help="a recording (WAV, 48 kHz; first channel) played instead of the noise; takes only")
     a = ap.parse_args()
     try:
@@ -291,7 +295,7 @@ def main():
             for key, pid, vals in runs:
                 ok, log = place(pid, vals)
                 if ok and not usb_set:
-                    ok = usb_set = usb_input(a.outdir)
+                    ok = usb_set = usb_input(a.outdir, a.gate_off)
                 if not ok:
                     print(f"{key:12} not placed:\n{log}", flush=True)
                     continue
