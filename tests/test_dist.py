@@ -407,6 +407,10 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
     assert auto == (name in pdist.MIX_DELTAS)
     assert at(0.0)[0] < -100 and at(0.0)[1] == pytest.approx(0.0, abs=1e-3)
     assert at(1.0)[0] == pytest.approx(-dg if auto else 0.0, abs=1e-3) and at(1.0)[1] < -100
+    if auto:   # a block inserted on the unit starts from the mixer's init values: those of the defaults (mix_init)
+        mixer = next(c for c in rn['chain'] if tuple(c['path']) == (pdist.MIX,))
+        w0, d0 = at(pdist.MIX_DEFAULT)
+        assert mixer['init'][1] == pytest.approx(w0, abs=1e-3) and mixer['init'][2] == pytest.approx(d0, abs=1e-3)
     w5, d5 = at(0.5)
     pl = pdist.pt.curve_at(p['law'], g) if isinstance(p['law'], list) else p['law']   # per gain where measured
     law = 20 * pl * math.log10(math.sin(math.pi / 4))              # -4.515 dB (exponent 1.5), -6.02 dB (2)

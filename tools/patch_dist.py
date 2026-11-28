@@ -358,6 +358,7 @@ def plan_model(fw, m):
         g = next(p for p in r['params'] if p['name'] == gname)
         assert (g['min'], g['max']) == (0.0, 1.0), f"{m['name']}: measured D on {gname}, not a 0..1 knob"
         plan['auto'] = True                                # auto gain: the wet signal lowered by D (mix_exprs)
+        plan['gain_default'] = g['default']               # the mixer's init values (mix_init)
     lname = LEVEL.get(m['name'], LEVEL_KNOBS)
     if lname is None:
         return plan
@@ -792,6 +793,15 @@ def mix_exprs(plan):
     return ('expr', wet), ('expr', dry)
 
 
+
+def mix_init(plan):
+    """The mixer's init values [(pid, word)] for an auto-gain model: what mix_exprs gives at the knob defaults (Mix
+    MIX_DEFAULT, the gain knob at its default, Level at its default: 0 dB). The unit evaluates the expressions only when
+    a knob moves; a block inserted on the unit starts from these values, with the shared composite's (WET 0 dB, the
+    stock sound) it was D too loud until a knob moved (muetze 2026-11-28). A preset load evaluates them at once."""
+    assert MIX_DEFAULT > 1.0 - MIX_END, 'mix_init assumes Mix at its wet end'
+    return [(1, f2u(0.0 - pt.curve_at(plan['delta'], plan['gain_default']))), (2, f2u(MIX_FLOOR))]
+
 HIDDEN_SLOT = pt.HIDDEN_SLOT                           # Bronze Master's Smart: hidden, no state, writes nothing
 SHOWN_META = ('displayParamCount', 'presetParamCount')
 
@@ -908,7 +918,10 @@ def patch_dist(l6ia_bytes, models=MODELS, cost=COST, log=print):
         blob.add_param(s['mode'], MODE, [(k, 1, ('select', 0, LP_TYPE)) for k in sl['lp']],
                        input_op=patch_comp.INT_INPUT_OP)
         new = sl['hp'] + sl['lp'] + ((sl['mix'],) if sl['mix'] else ())
-        blob.register({k: members[k - 1][3] for k in new})
+        inits = {k: members[k - 1][3] for k in new}
+        if sl['mix'] and p.get('auto'):
+            inits[sl['mix']] = mix_init(p)
+        blob.register(inits)
         assert blob.sub_map() == blob.positions(), f"{m['name']}: sub-bindings do not match the node tree"
         blobs[m['blob_index']] = blob.assemble()
         e3 = e3_show_all(e3, m['name'], len(p['knobs']), sm)
