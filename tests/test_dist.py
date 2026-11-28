@@ -401,7 +401,7 @@ def test_each_models_knobs_write_crossover_and_mixer(full, name):
         return pmap.evaluate(wet, k), pmap.evaluate(dry, k)
     # 0 %: the clean input alone at 0 dB; 100 %: the stock block alone (auto gain: lowered by the delta); 50 %: both
     # at the model's law, the dry signal the delta above the wet one
-    g = 0.5 if p['gain'] is None else knobs[p['gain']]
+    g = 0.5 if p['gain'] is None else knobs[p['gain']] / p.get('gain_max', 1.0)   # Bitcrusher: Gain / 48
     dg = pdist.pt.curve_at(p['delta'], g)
     auto = bool(p.get('auto'))
     assert auto == (name in pdist.MIX_DELTAS)
@@ -833,9 +833,9 @@ def test_measured_mix_delta_is_auto_gain(full):
         knobs = {q['slot']: q['default'] for q in rn['params']}
         for k, d in enumerate(table):
             for m in (0.5, 0.75, 1.0):
-                kn = {**knobs, mixn['slot']: m, p['gain']: k / 8}
+                kn = {**knobs, mixn['slot']: m, p['gain']: k / 8 * p.get('gain_max', 1.0)}
                 law = p['law'][k] if isinstance(p['law'], list) else p['law']
                 want = 20 * math.log10(math.sin(math.pi * m / 2) ** law) - d
                 assert pmap.evaluate(wet, kn) == pytest.approx(want, abs=0.02), (name, k, m)
-            kn = {**knobs, mixn['slot']: 0.5, p['gain']: k / 8}
+            kn = {**knobs, mixn['slot']: 0.5, p['gain']: k / 8 * p.get('gain_max', 1.0)}
             assert pmap.evaluate(dry, kn) - pmap.evaluate(wet, kn) == pytest.approx(d, abs=1e-3), (name, k)

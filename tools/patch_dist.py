@@ -136,7 +136,8 @@ MIX_LAWS = {'HD2_DistTeemahMono': 2.0}
 # at most 1, p at least 0.5, to 0.05 (Werkzeuge/Messung/mixlaw_power.py). Within 1 LU of the dry signal at every Mix
 # and Gain but Tycoctavia Fuzz (2.3 LU) and DM4 Buzz Saw (1.1 LU), whose wet cancels part of the dry fundamental
 # (rho down to -0.58). Valve Driver, DM4 Classic Distortion, Deranged Master and Pocket Fuzz are silent at gain 0:
-# D there is D at 1/8.
+# D there is D at 1/8. Clawthorn Drive (on ODGain), Bitcrusher (on Gain / 48) and Xenomorph Fuzz (a build without NAM
+# A2 Lite) the same way (M5, 2026-11-28), within 0.15 LU at every Mix and Gain.
 MIX_DELTAS.update({
     'HD2_DistArbitratorFuzzMono': [-0.1, 0.0, 0.1, 0.2, 0.2, 0.4, 0.5, 0.6, 0.7],
     'HD2_DistCompulsiveDriveMono': [-7.8, 0.0, 2.1, 3.1, 3.8, 4.3, 4.7, 5.0, 5.3],
@@ -190,6 +191,9 @@ MIX_DELTAS.update({
     'HD2_DistPillarsMono': [-5.3, -3.6, 0.4, 2.6, 3.9, 6.2, 7.5, 8.2, 8.3],
     'HD2_DistDarkDoveFuzzMono': [-1.4, 3.6, 5.6, 6.3, 6.7, 7.1, 7.6, 7.8, 8.0],
     'HD2_DistPrizeDriveMono': [-12.2, -4.5, 2.1, 3.2, 4.1, 4.6, 6.7, 7.1, 6.9],
+    'HD2_DistClawthornDriveMono': [-14.7, -11.4, -7.5, -3.8, -2.0, 0.6, 2.6, 3.7, 4.1],
+    'HD2_DistBitcrusherMono': [0.2, 5.9, 10.7, 14.0, 16.2, 17.8, 18.8, 19.5, 19.9],
+    'HD2_DistXenomorphFuzzMono': [-0.9, 1.5, 1.8, 1.9, 2.0, 2.1, 2.2, 2.4, 2.5],
 })
 MIX_LAWS.update({
     'HD2_DistArbitratorFuzzMono': [1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.7],
@@ -244,11 +248,14 @@ MIX_LAWS.update({
     'HD2_DistPillarsMono': [1.6, 1.55, 1.5, 1.45, 1.45, 1.45, 1.45, 1.45, 1.45],
     'HD2_DistDarkDoveFuzzMono': [1.55, 1.55, 1.55, 1.55, 1.6, 1.55, 1.55, 1.55, 1.5],
     'HD2_DistPrizeDriveMono': [1.85, 1.85, 1.85, 1.85, 1.8, 1.8, 1.8, 1.75, 1.75],
+    'HD2_DistClawthornDriveMono': [1.95, 1.9, 1.8, 1.7, 1.55, 1.55, 1.55, 1.55, 1.5],
+    'HD2_DistBitcrusherMono': [1.75, 1.75, 1.75, 1.75, 1.75, 1.75, 1.7, 1.7, 1.65],
+    'HD2_DistXenomorphFuzzMono': [1.4, 1.45, 1.45, 1.45, 1.5, 1.45, 1.45, 1.45, 1.45],
 })
 MIX_RISE = [math.sin(math.pi * min(k / 8, 0.5)) for k in range(9)]
 MIX_NAMES = ('Mix', 'Blend')                           # Entry 3 name: Blend where the model has a Mix of its own
 GAIN_KNOBS = ('Gain', 'Drive', 'Fuzz', 'Sustain', 'Grit', 'Dist')   # D's knob: the first of these the model has
-GAIN_KNOB = {'HD2_DistToneSovereignMono': 'Gain 2', 'HD2_DistClawthornDriveMono': None,   # else; None: D constant
+GAIN_KNOB = {'HD2_DistToneSovereignMono': 'Gain 2', 'HD2_DistClawthornDriveMono': 'ODGain',   # else; None: D constant
              KILLER_Z: 'Dist'}                         # Killer Z's Gain is its Level
 # Freq's "Off" end (as stock Low Cut, 19.9 Hz): the high-passes take type 0 (through) while Freq <= FREQ_ON, so the
 # drive path is the stock block; above it they are the LR4 high-pass at Freq
@@ -356,9 +363,10 @@ def plan_model(fw, m):
             'gain': None if gname is None else names[gname], 'delta': MIX_DELTAS.get(m['name'], [MIX_DELTA] * 9), 'law': MIX_LAWS.get(m['name'], MIX_LAW)}
     if m['name'] in MIX_DELTAS:
         g = next(p for p in r['params'] if p['name'] == gname)
-        assert (g['min'], g['max']) == (0.0, 1.0), f"{m['name']}: measured D on {gname}, not a 0..1 knob"
+        assert g['min'] == 0.0 < g['max'], f"{m['name']}: measured D on {gname}, not a 0..max knob"
+        plan['gain_max'] = g['max']                        # Bitcrusher's Gain 0..48: D's curves on Gain / 48
         plan['auto'] = True                                # auto gain: the wet signal lowered by D (mix_exprs)
-        plan['gain_default'] = g['default']               # the mixer's init values (mix_init)
+        plan['gain_default'] = g['default'] / g['max']    # the mixer's init values (mix_init), on the 0..1 scale
     lname = LEVEL.get(m['name'], LEVEL_KNOBS)
     if lname is None:
         return plan
@@ -773,6 +781,8 @@ def mix_exprs(plan):
     wcur, dcur = mix_curves(1.0 if isinstance(law, list) else law)
     if plan.get('auto'):
         g = ('knob', plan['gain'])
+        if plan['gain_max'] != 1.0:                        # the curves take 0..1: the knob times 1 / max, the
+            g = ('mul', g, ('curve', [1.0 / plan['gain_max']] * 9, m))   # constant as a flat curve (see floor)
         wdb, ddb = ('todb', ('curve', wcur, m)), ('todb', ('curve', dcur, m))
         if isinstance(law, list):                          # exponent per gain: dB(sin^p) = p * dB(sin); the far
             # end's -120 dB times p would be -60 dB at p = 0.5, so the ends are set to -120 by Mix itself (the floor
