@@ -141,6 +141,9 @@ def fake_firmware(monkeypatch):
     other = [m if m['name'] != 'HD2_FooMono' else model('HD2_FooMono', [GAIN(), LEVEL(), NEW()[0]]) for m in IMAGE]
     table = {'stock.hxf': STOCK, 'image.hxf': IMAGE, 'other.hxf': other}
     monkeypatch.setattr(hp, 'e3_models', lambda p: table[os.path.basename(str(p))])
+    # preset ids: the stock models at Helix.sym 0..5, the image's new model at 6 (HD2_Other's place)
+    pids = {m['name']: i for i, m in enumerate(STOCK)} | {'HD2_NewOne': 6}
+    monkeypatch.setattr(hp, 'model_pids', lambda hxf, models: {m['name']: pids[m['name']] for m in models})
 
 
 def files(app):
@@ -294,3 +297,78 @@ def test_block_values_drops_hidden_slot():
     img = {'params': [{'name': 'a', 'slot': 2}, {'name': 'F', 'slot': 7}, {'name': 'Smart', 'slot': 10000}]}
     assert hp.block_values([0.5, 250.0, 1.0], stock, None, img) == [0.5, 250.0]
     assert hp.block_values([0.5, 1.0], stock, None) == [0.5]
+
+
+NEW_ONE = [knob('Time', lo=0, hi=8, de=0.5, displayType='time', sync='1', coupledIndex='3'),
+           knob('Accent', t=2, lo=1, hi=3, de=1, displayType='list', **{'1': 'Off', '2': '2', '3': '3'}),
+           knob('SyncSelect1', t=2, lo=1, hi=2, de=1, displayType='list', **{'1': '1/1', '2': '1/2'}),
+           knob('TempoSync1', t=1, lo=0, hi=0, de=1)]
+LIKE_DEF = zd({'name': 'Like', 'symbolicID': 'HD2_Like', 'category': 8, 'load': 2.5}) | {z('params'): [
+    pdef('SyncSelect1', 'Note Sync', 'sync_note', 1, 2, 1, vt=0), pdef('TempoSync1', 'Tempo Sync', 'off_on', False, True, False, vt=2), EN]}
+LIKE_CAT = {'id': 'HD2_Like', 'name': 'Like', 'image': 'like.png',
+            'params': [[{'TempoSync1': None}, {'SyncSelect1': 'Note Sync'}, {'Speed': None}]]}
+
+
+@pytest.fixture
+def new_app(app, monkeypatch):
+    """The copy with a stock model to lend its look (HD2_Like) and an image whose HD2_NewOne is a synced model."""
+    r = app / 'Contents' / 'Resources'
+    cat = json.loads(json.dumps(CAT))
+    cat['categories'][0]['subcategories'][0]['models'].append({k: v for k, v in LIKE_CAT.items() if k != 'params'} | {'params': []})
+    text = cat_json_text(cat).replace('"params": [\n\n', '"params": [\n')
+    cat['categories'][0]['subcategories'][0]['models'][-1] = LIKE_CAT
+    text = text.replace('"image": "like.png",\n              "params": [\n              ]',
+                        '"image": "like.png",\n              "params": [\n                [ { "TempoSync1": null }, '
+                        '{ "SyncSelect1": "Note Sync" }, { "Speed": null } ]\n              ]')
+    assert json.loads(text) == cat, text
+    (r / 'HX_ModelCatalog.json').write_text(text)
+    (r / 'HX_ModelCatalog.bin').write_bytes(hp.pack(zcat(cat)))
+    (r / 'HelixModelDefs.bin').write_bytes(hp.pack(DEFS + [LIKE_DEF]))
+    image = [m for m in IMAGE if m['name'] != 'HD2_NewOne'] + [model('HD2_NewOneMono', NEW_ONE)]
+    monkeypatch.setattr(hp, 'e3_models', lambda p: {'stock.hxf': STOCK}.get(os.path.basename(str(p)), image))
+    pids = {m['name']: i for i, m in enumerate(STOCK)} | {'HD2_NewOneMono': 6}
+    monkeypatch.setattr(hp, 'model_pids', lambda hxf, models: {m['name']: pids[m['name']] for m in models})
+    monkeypatch.setattr(hp, 'NEW_MODEL_PLACES', {'HD2_NewOneMono': ('Distortion', 'Mono', 'HD2_Like')})
+    return app
+
+
+def test_new_model(new_app):
+    before = files(new_app)
+    plan = patch(new_app)
+    after = files(new_app)
+    cat = hp.Catalog(str(new_app / 'Contents' / 'Resources'))
+    assert plan['new_models'] == [] and 'HD2_NewOneMono' in plan['add']
+    # Helix.sym: entry 6 (was HD2_Other) is the new model, one line pair changed, the list as long as before
+    sym = json.loads(after['Helix.sym'])
+    assert sym[6] == {'symbol': 'HD2_NewOneMono', 'parameters': ['Time', 'Accent', 'SyncSelect1', 'TempoSync1']}
+    assert len(sym) == len(json.loads(before['Helix.sym'])) and 'HD2_Other' not in cat.sym
+    # a definition under the name without Mono, mono only, the like model's category and load, @enabled last
+    assert cat.defs_id('HD2_NewOneMono') == 'HD2_NewOne'
+    d = {hp.s_(k): v for k, v in cat.defs_by_id['HD2_NewOne'].items()}
+    assert (d['mono'], d['stereo'], d['category'], hp.s_(d['name'])) == (True, False, 8, 'HD2_NewOne')
+    p = {hp.s_(x[z('symbolicID')]): {hp.s_(k): hp.s_(v) for k, v in x.items()} for x in d['params']}
+    assert list(p) == ['Time', 'Accent', 'SyncSelect1', 'TempoSync1', '@enabled']
+    assert p['SyncSelect1']['name'] == 'Note Sync' and p['SyncSelect1']['displayType'] == 'sync_note'
+    assert p['Accent']['displayType'] == 'hxtra_off_2_3' and (p['Accent']['min'], p['Accent']['max']) == (1, 3)
+    assert json.loads(after['HelixControls.json'])['hxtra_off_2_3']['format'] == ['Off', '2', '3']
+    # the browser: the synced pair grouped with Time, the like model's picture, in both catalog files
+    want = {'id': 'HD2_NewOne', 'name': 'HD2_NewOne', 'image': 'like.png',
+            'params': [[{'TempoSync1': None}, {'SyncSelect1': 'Note Sync'}, {'Time': None}], {'Accent': None}]}
+    assert cat.json_occ('HD2_NewOne')[0][1] == want
+    assert cat.bin_occ('HD2_NewOne')[0][1] == zcat(want)
+    bad = hp.check(str(new_app), str(new_app.parent / 'image.hxf'), str(new_app.parent / 'stock.hxf'))
+    assert bad and all(b.startswith('HD2_QuxMono') for b in bad)     # only the skipped name clash
+    assert json.loads(after['hxtra-knobs.json'])['added']['HD2_NewOneMono']['replaces'] == 'HD2_Other'
+
+
+def test_new_model_on_stock_id_refused(new_app, monkeypatch):
+    monkeypatch.setattr(hp, 'model_pids', lambda hxf, models: {m['name']: (5 if m['name'] == 'HD2_NewOneMono' else i)
+                                                               for i, m in enumerate(models)})
+    plan = patch(new_app)
+    assert 'stock model' in plan['skipped']['HD2_NewOneMono'] and not plan['add']
+    assert hp.Catalog(str(new_app / 'Contents' / 'Resources')).json_occ('HD2_NewOne') == []
+
+
+def test_check_finds_missing_new_model(new_app):
+    bad = hp.check(str(new_app), str(new_app.parent / 'image.hxf'), str(new_app.parent / 'stock.hxf'))
+    assert any('HD2_NewOneMono: Helix.sym[6]' in b for b in bad) and any('block browser' in b for b in bad)

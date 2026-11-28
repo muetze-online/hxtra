@@ -5,6 +5,7 @@ Major changes, newest first. The repository has no version numbers, so each entr
 ## 2026-11-27
 
 - **HX Edit with HXtra knobs** ([docs/hx-edit.md](docs/hx-edit.md)). `tools/hxedit_patch.py` teaches a copy of HX Edit the knobs your build adds (Distortion Crossover, GR meter, FX Loop gate, Input Sidechain), so it shows them and its `.hlx` and `.hls` exports keep them. It reads the knobs from your `.hxf` and holds no Line 6 data; `probe` checks on the unit that the copy fits the running build. Ran on an HX Stomp with v1.2.1-bass.2 from RAM and HX Edit 3.82 on macOS.
+- **HX Edit keeps the Metronome block.** `hxedit_patch.py` also adds the Metronome (preset ID 181) to the copy: HX Edit lists it under Looper > Mono, shows its knobs, and its exports and imports keep it. Without this, HX Edit exported the block with no values and an import dropped it. The copy loses the Helix Floor output model that HX Edit kept under 181; the HX Stomp doesn't use it. Ran on an HX Stomp with v1.2.1-bass.2 from RAM and HX Edit 3.82 on macOS: exported, imported with changed values, read back on the unit.
 - **Known issues corrected:** HX Edit's full backup (`.hxb`) fails with firmware 3.80 on stock firmware too, so it isn't caused by HXtra.
 
 ## 2026-11-06

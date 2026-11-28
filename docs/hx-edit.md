@@ -49,12 +49,15 @@ It writes one block for each kind of change and reads it back. "N of N accepted"
 
 ## What it changes
 
+If your build has the Metronome block, the copy also gets it: HX Edit lists it under Looper > Mono and its exports and imports keep its values. It takes preset ID 181, which HX Edit uses for an output block of the Helix Floor, so the copy no longer knows that one.
+
 Only files in `Contents/Resources` of the copy: `Helix.sym`, `HelixModelDefs.bin`, `HX_ModelCatalog.bin`, `HX_ModelCatalog.json` and `HelixControls.json`. Every value comes from your own files when you patch: the knobs are the ones your `.hxf` has beyond stock 3.80 (Entry 3 of both images), and each new knob gets the display type that stock knobs with the same range use (dB, Hz with Off, percent, on/off). List knobs whose labels no stock knob has, such as Mode (Full/Xover), get a display type of their own. With `--labels stock` they take a stock type with as many labels instead (Off/On for Full/Xover).
 
 ## Limits
 
-- Snapshots 4–6, Tap command and preset colours live in HX Edit's program code, not in its catalog. The patch doesn't help with those: exports still hold snapshots 1–3 only.
-- Models HX Edit doesn't know at all (NAM A2 Lite, the Metronome block) stay as they are.
+- Tap command footswitches: not tested with HX Edit yet.
+- NAM A2 Lite keeps Xenomorph Fuzz's preset ID, so HX Edit keeps its values but shows and exports it as Xenomorph Fuzz, and doesn't list it in the block browser.
+- Bank B (snapshots 4–6) and the preset colour travel only in the unit's own preset files. HX Edit never sees them: exports lose them, and HX Edit's Save or Import writes the preset without them.
 - A stereo block shows the mono block's new knobs at their defaults, because HX Edit has one list for both. That's harmless: the unit gets the stereo block's own knobs only.
 - HX Edit rounds percent knobs to whole percent (Blend 30 % can come back as 29 %) and writes that value when it saves.
 

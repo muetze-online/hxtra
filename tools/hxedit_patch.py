@@ -27,6 +27,8 @@ everything is read from the user's own files at patch time):
   HX_ModelCatalog.bin   the knob list of the edit view, per occurrence (Mono, Stereo, Legacy subcategory)
   HX_ModelCatalog.json  the same as text
   HelixControls.json    display types for list knobs no stock type labels (--labels own; text edit)
+  Helix.sym etc.        models only the image has and NEW_MODEL_PLACES names (the Metronome): its entry at its preset id,
+                        a definition (mono, the knobs, @enabled), a browser entry (Looper > Mono), refused on a stock id
   hxtra-knobs.json      a note what was patched for which image (makes patch idempotent)
 The *.models files are left alone: HX Edit does not load them (no such file name in the program).
 Display types come from HX Edit's own catalog: each new knob takes the type that stock knobs with the same firmware
@@ -110,9 +112,10 @@ def bits(f):
 def labels_of(p):
     """The value labels of a list knob (type 2) or an on/off knob (type 1), else None."""
     m = p['meta']
-    if p['type'] == 2:
+    if p['type'] == 2:                  # labelled from the minimum on, as HX Edit's lists (sync_note: 1 is 1/1)
         keys = sorted((int(k) for k in m if k.isdigit()))
-        return tuple(m[str(k)] for k in keys) if keys and keys == list(range(len(keys))) else None
+        lo = bits(p['min'])
+        return tuple(m[str(k)] for k in keys) if keys and keys == list(range(lo, lo + len(keys))) else None
     if p['type'] == 1 and 'false' in m and 'true' in m:
         return (m['false'], m['true'])
     return None
@@ -330,14 +333,119 @@ def def_entry(p, dtype, stereo_only):
     return e
 
 
+# ---------------------------------------------------------------- models an HXtra build adds
+
+# Where HX Edit's block browser lists a model only HXtra has (Entry 3 name: category, subcategory), and the stock
+# model whose HelixModelDefs entry lends category and DSP load and whose browser entry lends picture and labels.
+# Names only: every value comes from the user's files. tools/patch_click.py: the Metronome (Looper > Metronome on
+# the unit, a copy of a mono tremolo).
+NEW_MODEL_PLACES = {'HD2_ClickMetronomeMono': ('Looper', 'Mono', 'HD2_Tremolo60sBiasTrem')}
+SYNC_PAIR = ('TempoSync1', 'SyncSelect1')
+
+
+def model_pids(hxf, models):
+    """{Entry 3 model name: preset id} of an image's models (Table 1 of Entry 0)."""
+    ids = preset_ids(hxf)
+    return {m['name']: ids[m['words'][2]] for m in models if m['words'][2] in ids}
+
+
+def sym_entries(cat):
+    """Helix.sym's entries in list order (the index is the preset id): [(symbol, names)]."""
+    out = [(json.loads('"' + mt.group(2) + '"'), json.loads('[' + mt.group(3) + ']')) for mt in SYM_LINE.finditer(cat.sym_text)]
+    if len(out) != len(json.loads(cat.sym_text)):
+        raise PatchError('Helix.sym: not every entry in the expected form')
+    return out
+
+
+def _subcategory(cat_obj, cname, sname, binary):
+    K = z if binary else (lambda k: k)
+    for c in cat_obj[K('categories')]:
+        if c.get(K('name')) == K(cname):
+            for s in c.get(K('subcategories'), []):
+                if s.get(K('name')) == K(sname):
+                    return s
+    return None
+
+
+def new_model_plan(m, pid, stock_pids, entries, cat, learned, labels_mode, types):
+    """(entry for plan['add'], None) or (None, why not)."""
+    place = NEW_MODEL_PLACES.get(m['name'])
+    if place is None:
+        return None, 'no place in the browser known'
+    cname, sname, like = place
+    base = next((m['name'][:-len(s)] for s in SUFFIXES if m['name'].endswith(s)), m['name'])
+    like_def = cat.defs_by_id.get(like)
+    like_occ = cat.json_occ(like)
+    if pid is None:
+        return None, 'no preset id in the image'
+    if pid in stock_pids:
+        return None, f'preset id {pid} is a stock model\'s'
+    if pid >= len(entries):
+        return None, f'preset id {pid} beyond Helix.sym ({len(entries)} entries)'
+    if m['name'] in cat.sym or base in cat.defs_by_id or cat.json_occ(base):
+        return None, 'HX Edit already has a model of that name'
+    if like_def is None or not like_occ:
+        return None, f'{like} not in HX Edit'
+    if _subcategory(cat.cat_json, cname, sname, False) is None or _subcategory(cat.cat_bin, cname, sname, True) is None:
+        return None, f'no browser list {cname} > {sname}'
+    like_params = {s_(p[z('symbolicID')]): p for p in like_def[z('params')]}
+    knobs = []
+    for p in m['params']:
+        lp = like_params.get(p['name'])             # a knob both have (the synced pair): its stock name and type
+        e = def_entry(p, s_(lp.get(z('displayType'))) if lp else display_type(p, learned, cat, labels_mode, types), False)
+        if lp:
+            e['name'] = s_(lp[z('name')])
+        knobs.append(e)
+    enabled = like_params.get('@enabled')
+    if enabled is None:
+        return None, f'{like} has no @enabled'
+    # the browser entry: the knobs in order, a synced pair grouped with the knob it switches (as stock delays)
+    like_labels = {}
+    for e in like_occ[0][1]['params']:
+        for d in (e if isinstance(e, list) else [e]):
+            like_labels.update(d)
+    names = [p['name'] for p in m['params']]
+    synced = all(n in names for n in SYNC_PAIR)
+    shown = []
+    for p in m['params']:
+        if synced and p['name'] in SYNC_PAIR:
+            continue
+        if synced and p['meta'].get('sync') == '1' and p['meta'].get('coupledIndex'):
+            shown.append([{n: like_labels.get(n)} for n in SYNC_PAIR] + [{p['name']: None}])
+        else:
+            shown.append({p['name']: None})
+    entry = {'pid': pid, 'symbol': m['name'], 'names': names, 'did': base, 'place': (cname, sname),
+             'def': {'params': knobs, 'name': m.get('displayName') or base, 'symbolicID': base, 'stereo': False,
+                     'category': like_def.get(z('category')), 'mono': True, 'load': like_def.get(z('load'))},
+             'enabled': enabled, 'replaces': entries[pid][0],
+             'model': {'id': base, 'name': m.get('displayName') or base, 'image': like_occ[0][1]['image'], 'params': shown}}
+    return entry, None
+
+
 # ---------------------------------------------------------------- the plan
 
-def make_plan(stock, image, cat, labels_mode='own'):
+def make_plan(stock, image, cat, labels_mode='own', pids=None):
     """What to change, as a dict: per Helix.sym symbol its new list, per HelixModelDefs id the knobs to insert and
-    where, per catalog id and occurrence the knob names to insert and where; skipped models with the reason."""
+    where, per catalog id and occurrence the knob names to insert and where; skipped models with the reason.
+    pids: (stock preset ids, {image model name: preset id}) to add the models only the image has (NEW_MODEL_PLACES)."""
     add = added_knobs(stock, image)
     learned = learn_display(stock, cat)
-    plan = {'sym': {}, 'defs': {}, 'cat': {}, 'types': {}, 'skipped': {}, 'new_models': add.pop(None), 'models': {}}
+    plan = {'sym': {}, 'defs': {}, 'cat': {}, 'types': {}, 'skipped': {}, 'new_models': add.pop(None), 'models': {},
+            'add': {}}
+    if pids is not None:
+        stock_pids, image_pids = pids
+        entries = sym_entries(cat)
+        by_name = {m['name']: m for m in image}
+        for name in list(plan['new_models']):
+            if name not in NEW_MODEL_PLACES:
+                continue
+            e, why = new_model_plan(by_name[name], image_pids.get(name), set(stock_pids), entries, cat, learned,
+                                    labels_mode, plan['types'])
+            if e:
+                plan['add'][name] = e
+                plan['new_models'].remove(name)
+            else:
+                plan['skipped'][name] = why
     by_def = {}
     for name, (sp, ip, extra) in add.items():
         names = cat.sym.get(name)
@@ -403,15 +511,33 @@ def make_plan(stock, image, cat, labels_mode='own'):
 def apply_plan(plan, cat):
     """New file contents {file name: bytes or str} for the plan; nothing written."""
     out = {}
-    # Helix.sym: only the lines of patched symbols change
+    # Helix.sym: only the lines of patched symbols change, and the entries of added models (by index: preset id)
+    by_pid = {a['pid']: a for a in plan.get('add', {}).values()}
+    index = iter(range(1 << 30))
+
     def sub(mt):
+        i = next(index)
         sym = json.loads('"' + mt.group(2) + '"')
+        if i in by_pid:
+            a = by_pid[i]
+            head = mt.group(1)[:mt.start(2) - mt.start(1)] + json.dumps(a['symbol'])[1:-1] + mt.group(1)[mt.end(2) - mt.start(1):]
+            return head + ', '.join(json.dumps(n) for n in a['names']) + mt.group(4)
         if sym not in plan['sym']:
             return mt.group(0)
         return mt.group(1) + ', '.join(json.dumps(n) for n in plan['sym'][sym]) + mt.group(4)
     text = SYM_LINE.sub(sub, cat.sym_text)
-    json.loads(text)
+    syms = json.loads(text)
+    for a in by_pid.values():
+        if syms[a['pid']] != {'symbol': a['symbol'], 'parameters': a['names']}:
+            raise PatchError(f'Helix.sym: entry {a["pid"]} not written as planned')
     out['Helix.sym'] = text
+    for a in plan.get('add', {}).values():
+        d = a['def']
+        cat.defs.append({z('params'): [{z(k): (z(v) if isinstance(v, str) else v) for k, v in e.items()}
+                                       for e in d['params']] + [a['enabled']],
+                         **{z(k): (z(v) if isinstance(v, str) else v) for k, v in d.items() if k != 'params'}})
+        cat.defs_by_id[a['did']] = cat.defs[-1]
+        _subcategory(cat.cat_bin, *a['place'], True)[z('models')].append(_zcat(a['model']))
     # HelixModelDefs.bin
     for did, d in plan['defs'].items():
         cat.def_params(did)[d['at']:d['at']] = [{z(k): (z(v) if isinstance(v, str) else v) for k, v in e.items()}
@@ -435,7 +561,12 @@ def apply_plan(plan, cat):
                              f'{len(cat.json_occ(did))} times as a model')
         for k, c in jobs:
             text = _json_insert(text, heads[k], c)
-    json.loads(text)
+    want = json.loads(text)
+    for a in plan.get('add', {}).values():
+        text = _json_append_model(text, *a['place'], a['model'])
+        _subcategory(want, *a['place'], False)['models'].append(a['model'])
+    if json.loads(text) != want:
+        raise PatchError('HX_ModelCatalog.json: added model not where planned')
     out['HX_ModelCatalog.json'] = text
     # HelixControls.json: own display types before the closing brace
     if plan['types']:
@@ -448,6 +579,69 @@ def apply_plan(plan, cat):
         json.loads(text)
         out['HelixControls.json'] = text
     return out
+
+
+def _zcat(o):
+    """A catalog value in HX_ModelCatalog.bin's form: strings NUL-terminated, null stays nil."""
+    if isinstance(o, dict):
+        return {z(k): _zcat(v) for k, v in o.items()}
+    if isinstance(o, list):
+        return [_zcat(v) for v in o]
+    return z(o) if isinstance(o, str) else o
+
+
+def _json_close(text, at):
+    """Index of the bracket that closes the one at text[at] (strings skipped)."""
+    depth, i, in_str = 0, at, False
+    while i < len(text):
+        c = text[i]
+        if in_str:
+            if c == '\\':
+                i += 1
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c in '[{':
+            depth += 1
+        elif c in ']}':
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    raise PatchError('HX_ModelCatalog.json: unbalanced brackets')
+
+
+def _json_append_model(text, cname, sname, model):
+    """The text with model appended to the list cname > sname, laid out as the entry before it."""
+    obj = json.loads(text)
+    target = _subcategory(obj, cname, sname, False)['models']
+    hits = []
+    for mt in re.finditer(re.escape(f'"name": {json.dumps(cname)},'), text):
+        s = text.find(f'"name": {json.dumps(sname)},', mt.end())
+        lb = text.find('[', text.find('"models":', s)) if s >= 0 else -1
+        if lb >= 0 and json.loads(text[lb:_json_close(text, lb) + 1]) == target:
+            hits.append(lb)
+    if len(hits) != 1 or not target:
+        raise PatchError(f'HX_ModelCatalog.json: list {cname} > {sname} not found once')
+    i, first = hits[0] + 1, None
+    while True:                                    # the list's entries, in order: the last one's span
+        while text[i] in ' \t\r\n,':
+            i += 1
+        if text[i] == ']':
+            break
+        first, last = i, _json_close(text, i)
+        i = last + 1
+    line0 = text.rfind('\n', 0, first) + 1
+    ind = re.match(r'[ \t]*', text[line0:]).group(0)
+    inner = re.match(r'[ \t]*', text[text.find('\n', first) + 1:]).group(0)
+    step = inner[len(ind):]
+    ent = lambda d: '{ ' + ', '.join(f'{json.dumps(k)}: {json.dumps(v)}' for k, v in d.items()) + ' }'
+    rows = [ind + step * 2 + ('[ ' + ', '.join(ent(d) for d in e) + ' ]' if isinstance(e, list) else ent(e))
+            for e in model['params']]
+    body = (ind + '{\n' + ''.join(f'{ind}{step}{json.dumps(k)}: {json.dumps(model[k])},\n' for k in ('id', 'name', 'image'))
+            + f'{ind}{step}"params": [\n' + ',\n'.join(rows) + f'\n{ind}{step}]\n{ind}}}')
+    return text[:last + 1] + ',\n' + body + text[last + 1:]
 
 
 def _is_model(text, head):
@@ -489,6 +683,12 @@ def resources(app):
     return r
 
 
+def plan_inputs(stock, image):
+    """make_plan's stock models, image models and preset ids, from the two .hxf."""
+    sm, im = e3_models(stock), e3_models(image)
+    return sm, im, (set(model_pids(stock, sm).values()), model_pids(image, im))
+
+
 def patch_app(app, image, stock, labels_mode='own', sign=True, log=print):
     """Patch the copy APP for IMAGE. Returns the plan; a second call for the same image changes nothing."""
     res = resources(app)
@@ -501,13 +701,16 @@ def patch_app(app, image, stock, labels_mode='own', sign=True, log=print):
             return None
         raise PatchError(f'{app} is patched for {old.get("image")} ({old.get("labels")}): start from an unpatched copy')
     cat = Catalog(res)
-    plan = make_plan(e3_models(stock), e3_models(image), cat, labels_mode)
+    sm, im, pids = plan_inputs(stock, image)
+    plan = make_plan(sm, im, cat, labels_mode, pids)
     files = apply_plan(plan, cat)
     for n, data in files.items():
         with open(os.path.join(res, n), 'wb' if isinstance(data, bytes) else 'w',
                   **({} if isinstance(data, bytes) else {'encoding': 'utf-8'})) as f:
             f.write(data)
     note['models'] = plan['models']
+    note['added'] = {n: {'preset_id': a['pid'], 'replaces': a['replaces'], 'browser': ' > '.join(a['place'])}
+                     for n, a in plan['add'].items()}
     note['skipped'] = plan['skipped']
     note['types'] = sorted(plan['types'])
     with open(mk, 'w') as f:
@@ -534,6 +737,9 @@ def report(plan, log=print):
         log('own types: ' + ', '.join(f'{k} {v["format"]}' for k, v in plan['types'].items()))
     for name, why in plan['skipped'].items():
         log(f'! not patched: {name}: {why}')
+    for name, a in plan['add'].items():
+        log(f'+ model {name} as preset id {a["pid"]} (was {a["replaces"]} in Helix.sym), browser '
+            f'{" > ".join(a["place"])}: {", ".join(a["names"])}')
     if plan['new_models']:
         log(f'! models HX Edit has no entry for (not patched): {", ".join(plan["new_models"])}')
 
@@ -573,6 +779,22 @@ def check(app, image, stock):
                 if var not in add and any(n in shown for v in variants if v in add
                                           for n in [add[v][1][i]['name'] for i in add[v][2]]):
                     bad.append(f'{did} ({which}, {sub}): edit view shows knobs {var} does not have')
+    # models only the image has: Helix.sym at their preset id, a definition, a browser entry
+    image_models = {m['name']: m for m in e3_models(image)}
+    pids = model_pids(image, list(image_models.values()))
+    entries = sym_entries(cat)
+    for name in NEW_MODEL_PLACES:
+        m = image_models.get(name)
+        if m is None or name in st or pids.get(name) is None:
+            continue
+        pid, names = pids[name], [p['name'] for p in m['params']]
+        base = next((name[:-len(s)] for s in SUFFIXES if name.endswith(s)), name)
+        if pid >= len(entries) or entries[pid] != (name, names):
+            bad.append(f'{name}: Helix.sym[{pid}] is {entries[pid] if pid < len(entries) else None}, image {names}')
+        if cat.defs_id(name) != base or cat.def_names(base)[:len(names)] != names:
+            bad.append(f'{name}: no HelixModelDefs entry {base} with its knobs')
+        if not cat.json_occ(base) or not cat.bin_occ(base):
+            bad.append(f'{name}: not in the block browser')
     return bad
 
 
@@ -744,7 +966,8 @@ def main(argv=None):
     try:
         if args.cmd == 'plan':
             cat = Catalog(resources(args.app))
-            plan = make_plan(e3_models(args.stock), e3_models(args.image), cat, args.labels)
+            sm, im, pids = plan_inputs(args.stock, args.image)
+            plan = make_plan(sm, im, cat, args.labels, pids)
             report(plan)
         elif args.cmd == 'patch':
             if args.src:
