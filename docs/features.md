@@ -9,6 +9,7 @@ Added by muetze in this fork.
 | Feature | Since |
 |---|---|
 | [Distortion Crossover](https://muetze-online.github.io/hxtra-bass/web/features.html#distortion-crossover) | [v1.2.1-bass.2](https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.2) |
+| [HX Edit with HXtra knobs](https://muetze-online.github.io/hxtra-bass/web/features.html#hx-edit) | [v1.2.1-bass.3](https://github.com/muetze-online/hxtra-bass/releases/tag/v1.2.1-bass.3) |
 
 ## From HXtra v1.2.1
 

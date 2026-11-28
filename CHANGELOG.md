@@ -2,6 +2,10 @@
 
 Major changes, newest first. The repository has no version numbers, so each entry is dated and names its commit. Status labels follow the README: "ran on" means a person ran that build on that unit.
 
+## 2026-11-28
+
+- **Features page: HX Edit with HXtra knobs** has its own card and a row under HXtra bass, in every language. Distortion Crossover, FX Loop Noise Gate and Noise Gate Input Sidechain now say that the installed HX Edit drops their knobs and a patched copy keeps them.
+
 ## 2026-11-27
 
 - **HX Edit with HXtra knobs** ([docs/hx-edit.md](docs/hx-edit.md)). `tools/hxedit_patch.py` teaches a copy of HX Edit the knobs your build adds (Distortion Crossover, GR meter, FX Loop gate, Input Sidechain), so it shows them and its `.hlx` and `.hls` exports keep them. It reads the knobs from your `.hxf` and holds no Line 6 data; `probe` checks on the unit that the copy fits the running build. Ran on an HX Stomp with v1.2.1-bass.2 from RAM and HX Edit 3.82 on macOS.

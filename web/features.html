@@ -138,6 +138,12 @@
     <td data-i18n="distortion-crossover.floc">The mono distortion blocks</td>
     <td data-i18n="distortion-crossover.where">The block's Frequency, Dry Level, Wet Level and Mode knobs</td>
     </tr>
+    <tr>
+    <td><a href="#hx-edit" data-i18n="hx-edit.name">HX Edit with HXtra knobs</a></td>
+    <td data-i18n="hx-edit.desc">A patched copy of HX Edit that shows the knobs your build adds, and the Metronome block, and keeps them in its exports and imports.</td>
+    <td data-i18n="hx-edit.floc">A copy of HX Edit on the Mac</td>
+    <td data-i18n="hx-edit.where"><code>tools/hxedit_patch.py</code>, see <a href="https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md">docs/hx-edit.md</a></td>
+    </tr>
 </tbody>
     </table></div>
     <h3 class="rel" data-i18n="rel.up.name">From HXtra v1.2.1</h3>
@@ -276,7 +282,7 @@
   <li data-i18n="distortion-crossover.li2"><strong>Level</strong> (Volume on some blocks) sets the volume of the whole block, the dry signal included; Wet Level and Dry Level set the balance between the two.</li>
   <li data-i18n="distortion-crossover.li3"><strong>−60 dB is not quite off:</strong> at Wet Level −60 dB a high-gain block can stay faintly audible.</li>
   <li data-i18n="distortion-crossover.li4"><strong>DSP:</strong> each of these blocks counts 1% more toward the DSP limit, whatever its knobs are set to. A preset already at the limit with such a block may not load.</li>
-  <li data-i18n="distortion-crossover.li5"><strong>Presets</strong> saved before sound as they did: the new knobs start at their defaults. HX Edit doesn't show the new knobs, as it has its own list of each block's knobs; opening a preset saved with them on stock firmware is not tested yet.</li>
+  <li data-i18n="distortion-crossover.li5"><strong>Presets</strong> saved before sound as they did: the new knobs start at their defaults. The installed HX Edit doesn't show the new knobs and its exports drop them, as it has its own list of each block's knobs; a <a href="#hx-edit">patched copy</a> shows and keeps them. Opening a preset saved with them on stock firmware is not tested yet.</li>
   </ul>
       <div class="settings">
         <h3 data-i18n="settings">Settings</h3>
@@ -309,6 +315,47 @@
         <td><strong>Mode</strong></td>
         <td><strong>Full</strong>, Xover</td>
         <td data-i18n="distortion-crossover.what4">Full mixes in the clean input as it is; Xover only below Frequency, so clean lows and the drive's top meet at Frequency.</td>
+        </tr>
+        </tbody>
+        </table></div>
+      </div>
+    </section>
+    <section class="card feat" id="hx-edit">
+      <h2><img class="ico" src="../docs/assets/icons/hx-edit.svg" width="28" height="28" alt=""><span data-i18n="hx-edit.name">HX Edit with HXtra knobs</span></h2>
+      <p data-i18n="hx-edit.p1">HX Edit knows each block's knobs from its own list, so it doesn't show the knobs HXtra adds, and its exports (<code>.hlx</code>, <code>.hls</code>) drop them. <code>tools/hxedit_patch.py</code> reads the knobs from your <code>.hxf</code> and adds them to a copy of HX Edit; the installed HX Edit stays as it is. The copy shows the Distortion Crossover, GR meter, FX Loop gate and Input Sidechain knobs, lists the Metronome under Looper &gt; Mono, and its exports and imports keep them all.</p>
+  <ul>
+  <li data-i18n="hx-edit.li1"><strong>Only for your build:</strong> the copy fits the <code>.hxf</code> it was patched for. Run <code>probe</code> before you use it: firmware without the patched knobs drops a whole preset the copy sends. After an HX Edit update or a new build, patch a new copy.</li>
+  <li data-i18n="hx-edit.li2"><strong>Kept without the patch:</strong> NAM blocks (HX Edit shows them as Xenomorph Fuzz and keeps every value) and Tap command footswitches.</li>
+  <li data-i18n="hx-edit.li3"><strong>Lost even with the patch:</strong> snapshots 4–6 and the preset's LED color live only on the HX Stomp; exports, imports and any whole preset HX Edit writes leave them out.</li>
+  <li data-i18n="hx-edit.li4"><strong>You need</strong> a Mac (the copy is signed ad hoc with <code>codesign</code>), HX Edit for firmware 3.80 (tested with 3.82), Python 3.10 or newer with <code>msgpack</code> and <code>pyusb</code>, Line 6's stock firmware file and the <code>.hxf</code> you installed. Ran on an HX Stomp with v1.2.1-bass.2.</li>
+  <li data-i18n="hx-edit.li5"><strong>Keep the copy to yourself:</strong> it is Line 6's program; everyone patches their own.</li>
+  </ul>
+      <div class="settings">
+        <h3 data-i18n="settings">Settings</h3>
+        <p class="where" data-i18n="hx-edit.where"><code>tools/hxedit_patch.py</code>, see <a href="https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md">docs/hx-edit.md</a></p>
+        <div class="tbl"><table>
+        <thead>
+        <tr>
+        <th data-i18n="th.command">Command</th>
+        <th data-i18n="th.what">What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><code>plan</code></td>
+        <td data-i18n="hx-edit.what1">Shows what would change, writes nothing.</td>
+        </tr>
+        <tr>
+        <td><code>patch</code></td>
+        <td data-i18n="hx-edit.what2">Copies HX Edit and patches the copy, removes its quarantine flag and signs it ad hoc. Refuses the installed HX Edit and a copy patched for another build.</td>
+        </tr>
+        <tr>
+        <td><code>check</code></td>
+        <td data-i18n="hx-edit.what3">Checks the copy against the build; reads only.</td>
+        </tr>
+        <tr>
+        <td><code>probe</code></td>
+        <td data-i18n="hx-edit.what4">Checks over USB, with HX Edit closed, that the HX Stomp runs the build the copy was patched for.</td>
         </tr>
         </tbody>
         </table></div>
@@ -577,7 +624,7 @@
   <ul>
   <li data-i18n="fx-loop-gate.li1"><strong>DSP:</strong> each FX Loop and Return block counts 0.2% more toward the DSP limit (0.4% stereo), whether its gate is on or off. A preset already at the limit with one of these blocks may not load.</li>
   <li data-i18n="fx-loop-gate.li2"><strong>Stereo blocks</strong> gate each side on its own, not linked.</li>
-  <li data-i18n="fx-loop-gate.li3"><strong>Presets</strong> saved with the gate keep its knobs. Opening such a preset on stock firmware, or in HX Edit, is not tested yet.</li>
+  <li data-i18n="fx-loop-gate.li3"><strong>Presets</strong> saved with the gate keep its knobs. The installed HX Edit doesn't show them and its exports drop them; a <a href="#hx-edit">patched copy</a> shows and keeps them. Opening such a preset on stock firmware is not tested yet.</li>
   </ul>
       <div class="settings">
         <h3 data-i18n="settings">Settings</h3>
@@ -711,7 +758,7 @@
   <li data-i18n="gate-sidechain.exp"><strong>Experimental:</strong> tested with recorded signals, not yet with a played instrument, so it may need tuning. It works only with a cable in the HX Stomp's guitar input.</li>
   <li data-i18n="gate-sidechain.li1"><strong>DSP:</strong> each Noise Gate block counts 0.1% more toward the DSP limit (0.2% stereo), whether Input Sidechain is on or off. A preset already at the limit with a Noise Gate may not load.</li>
   <li data-i18n="gate-sidechain.li2"><strong>Threshold</strong> is then compared with the input's level, so set it as you would the Input block's gate. The Input block's own Input Gate can be on or off.</li>
-  <li data-i18n="gate-sidechain.li3"><strong>Presets</strong> saved with Input Sidechain keep the knob. HX Edit doesn't show it, as it has its own list of each block's knobs; opening such a preset on stock firmware is not tested yet.</li>
+  <li data-i18n="gate-sidechain.li3"><strong>Presets</strong> saved with Input Sidechain keep the knob. The installed HX Edit doesn't show it and its exports drop it, as it has its own list of each block's knobs; a <a href="#hx-edit">patched copy</a> shows and keeps it. Opening such a preset on stock firmware is not tested yet.</li>
   </ul>
       <div class="settings">
         <h3 data-i18n="settings">Settings</h3>
@@ -960,7 +1007,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong> (Volume en algunos bloques) ajusta el volumen de todo el bloque, señal seca incluida; Wet Level y Dry Level ajustan el equilibrio entre ambas.",
     "distortion-crossover.li3": "<strong>−60 dB no es del todo apagado:</strong> con Wet Level a −60 dB, un bloque de mucha ganancia puede seguir oyéndose levemente.",
     "distortion-crossover.li4": "<strong>DSP:</strong> cada uno de estos bloques cuenta un 1 % más para el límite de DSP, sea cual sea el ajuste de sus controles. Un preset que ya esté en el límite con uno de estos bloques puede no cargar.",
-    "distortion-crossover.li5": "<strong>Los presets</strong> guardados antes suenan como antes: los nuevos controles empiezan en sus valores por defecto. HX Edit no muestra los nuevos controles, ya que tiene su propia lista de los controles de cada bloque; abrir con el firmware original un preset guardado con ellos aún no se ha probado.",
+    "distortion-crossover.li5": "<strong>Los presets</strong> guardados antes suenan como antes: los nuevos controles empiezan en sus valores por defecto. El HX Edit instalado no muestra los nuevos controles y sus exportaciones los pierden, ya que tiene su propia lista de los controles de cada bloque; una <a href=\"#hx-edit\">copia parcheada</a> los muestra y los conserva. Abrir con el firmware original un preset guardado con ellos aún no se ha probado.",
     "distortion-crossover.what1": "La frecuencia de cruce: la distorsión oye la entrada por encima de ella. En Off la oye entera, igual que con el firmware original.",
     "distortion-crossover.what2": "La entrada limpia en la mezcla: en todo el rango con Mode en Full, por debajo de Frequency en Xover.",
     "distortion-crossover.what3": "La distorsión en la mezcla.",
@@ -1079,7 +1126,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Una puerta de ruido integrada en los bloques FX Loop y Return, como la que tiene el bloque Input, para que un pedal ruidoso en el loop no necesite su propio bloque Noise Gate (<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). Actúa sobre lo que vuelve del loop, antes del nivel Return y del Mix del bloque; la señal seca y el Send no pasan por la puerta.",
     "fx-loop-gate.li1": "<strong>DSP:</strong> cada bloque FX Loop y Return cuesta un 0.2% más (0.4% en estéreo), tenga la puerta activada o no. Puede que un preset que ya está en el límite con uno de estos bloques no cargue.",
     "fx-loop-gate.li2": "<strong>Los bloques estéreo</strong> aplican la puerta a cada lado por separado, sin vincularlos.",
-    "fx-loop-gate.li3": "<strong>Los presets</strong> guardados con la puerta conservan sus perillas. Aún no se ha probado abrir uno de esos presets con el firmware original ni en HX Edit.",
+    "fx-loop-gate.li3": "<strong>Los presets</strong> guardados con la puerta conservan sus perillas. El HX Edit instalado no las muestra y sus exportaciones las pierden; una <a href=\"#hx-edit\">copia parcheada</a> las muestra y las conserva. Aún no se ha probado abrir uno de esos presets con el firmware original.",
     "fx-loop-gate.what1": "Activa la puerta. En Off, el bloque suena como con el firmware original.",
     "fx-loop-gate.what2": "Por debajo de este nivel, la señal que vuelve se silencia.",
     "fx-loop-gate.what3": "Lo rápido que se cierra la puerta.",
@@ -1112,7 +1159,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>Experimental:</strong> probado con señales grabadas, aún no con un instrumento tocado, así que puede necesitar ajustes. Solo funciona con un cable en la entrada de guitarra del HX Stomp.",
     "gate-sidechain.li1": "<strong>DSP:</strong> cada bloque Noise Gate cuesta un 0.1% más (0.2% en estéreo), tenga Input Sidechain activado o no. Puede que un preset que ya está en el límite con un Noise Gate no cargue.",
     "gate-sidechain.li2": "<strong>Threshold</strong> se compara entonces con el nivel de la entrada, así que ajústalo como la puerta del bloque Input. La puerta propia del bloque Input (Input Gate) puede estar activada o no.",
-    "gate-sidechain.li3": "<strong>Los presets</strong> guardados con Input Sidechain conservan la perilla. HX Edit no la muestra, porque tiene su propia lista de perillas de cada bloque; aún no se ha probado abrir uno de esos presets con el firmware original.",
+    "gate-sidechain.li3": "<strong>Los presets</strong> guardados con Input Sidechain conservan la perilla. El HX Edit instalado no la muestra y sus exportaciones la pierden, porque tiene su propia lista de perillas de cada bloque; una <a href=\"#hx-edit\">copia parcheada</a> la muestra y la conserva. Aún no se ha probado abrir uno de esos presets con el firmware original.",
     "gate-sidechain.what1": "Activado, la puerta sigue a la entrada en lugar de a la señal que llega al bloque. En Off, el bloque funciona como con el firmware original.",
     "preset-led-color.p1": "En el modo de footswitch Preset, el HX Stomp enciende en rojo el anillo del preset actual, con un icono de interruptor rojo en la pantalla de inicio, y deja apagados los anillos de los otros dos presets. HXtra da a cada preset un color propio, de la misma paleta que Tap LED Color.",
     "preset-led-color.li1": "<strong>This Preset</strong> (Global Settings &gt; Displays, página 2) fija el color del preset actual. Guarda el preset para conservarlo: el color se almacena en el propio preset, así que va con él cuando lo mueves, exportas o restauras.",
@@ -1160,7 +1207,22 @@ var LANGS = {
     "footer.1": "Crea e instala HXtra en la página de instalación",
     "footer.2": "HXtra en GitHub",
     "doc.title": "Recorrido por las funciones de HXtra",
-    "lang": "Idioma"
+    "lang": "Idioma",
+    "hx-edit.name": "HX Edit con los controles de HXtra",
+    "hx-edit.desc": "Una copia parcheada de HX Edit que muestra los controles que añade tu build y el bloque Metronome, y los conserva al exportar e importar.",
+    "hx-edit.floc": "Una copia de HX Edit en el Mac",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, ver <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "HX Edit conoce los controles de cada bloque por su propia lista, así que no muestra los que añade HXtra, y sus exportaciones (<code>.hlx</code>, <code>.hls</code>) los pierden. <code>tools/hxedit_patch.py</code> lee los controles de tu <code>.hxf</code> y los añade a una copia de HX Edit; el HX Edit instalado queda como está. La copia muestra los controles de Distortion Crossover, el medidor GR, la puerta del FX Loop e Input Sidechain, lista el Metronome en Looper &gt; Mono, y sus exportaciones e importaciones los conservan todos.",
+    "hx-edit.li1": "<strong>Solo para tu build:</strong> la copia corresponde al <code>.hxf</code> con el que se parcheó. Ejecuta <code>probe</code> antes de usarla: un firmware sin los controles parcheados descarta el preset entero que envía la copia. Tras una actualización de HX Edit o un build nuevo, parchea una copia nueva.",
+    "hx-edit.li2": "<strong>Se conservan sin el parche:</strong> los bloques NAM (HX Edit los muestra como Xenomorph Fuzz y conserva todos los valores) y los footswitches con Tap command.",
+    "hx-edit.li3": "<strong>Se pierden incluso con el parche:</strong> los snapshots 4–6 y el color LED del preset solo existen en el HX Stomp; las exportaciones, las importaciones y cualquier preset completo que escriba HX Edit los omiten.",
+    "hx-edit.li4": "<strong>Necesitas</strong> un Mac (la copia se firma ad hoc con <code>codesign</code>), HX Edit para el firmware 3.80 (probado con 3.82), Python 3.10 o posterior con <code>msgpack</code> y <code>pyusb</code>, el archivo de firmware original de Line 6 y el <code>.hxf</code> que instalaste. Probado en un HX Stomp con v1.2.1-bass.2.",
+    "hx-edit.li5": "<strong>Guarda la copia para ti:</strong> es el programa de Line 6; cada uno parchea el suyo.",
+    "hx-edit.what1": "Muestra lo que cambiaría, no escribe nada.",
+    "hx-edit.what2": "Copia HX Edit y parchea la copia, le quita la marca de cuarentena y la firma ad hoc. Rechaza el HX Edit instalado y una copia parcheada para otro build.",
+    "hx-edit.what3": "Comprueba la copia contra el build; solo lee.",
+    "hx-edit.what4": "Comprueba por USB, con HX Edit cerrado, que el HX Stomp ejecuta el build para el que se parcheó la copia.",
+    "th.command": "Comando"
   },
   "pt": {
     "title": "Tour pelos recursos",
@@ -1195,7 +1257,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong> (Volume em alguns blocos) ajusta o volume do bloco inteiro, incluindo o sinal seco; Wet Level e Dry Level ajustam o equilíbrio entre os dois.",
     "distortion-crossover.li3": "<strong>−60 dB não é totalmente desligado:</strong> com Wet Level em −60 dB, um bloco de alto ganho pode continuar levemente audível.",
     "distortion-crossover.li4": "<strong>DSP:</strong> cada um desses blocos conta 1% a mais para o limite de DSP, seja qual for o ajuste dos controles. Um preset que já está no limite com um desses blocos pode não carregar.",
-    "distortion-crossover.li5": "<strong>Presets</strong> salvos antes soam como antes: os novos controles começam nos valores padrão. O HX Edit não mostra os novos controles, pois tem sua própria lista dos controles de cada bloco; abrir no firmware original um preset salvo com eles ainda não foi testado.",
+    "distortion-crossover.li5": "<strong>Presets</strong> salvos antes soam como antes: os novos controles começam nos valores padrão. O HX Edit instalado não mostra os novos controles e suas exportações os perdem, pois tem sua própria lista dos controles de cada bloco; uma <a href=\"#hx-edit\">cópia com patch</a> os mostra e os mantém. Abrir no firmware original um preset salvo com eles ainda não foi testado.",
     "distortion-crossover.what1": "A frequência de corte: a distorção ouve a entrada acima dela. Em Off ouve tudo, exatamente como no firmware original.",
     "distortion-crossover.what2": "A entrada limpa na mixagem: em toda a faixa com Mode em Full, abaixo de Frequency em Xover.",
     "distortion-crossover.what3": "A distorção na mixagem.",
@@ -1314,7 +1376,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Um noise gate embutido nos blocos FX Loop e Return, como o do bloco Input, para que um pedal ruidoso no loop não precise de um bloco Noise Gate só para ele (<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). Ele age sobre o que volta do loop, antes do Return level e do Mix do bloco; o sinal seco e o Send não passam pelo gate.",
     "fx-loop-gate.li1": "<strong>DSP:</strong> cada bloco FX Loop e Return custa 0,2% a mais (0,4% em estéreo), com o gate ligado ou desligado. Um preset já no limite com um desses blocos pode não carregar.",
     "fx-loop-gate.li2": "<strong>Blocos estéreo</strong> aplicam o gate em cada lado separadamente, sem vínculo entre eles.",
-    "fx-loop-gate.li3": "<strong>Presets</strong> salvos com o gate guardam os knobs dele. Abrir um desses presets no firmware original, ou no HX Edit, ainda não foi testado.",
+    "fx-loop-gate.li3": "<strong>Presets</strong> salvos com o gate guardam os knobs dele. O HX Edit instalado não os mostra e suas exportações os perdem; uma <a href=\"#hx-edit\">cópia com patch</a> os mostra e os mantém. Abrir um desses presets no firmware original ainda não foi testado.",
     "fx-loop-gate.what1": "Liga o gate. Em Off, o bloco soa como no firmware original.",
     "fx-loop-gate.what2": "Abaixo deste nível, o sinal que volta é silenciado.",
     "fx-loop-gate.what3": "A velocidade com que o gate fecha.",
@@ -1347,7 +1409,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>Experimental:</strong> testado com sinais gravados, ainda não com um instrumento tocado, então pode precisar de ajustes. Só funciona com um cabo na entrada de guitarra do HX Stomp.",
     "gate-sidechain.li1": "<strong>DSP:</strong> cada bloco Noise Gate custa 0.1% a mais (0.2% em estéreo), com Input Sidechain ligado ou não. Um preset que já está no limite com um Noise Gate pode não carregar.",
     "gate-sidechain.li2": "<strong>Threshold</strong> passa a ser comparado com o nível da entrada, então ajuste-o como o gate do bloco Input. O Input Gate do próprio bloco Input pode estar ligado ou desligado.",
-    "gate-sidechain.li3": "<strong>Os presets</strong> salvos com Input Sidechain mantêm o controle. O HX Edit não o mostra, pois tem sua própria lista de controles de cada bloco; abrir um desses presets no firmware original ainda não foi testado.",
+    "gate-sidechain.li3": "<strong>Os presets</strong> salvos com Input Sidechain mantêm o controle. O HX Edit instalado não o mostra e suas exportações o perdem, pois tem sua própria lista de controles de cada bloco; uma <a href=\"#hx-edit\">cópia com patch</a> o mostra e o mantém. Abrir um desses presets no firmware original ainda não foi testado.",
     "gate-sidechain.what1": "Ligado, o gate segue a entrada em vez do sinal que chega ao bloco. Em Off, o bloco funciona como no firmware original.",
     "preset-led-color.p1": "No modo de footswitch Preset, o HX Stomp acende em vermelho o anel do preset atual, com um ícone de footswitch vermelho na tela inicial, e deixa apagados os anéis dos outros dois presets. O HXtra dá a cada preset uma cor própria, da mesma paleta do Tap LED Color.",
     "preset-led-color.li1": "<strong>This Preset</strong> (Global Settings &gt; Displays, página 2) define a cor do preset atual. Salve o preset para mantê-la: a cor fica guardada no próprio preset, então vai junto quando você o move, exporta ou restaura.",
@@ -1395,7 +1457,22 @@ var LANGS = {
     "footer.1": "Gere e instale o HXtra na página de instalação",
     "footer.2": "HXtra no GitHub",
     "doc.title": "Tour pelos recursos do HXtra",
-    "lang": "Idioma"
+    "lang": "Idioma",
+    "hx-edit.name": "HX Edit com os controles do HXtra",
+    "hx-edit.desc": "Uma cópia do HX Edit com patch que mostra os controles que o seu build adiciona e o bloco Metronome, e os mantém ao exportar e importar.",
+    "hx-edit.floc": "Uma cópia do HX Edit no Mac",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, ver <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "O HX Edit conhece os controles de cada bloco pela própria lista, por isso não mostra os que o HXtra adiciona, e suas exportações (<code>.hlx</code>, <code>.hls</code>) os perdem. <code>tools/hxedit_patch.py</code> lê os controles do seu <code>.hxf</code> e os adiciona a uma cópia do HX Edit; o HX Edit instalado fica como está. A cópia mostra os controles do Distortion Crossover, do medidor GR, do gate do FX Loop e do Input Sidechain, lista o Metronome em Looper &gt; Mono, e suas exportações e importações mantêm todos eles.",
+    "hx-edit.li1": "<strong>Só para o seu build:</strong> a cópia corresponde ao <code>.hxf</code> com que recebeu o patch. Rode <code>probe</code> antes de usá-la: um firmware sem os controles do patch descarta o preset inteiro que a cópia envia. Depois de uma atualização do HX Edit ou de um build novo, aplique o patch numa cópia nova.",
+    "hx-edit.li2": "<strong>Mantidos sem o patch:</strong> blocos NAM (o HX Edit os mostra como Xenomorph Fuzz e mantém todos os valores) e footswitches com Tap command.",
+    "hx-edit.li3": "<strong>Perdidos mesmo com o patch:</strong> os snapshots 4–6 e a cor de LED do preset existem só no HX Stomp; exportações, importações e qualquer preset inteiro que o HX Edit grave os deixam de fora.",
+    "hx-edit.li4": "<strong>Você precisa</strong> de um Mac (a cópia é assinada ad hoc com <code>codesign</code>), do HX Edit para o firmware 3.80 (testado com 3.82), de Python 3.10 ou mais novo com <code>msgpack</code> e <code>pyusb</code>, do arquivo de firmware original da Line 6 e do <code>.hxf</code> que você instalou. Testado num HX Stomp com v1.2.1-bass.2.",
+    "hx-edit.li5": "<strong>Guarde a cópia para você:</strong> é o programa da Line 6; cada um aplica o patch no seu.",
+    "hx-edit.what1": "Mostra o que mudaria, não grava nada.",
+    "hx-edit.what2": "Copia o HX Edit e aplica o patch na cópia, remove a marca de quarentena e a assina ad hoc. Recusa o HX Edit instalado e uma cópia com patch para outro build.",
+    "hx-edit.what3": "Confere a cópia com o build; só lê.",
+    "hx-edit.what4": "Confere por USB, com o HX Edit fechado, que o HX Stomp roda o build para o qual a cópia recebeu o patch.",
+    "th.command": "Comando"
   },
   "fr": {
     "title": "Visite des fonctions",
@@ -1430,7 +1507,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong> (Volume sur certains blocs) règle le volume de tout le bloc, signal sec compris ; Wet Level et Dry Level règlent l'équilibre entre les deux.",
     "distortion-crossover.li3": "<strong>−60 dB n'est pas tout à fait coupé :</strong> avec Wet Level à −60 dB, un bloc à fort gain peut rester faiblement audible.",
     "distortion-crossover.li4": "<strong>DSP :</strong> chacun de ces blocs compte 1 % de plus dans la limite de DSP, quels que soient ses réglages. Un preset déjà à la limite avec un tel bloc risque de ne pas se charger.",
-    "distortion-crossover.li5": "<strong>Les presets</strong> enregistrés avant sonnent comme avant : les nouveaux réglages démarrent à leurs valeurs par défaut. HX Edit n'affiche pas les nouveaux réglages, car il a sa propre liste des réglages de chaque bloc ; ouvrir avec le firmware d'origine un preset enregistré avec eux n'est pas encore testé.",
+    "distortion-crossover.li5": "<strong>Les presets</strong> enregistrés avant sonnent comme avant : les nouveaux réglages démarrent à leurs valeurs par défaut. Le HX Edit installé n'affiche pas les nouveaux réglages et ses exports les perdent, car il a sa propre liste des réglages de chaque bloc ; une <a href=\"#hx-edit\">copie patchée</a> les affiche et les conserve. Ouvrir avec le firmware d'origine un preset enregistré avec eux n'est pas encore testé.",
     "distortion-crossover.what1": "La fréquence de coupure : la distorsion entend l'entrée au-dessus. Sur Off, elle l'entend en entier, exactement comme avec le firmware d'origine.",
     "distortion-crossover.what2": "L'entrée claire dans le mélange : sur toute la bande avec Mode sur Full, sous Frequency sur Xover.",
     "distortion-crossover.what3": "La distorsion dans le mélange.",
@@ -1549,7 +1626,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Un noise gate intégré aux blocs FX Loop et Return, comme celui du bloc Input : une pédale bruyante dans la boucle n'a plus besoin de son propre bloc Noise Gate (<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). Il agit sur ce qui revient de la boucle, avant le niveau Return et le Mix du bloc ; le signal sec et le Send ne passent pas par le gate.",
     "fx-loop-gate.li1": "<strong>DSP :</strong> chaque bloc FX Loop et Return coûte 0,2 % de plus (0,4 % en stéréo), que son gate soit activé ou non. Un preset déjà à la limite avec l'un de ces blocs peut ne pas se charger.",
     "fx-loop-gate.li2": "<strong>Les blocs stéréo</strong> traitent chaque côté séparément, sans les lier.",
-    "fx-loop-gate.li3": "<strong>Les presets</strong> enregistrés avec le gate conservent ses potentiomètres. L'ouverture d'un tel preset sur le firmware d'origine, ou dans HX Edit, n'a pas encore été testée.",
+    "fx-loop-gate.li3": "<strong>Les presets</strong> enregistrés avec le gate conservent ses potentiomètres. Le HX Edit installé ne les affiche pas et ses exports les perdent ; une <a href=\"#hx-edit\">copie patchée</a> les affiche et les conserve. L'ouverture d'un tel preset sur le firmware d'origine n'a pas encore été testée.",
     "fx-loop-gate.what1": "Active le gate. Sur Off, le bloc sonne comme sur le firmware d'origine.",
     "fx-loop-gate.what2": "Sous ce niveau, le signal de retour est coupé.",
     "fx-loop-gate.what3": "La vitesse de fermeture du gate.",
@@ -1582,7 +1659,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>Expérimental :</strong> testé avec des signaux enregistrés, pas encore avec un instrument joué, il peut donc demander des réglages. Ne fonctionne qu'avec un câble dans l'entrée guitare du HX Stomp.",
     "gate-sidechain.li1": "<strong>DSP :</strong> chaque bloc Noise Gate coûte 0.1 % de plus (0.2 % en stéréo), qu'Input Sidechain soit activé ou non. Un preset déjà à la limite avec un Noise Gate risque de ne pas se charger.",
     "gate-sidechain.li2": "<strong>Threshold</strong> est alors comparé au niveau de l'entrée : règle-le comme le gate du bloc Input. L'Input Gate du bloc Input peut être activé ou non.",
-    "gate-sidechain.li3": "<strong>Les presets</strong> enregistrés avec Input Sidechain gardent le réglage. HX Edit ne l'affiche pas, car il a sa propre liste des réglages de chaque bloc ; ouvrir un tel preset avec le firmware d'origine n'est pas encore testé.",
+    "gate-sidechain.li3": "<strong>Les presets</strong> enregistrés avec Input Sidechain gardent le réglage. Le HX Edit installé ne l'affiche pas et ses exports le perdent, car il a sa propre liste des réglages de chaque bloc ; une <a href=\"#hx-edit\">copie patchée</a> l'affiche et le conserve. Ouvrir un tel preset avec le firmware d'origine n'est pas encore testé.",
     "gate-sidechain.what1": "Activé, le gate suit l'entrée plutôt que le signal qui arrive au bloc. Sur Off, le bloc fonctionne comme avec le firmware d'origine.",
     "preset-led-color.p1": "En mode de footswitch Preset, le HX Stomp allume en rouge l'anneau du preset en cours, avec une icône de footswitch rouge sur l'écran d'accueil, et laisse éteints les anneaux des deux autres presets. HXtra donne à chaque preset sa propre couleur, issue de la même palette que Tap LED Color.",
     "preset-led-color.li1": "<strong>This Preset</strong> (Global Settings &gt; Displays, page 2) règle la couleur du preset en cours. Enregistrez le preset pour la conserver : la couleur est stockée dans le preset lui-même, elle le suit donc quand vous le déplacez, l'exportez ou le restaurez.",
@@ -1630,7 +1707,22 @@ var LANGS = {
     "footer.1": "Créer et installer HXtra sur la page d'installation",
     "footer.2": "HXtra sur GitHub",
     "doc.title": "Visite des fonctions HXtra",
-    "lang": "Langue"
+    "lang": "Langue",
+    "hx-edit.name": "HX Edit avec les réglages HXtra",
+    "hx-edit.desc": "Une copie patchée de HX Edit qui affiche les réglages ajoutés par votre build et le bloc Metronome, et les conserve à l'export et à l'import.",
+    "hx-edit.floc": "Une copie de HX Edit sur le Mac",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, voir <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "HX Edit connaît les réglages de chaque bloc par sa propre liste : il n'affiche donc pas ceux qu'ajoute HXtra, et ses exports (<code>.hlx</code>, <code>.hls</code>) les perdent. <code>tools/hxedit_patch.py</code> lit les réglages dans votre <code>.hxf</code> et les ajoute à une copie de HX Edit ; le HX Edit installé reste tel quel. La copie affiche les réglages de Distortion Crossover, de l'indicateur GR, du gate du FX Loop et d'Input Sidechain, range le Metronome sous Looper &gt; Mono, et ses exports et imports les conservent tous.",
+    "hx-edit.li1": "<strong>Pour votre build seulement :</strong> la copie correspond au <code>.hxf</code> pour lequel elle a été patchée. Lancez <code>probe</code> avant de l'utiliser : un firmware sans les réglages patchés rejette tout le preset envoyé par la copie. Après une mise à jour de HX Edit ou un nouveau build, patchez une nouvelle copie.",
+    "hx-edit.li2": "<strong>Conservés sans le patch :</strong> les blocs NAM (HX Edit les affiche comme Xenomorph Fuzz et garde chaque valeur) et les footswitches avec Tap command.",
+    "hx-edit.li3": "<strong>Perdus même avec le patch :</strong> les snapshots 4–6 et la couleur LED du preset n'existent que sur le HX Stomp ; les exports, les imports et tout preset complet écrit par HX Edit les omettent.",
+    "hx-edit.li4": "<strong>Il vous faut</strong> un Mac (la copie est signée ad hoc avec <code>codesign</code>), HX Edit pour le firmware 3.80 (testé avec 3.82), Python 3.10 ou plus récent avec <code>msgpack</code> et <code>pyusb</code>, le fichier de firmware d'origine de Line 6 et le <code>.hxf</code> que vous avez installé. Testé sur un HX Stomp avec v1.2.1-bass.2.",
+    "hx-edit.li5": "<strong>Gardez la copie pour vous :</strong> c'est le programme de Line 6 ; chacun patche le sien.",
+    "hx-edit.what1": "Affiche ce qui changerait, n'écrit rien.",
+    "hx-edit.what2": "Copie HX Edit et patche la copie, lui retire l'attribut de quarantaine et la signe ad hoc. Refuse le HX Edit installé et une copie patchée pour un autre build.",
+    "hx-edit.what3": "Vérifie la copie par rapport au build ; lecture seule.",
+    "hx-edit.what4": "Vérifie par USB, HX Edit fermé, que le HX Stomp exécute le build pour lequel la copie a été patchée.",
+    "th.command": "Commande"
   },
   "de": {
     "title": "Funktionsübersicht",
@@ -1665,7 +1757,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong> (bei manchen Blöcken Volume) stellt die Lautstärke des ganzen Blocks ein, das Dry-Signal eingeschlossen; Wet Level und Dry Level stellen das Verhältnis der beiden ein.",
     "distortion-crossover.li3": "<strong>−60 dB ist nicht ganz aus:</strong> Mit Wet Level auf −60 dB kann ein High-Gain-Block leise hörbar bleiben.",
     "distortion-crossover.li4": "<strong>DSP:</strong> Jeder dieser Blöcke kostet 1 % mehr, egal wie seine Regler stehen. Ein Preset, das mit einem solchen Block schon am Limit ist, lädt dann vielleicht nicht.",
-    "distortion-crossover.li5": "<strong>Presets</strong>, die vorher gespeichert wurden, klingen wie vorher: Die neuen Regler beginnen auf ihren Startwerten. HX Edit zeigt die neuen Regler nicht an, da es eine eigene Liste der Regler jedes Blocks hat; ein Preset, das mit ihnen gespeichert ist, mit der Original-Firmware zu öffnen, ist noch nicht getestet.",
+    "distortion-crossover.li5": "<strong>Presets</strong>, die vorher gespeichert wurden, klingen wie vorher: Die neuen Regler beginnen auf ihren Startwerten. Das installierte HX Edit zeigt die neuen Regler nicht an, und seine Exporte verlieren sie, da es eine eigene Liste der Regler jedes Blocks hat; eine <a href=\"#hx-edit\">gepatchte Kopie</a> zeigt und behält sie. Ein Preset, das mit ihnen gespeichert ist, mit der Original-Firmware zu öffnen, ist noch nicht getestet.",
     "distortion-crossover.what1": "Die Trennfrequenz: Die Verzerrung hört den Eingang oberhalb davon. Bei Off hört sie alles, genau wie mit der Original-Firmware.",
     "distortion-crossover.what2": "Der cleane Eingang in der Mischung: im vollen Bereich mit Mode auf Full, unterhalb von Frequency auf Xover.",
     "distortion-crossover.what3": "Die Verzerrung in der Mischung.",
@@ -1784,7 +1876,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Ein Noise Gate, eingebaut in die Blöcke FX Loop und Return, wie es auch der Input-Block hat, damit ein rauschendes Pedal im Loop keinen eigenen Noise-Gate-Block braucht (<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). Es wirkt auf das, was aus dem Loop zurückkommt, vor Return-Pegel und Mix des Blocks; das trockene Signal und der Send werden nicht gegated.",
     "fx-loop-gate.li1": "<strong>DSP:</strong> Jeder FX-Loop- und Return-Block kostet 0,2 % mehr (0,4 % in Stereo), ob sein Gate an oder aus ist. Ein Preset, das mit einem dieser Blöcke schon am Limit ist, lädt eventuell nicht.",
     "fx-loop-gate.li2": "<strong>Stereo-Blöcke</strong> gaten jede Seite für sich, nicht gekoppelt.",
-    "fx-loop-gate.li3": "<strong>Presets</strong>, die mit dem Gate gespeichert wurden, behalten dessen Regler. Wie sich ein solches Preset mit Original-Firmware oder in HX Edit öffnet, ist noch nicht getestet.",
+    "fx-loop-gate.li3": "<strong>Presets</strong>, die mit dem Gate gespeichert wurden, behalten dessen Regler. Das installierte HX Edit zeigt sie nicht an, und seine Exporte verlieren sie; eine <a href=\"#hx-edit\">gepatchte Kopie</a> zeigt und behält sie. Wie sich ein solches Preset mit Original-Firmware öffnet, ist noch nicht getestet.",
     "fx-loop-gate.what1": "Schaltet das Gate ein. Auf Off klingt der Block wie mit Original-Firmware.",
     "fx-loop-gate.what2": "Unterhalb dieses Pegels wird das zurückkommende Signal stummgeschaltet.",
     "fx-loop-gate.what3": "Wie schnell das Gate schließt.",
@@ -1817,7 +1909,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>Experimentell:</strong> mit aufgenommenen Signalen getestet, noch nicht mit einem gespielten Instrument, braucht also eventuell Feinschliff. Funktioniert nur mit einem Kabel im Gitarreneingang des HX Stomp.",
     "gate-sidechain.li1": "<strong>DSP:</strong> Jeder Noise-Gate-Block kostet 0.1 % mehr (0.2 % in Stereo), ob Input Sidechain an ist oder nicht. Ein Preset, das mit einem Noise Gate schon am Limit ist, lädt dann vielleicht nicht.",
     "gate-sidechain.li2": "<strong>Threshold</strong> wird dann mit dem Pegel am Eingang verglichen; stell ihn also ein wie beim Gate des Input-Blocks. Das Input Gate des Input-Blocks selbst kann an oder aus sein.",
-    "gate-sidechain.li3": "<strong>Presets</strong>, die mit Input Sidechain gespeichert sind, behalten den Regler. HX Edit zeigt ihn nicht an, da es eine eigene Liste der Regler jedes Blocks hat; ein solches Preset mit der Original-Firmware zu öffnen, ist noch nicht getestet.",
+    "gate-sidechain.li3": "<strong>Presets</strong>, die mit Input Sidechain gespeichert sind, behalten den Regler. Das installierte HX Edit zeigt ihn nicht an, und seine Exporte verlieren ihn, da es eine eigene Liste der Regler jedes Blocks hat; eine <a href=\"#hx-edit\">gepatchte Kopie</a> zeigt und behält ihn. Ein solches Preset mit der Original-Firmware zu öffnen, ist noch nicht getestet.",
     "gate-sidechain.what1": "An folgt das Gate dem Eingang statt dem Signal, das beim Block ankommt. Auf Off arbeitet der Block wie mit der Original-Firmware.",
     "preset-led-color.p1": "Im Fußschaltermodus Preset lässt der HX Stomp den Ring des aktuellen Presets rot leuchten, mit einem roten Schaltersymbol auf dem Home-Bildschirm, und die Ringe der beiden anderen Presets bleiben aus. HXtra gibt jedem Preset eine eigene Farbe, aus derselben Palette wie Tap LED Color.",
     "preset-led-color.li1": "<strong>This Preset</strong> (Global Settings &gt; Displays, Seite 2) legt die Farbe des aktuellen Presets fest. Speichere das Preset, um sie zu behalten: Die Farbe steckt im Preset selbst und geht also mit, wenn du es verschiebst, exportierst oder wiederherstellst.",
@@ -1865,7 +1957,22 @@ var LANGS = {
     "footer.1": "HXtra auf der Einrichtungsseite bauen und installieren",
     "footer.2": "HXtra auf GitHub",
     "doc.title": "HXtra Funktionsübersicht",
-    "lang": "Sprache"
+    "lang": "Sprache",
+    "hx-edit.name": "HX Edit mit HXtra-Reglern",
+    "hx-edit.desc": "Eine gepatchte Kopie von HX Edit, die die Regler deines Builds und den Metronome-Block zeigt und sie beim Export und Import behält.",
+    "hx-edit.floc": "Eine Kopie von HX Edit auf dem Mac",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, siehe <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "HX Edit kennt die Regler jedes Blocks aus einer eigenen Liste. Deshalb zeigt es die Regler nicht, die HXtra hinzufügt, und seine Exporte (<code>.hlx</code>, <code>.hls</code>) verlieren sie. <code>tools/hxedit_patch.py</code> liest die Regler aus deiner <code>.hxf</code> und fügt sie einer Kopie von HX Edit hinzu; das installierte HX Edit bleibt, wie es ist. Die Kopie zeigt die Regler von Distortion Crossover, GR-Anzeige, FX-Loop-Gate und Input Sidechain, führt das Metronome unter Looper &gt; Mono, und ihre Exporte und Importe behalten sie alle.",
+    "hx-edit.li1": "<strong>Nur für deinen Build:</strong> Die Kopie passt zu der <code>.hxf</code>, für die sie gepatcht wurde. Vor dem Einsatz <code>probe</code> laufen lassen: Eine Firmware ohne die gepatchten Regler verwirft ein ganzes Preset, das die Kopie schickt. Nach einem HX-Edit-Update oder einem neuen Build eine neue Kopie patchen.",
+    "hx-edit.li2": "<strong>Bleibt auch ohne Patch erhalten:</strong> NAM-Blöcke (HX Edit zeigt sie als Xenomorph Fuzz und behält jeden Wert) und Fußschalter mit Tap command.",
+    "hx-edit.li3": "<strong>Geht auch mit Patch verloren:</strong> Snapshots 4–6 und die LED-Farbe des Presets gibt es nur auf dem HX Stomp; Exporte, Importe und jedes ganze Preset, das HX Edit schreibt, lassen sie weg.",
+    "hx-edit.li4": "<strong>Du brauchst</strong> einen Mac (die Kopie wird ad hoc mit <code>codesign</code> signiert), HX Edit für Firmware 3.80 (getestet mit 3.82), Python 3.10 oder neuer mit <code>msgpack</code> und <code>pyusb</code>, die Original-Firmware-Datei von Line 6 und die <code>.hxf</code>, die du installiert hast. Getestet auf einem HX Stomp mit v1.2.1-bass.2.",
+    "hx-edit.li5": "<strong>Die Kopie nicht weitergeben:</strong> Sie ist das Programm von Line 6; jede:r patcht die eigene.",
+    "hx-edit.what1": "Zeigt, was sich ändern würde, schreibt nichts.",
+    "hx-edit.what2": "Kopiert HX Edit und patcht die Kopie, entfernt ihr Quarantäne-Attribut und signiert sie ad hoc. Verweigert das installierte HX Edit und eine Kopie, die für einen anderen Build gepatcht ist.",
+    "hx-edit.what3": "Prüft die Kopie gegen den Build; liest nur.",
+    "hx-edit.what4": "Prüft per USB, bei geschlossenem HX Edit, dass auf dem HX Stomp der Build läuft, für den die Kopie gepatcht wurde.",
+    "th.command": "Befehl"
   },
   "it": {
     "title": "Tour delle funzioni",
@@ -1900,7 +2007,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong> (Volume su alcuni blocchi) regola il volume dell'intero blocco, segnale dry compreso; Wet Level e Dry Level regolano l'equilibrio tra i due.",
     "distortion-crossover.li3": "<strong>−60 dB non è del tutto spento:</strong> con Wet Level a −60 dB un blocco ad alto guadagno può restare appena udibile.",
     "distortion-crossover.li4": "<strong>DSP:</strong> ognuno di questi blocchi conta l'1% in più verso il limite di DSP, comunque siano regolati i controlli. Un preset già al limite con uno di questi blocchi potrebbe non caricarsi.",
-    "distortion-crossover.li5": "<strong>I preset</strong> salvati prima suonano come prima: i nuovi controlli partono dai valori predefiniti. HX Edit non mostra i nuovi controlli, perché ha un proprio elenco dei controlli di ogni blocco; aprire con il firmware originale un preset salvato con essi non è ancora stato provato.",
+    "distortion-crossover.li5": "<strong>I preset</strong> salvati prima suonano come prima: i nuovi controlli partono dai valori predefiniti. L'HX Edit installato non mostra i nuovi controlli e le sue esportazioni li perdono, perché ha un proprio elenco dei controlli di ogni blocco; una <a href=\"#hx-edit\">copia patchata</a> li mostra e li conserva. Aprire con il firmware originale un preset salvato con essi non è ancora stato provato.",
     "distortion-crossover.what1": "La frequenza di crossover: la distorsione sente l'ingresso sopra di essa. Su Off lo sente tutto, esattamente come con il firmware originale.",
     "distortion-crossover.what2": "L'ingresso pulito nel mix: a banda intera con Mode su Full, sotto Frequency su Xover.",
     "distortion-crossover.what3": "La distorsione nel mix.",
@@ -2019,7 +2126,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Un noise gate integrato nei blocchi FX Loop e Return, come quello del blocco Input, così un pedale rumoroso nel loop non richiede un blocco Noise Gate a parte (<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). Agisce su ciò che torna dal loop, prima del livello Return e del Mix del blocco; il segnale dry e il Send non passano dal gate.",
     "fx-loop-gate.li1": "<strong>DSP:</strong> ogni blocco FX Loop e Return costa lo 0.2% in più (0.4% in stereo), che il gate sia acceso o spento. Un preset già al limite con uno di questi blocchi potrebbe non caricarsi.",
     "fx-loop-gate.li2": "<strong>I blocchi stereo</strong> applicano il gate a ciascun lato separatamente, senza collegarli.",
-    "fx-loop-gate.li3": "<strong>I preset</strong> salvati con il gate ne conservano le manopole. L'apertura di un preset del genere con il firmware originale, o in HX Edit, non è ancora stata testata.",
+    "fx-loop-gate.li3": "<strong>I preset</strong> salvati con il gate ne conservano le manopole. L'HX Edit installato non le mostra e le sue esportazioni le perdono; una <a href=\"#hx-edit\">copia patchata</a> le mostra e le conserva. L'apertura di un preset del genere con il firmware originale non è ancora stata testata.",
     "fx-loop-gate.what1": "Attiva il gate. Su Off, il blocco suona come con il firmware originale.",
     "fx-loop-gate.what2": "Sotto questo livello il segnale di ritorno viene silenziato.",
     "fx-loop-gate.what3": "Quanto velocemente si chiude il gate.",
@@ -2052,7 +2159,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>Sperimentale:</strong> provato con segnali registrati, non ancora con uno strumento suonato, quindi potrebbe richiedere qualche ritocco. Funziona solo con un cavo nell'ingresso chitarra dell'HX Stomp.",
     "gate-sidechain.li1": "<strong>DSP:</strong> ogni blocco Noise Gate costa lo 0.1% in più (0.2% in stereo), con Input Sidechain attivo o no. Un preset già al limite con un Noise Gate potrebbe non caricarsi.",
     "gate-sidechain.li2": "<strong>Threshold</strong> viene allora confrontato con il livello dell'ingresso: regolalo come il gate del blocco Input. L'Input Gate del blocco Input può essere attivo o no.",
-    "gate-sidechain.li3": "<strong>I preset</strong> salvati con Input Sidechain mantengono il controllo. HX Edit non lo mostra, perché ha un proprio elenco dei controlli di ogni blocco; aprire uno di questi preset con il firmware originale non è ancora stato provato.",
+    "gate-sidechain.li3": "<strong>I preset</strong> salvati con Input Sidechain mantengono il controllo. L'HX Edit installato non lo mostra e le sue esportazioni lo perdono, perché ha un proprio elenco dei controlli di ogni blocco; una <a href=\"#hx-edit\">copia patchata</a> lo mostra e lo conserva. Aprire uno di questi preset con il firmware originale non è ancora stato provato.",
     "gate-sidechain.what1": "Attivo, il gate segue l'ingresso invece del segnale che arriva al blocco. Su Off, il blocco funziona come con il firmware originale.",
     "preset-led-color.p1": "In modalità footswitch Preset l'HX Stomp accende in rosso l'anello del preset corrente, con un'icona dell'interruttore rossa nella schermata Home, e lascia spenti gli anelli degli altri due preset. HXtra dà a ogni preset un colore suo, dalla stessa tavolozza di Tap LED Color.",
     "preset-led-color.li1": "<strong>This Preset</strong> (Global Settings &gt; Displays, pagina 2) imposta il colore del preset corrente. Salva il preset per conservarlo: il colore è memorizzato nel preset stesso, quindi lo segue quando lo sposti, lo esporti o lo ripristini.",
@@ -2100,7 +2207,22 @@ var LANGS = {
     "footer.1": "Crea e installa HXtra dalla pagina di installazione",
     "footer.2": "HXtra su GitHub",
     "doc.title": "Tour delle funzioni di HXtra",
-    "lang": "Lingua"
+    "lang": "Lingua",
+    "hx-edit.name": "HX Edit con i controlli di HXtra",
+    "hx-edit.desc": "Una copia patchata di HX Edit che mostra i controlli aggiunti dalla tua build e il blocco Metronome, e li conserva in esportazione e importazione.",
+    "hx-edit.floc": "Una copia di HX Edit sul Mac",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, vedi <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "HX Edit conosce i controlli di ogni blocco da un proprio elenco, quindi non mostra quelli che aggiunge HXtra, e le sue esportazioni (<code>.hlx</code>, <code>.hls</code>) li perdono. <code>tools/hxedit_patch.py</code> legge i controlli dal tuo <code>.hxf</code> e li aggiunge a una copia di HX Edit; l'HX Edit installato resta com'è. La copia mostra i controlli di Distortion Crossover, misuratore GR, gate del FX Loop e Input Sidechain, elenca il Metronome sotto Looper &gt; Mono, e le sue esportazioni e importazioni li conservano tutti.",
+    "hx-edit.li1": "<strong>Solo per la tua build:</strong> la copia corrisponde al <code>.hxf</code> per cui è stata patchata. Esegui <code>probe</code> prima di usarla: un firmware senza i controlli patchati scarta l'intero preset inviato dalla copia. Dopo un aggiornamento di HX Edit o una nuova build, patcha una nuova copia.",
+    "hx-edit.li2": "<strong>Conservati anche senza patch:</strong> i blocchi NAM (HX Edit li mostra come Xenomorph Fuzz e conserva ogni valore) e i footswitch con Tap command.",
+    "hx-edit.li3": "<strong>Persi anche con la patch:</strong> gli snapshot 4–6 e il colore LED del preset esistono solo sull'HX Stomp; esportazioni, importazioni e qualsiasi preset completo scritto da HX Edit li tralasciano.",
+    "hx-edit.li4": "<strong>Ti servono</strong> un Mac (la copia viene firmata ad hoc con <code>codesign</code>), HX Edit per il firmware 3.80 (provato con 3.82), Python 3.10 o più recente con <code>msgpack</code> e <code>pyusb</code>, il file del firmware originale di Line 6 e il <code>.hxf</code> che hai installato. Provato su un HX Stomp con v1.2.1-bass.2.",
+    "hx-edit.li5": "<strong>Tieni la copia per te:</strong> è il programma di Line 6; ognuno patcha la propria.",
+    "hx-edit.what1": "Mostra cosa cambierebbe, non scrive nulla.",
+    "hx-edit.what2": "Copia HX Edit e patcha la copia, ne rimuove l'attributo di quarantena e la firma ad hoc. Rifiuta l'HX Edit installato e una copia patchata per un'altra build.",
+    "hx-edit.what3": "Controlla la copia rispetto alla build; legge soltanto.",
+    "hx-edit.what4": "Controlla via USB, con HX Edit chiuso, che l'HX Stomp esegua la build per cui la copia è stata patchata.",
+    "th.command": "Comando"
   },
   "ja": {
     "title": "機能ツアー",
@@ -2135,7 +2257,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong>（一部のブロックでは Volume）はドライ信号も含めたブロック全体の音量を決めます。Wet Level と Dry Level は両者のバランスを決めます。",
     "distortion-crossover.li3": "<strong>−60 dB は完全なオフではありません：</strong>Wet Level が −60 dB でも、ハイゲインのブロックはかすかに聞こえることがあります。",
     "distortion-crossover.li4": "<strong>DSP：</strong>これらのブロックはノブの設定にかかわらず、それぞれ DSP の上限に対して 1% 多く数えられます。こうしたブロックを含みすでに上限に達しているプリセットは、読み込めないことがあります。",
-    "distortion-crossover.li5": "以前に保存した<strong>プリセット</strong>は以前と同じ音です。新しいノブは初期値から始まります。HX Edit は各ブロックのノブの一覧を独自に持っているため、新しいノブは表示されません。新しいノブ付きで保存したプリセットを純正ファームウェアで開くことは、まだテストしていません。",
+    "distortion-crossover.li5": "以前に保存した<strong>プリセット</strong>は以前と同じ音です。新しいノブは初期値から始まります。インストール済みの HX Edit は各ブロックのノブの一覧を独自に持っているため、新しいノブを表示せず、エクスポートでも失われます。<a href=\"#hx-edit\">パッチを当てたコピー</a>なら表示され、保持されます。新しいノブ付きで保存したプリセットを純正ファームウェアで開くことは、まだテストしていません。",
     "distortion-crossover.what1": "クロスオーバー周波数：歪みはこれより上の入力を受けます。Off ではすべてを受け、純正ファームウェアとまったく同じです。",
     "distortion-crossover.what2": "ミックス内のクリーンな入力：Mode が Full なら全帯域、Xover なら Frequency より下。",
     "distortion-crossover.what3": "ミックス内の歪み。",
@@ -2254,7 +2376,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Input ブロックと同じように、FX Loop と Return ブロックにノイズゲートを内蔵します。ループ内のノイズの多いペダルのために専用の Noise Gate ブロックを使わずに済みます（<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>）。ゲートはループから戻る信号に、ブロックの Return レベルと Mix の前でかかります。ドライ信号と Send にはかかりません。",
     "fx-loop-gate.li1": "<strong>DSP：</strong>FX Loop と Return ブロックは、ゲートのオン・オフにかかわらず、それぞれ0.2%（ステレオは 0.4%）多く DSP を使います。これらのブロックを含み、すでに上限に近いプリセットは読み込めないことがあります。",
     "fx-loop-gate.li2": "<strong>ステレオ・ブロック</strong>は左右を連動させず、それぞれ個別にゲートします。",
-    "fx-loop-gate.li3": "ゲートとともに保存した<strong>プリセット</strong>は、そのノブの値を保持します。そのようなプリセットを純正ファームウェアや HX Edit で開いた場合の動作は、まだテストしていません。",
+    "fx-loop-gate.li3": "ゲートとともに保存した<strong>プリセット</strong>は、そのノブの値を保持します。インストール済みの HX Edit はこれらのノブを表示せず、エクスポートでも失われます。<a href=\"#hx-edit\">パッチを当てたコピー</a>なら表示され、保持されます。そのようなプリセットを純正ファームウェアで開いた場合の動作は、まだテストしていません。",
     "fx-loop-gate.what1": "ゲートをオンにします。Off では純正ファームウェアと同じ音になります。",
     "fx-loop-gate.what2": "このレベルを下回ると、戻ってきた信号がミュートされます。",
     "fx-loop-gate.what3": "ゲートが閉じる速さ。",
@@ -2287,7 +2409,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>試験的機能：</strong>録音した信号でテスト済みですが、実際に演奏した楽器ではまだ試していないため、調整が必要になるかもしれません。HX Stomp のギター入力にケーブルが挿さっているときだけ動作します。",
     "gate-sidechain.li1": "<strong>DSP：</strong>Input Sidechain の On／Off にかかわらず、Noise Gate ブロックはそれぞれ0.1%（ステレオは 0.2%）多く使います。Noise Gate を含んで上限に達しているプリセットは読み込めないことがあります。",
     "gate-sidechain.li2": "<strong>Threshold</strong> は入力のレベルと比べられるので、Input ブロックのゲートと同じように設定してください。Input ブロック自体の Input Gate は On でも Off でもかまいません。",
-    "gate-sidechain.li3": "Input Sidechain を使って保存した<strong>プリセット</strong>はノブの設定を保持します。HX Edit は各ブロックのノブの一覧を独自に持っているため、このノブを表示しません。そのプリセットを純正ファームウェアで開くことはまだテストしていません。",
+    "gate-sidechain.li3": "Input Sidechain を使って保存した<strong>プリセット</strong>はノブの設定を保持します。インストール済みの HX Edit は各ブロックのノブの一覧を独自に持っているため、このノブを表示せず、エクスポートでも失われます。<a href=\"#hx-edit\">パッチを当てたコピー</a>なら表示され、保持されます。そのプリセットを純正ファームウェアで開くことはまだテストしていません。",
     "gate-sidechain.what1": "On でゲートはブロックに届く信号ではなく入力に追従します。Off では純正ファームウェアと同じように動作します。",
     "preset-led-color.p1": "Preset フットスイッチ・モードでは、HX Stomp は現在のプリセットのリングを赤く点灯し、ホーム画面に赤いスイッチ・アイコンを表示して、ほかの 2 つのプリセットのリングは消灯します。HXtra では、Tap LED Color と同じパレットから、プリセットごとに独自の色を付けられます。",
     "preset-led-color.li1": "<strong>This Preset</strong>（Global Settings &gt; Displays、2 ページ目）で現在のプリセットの色を設定します。色を残すにはプリセットを保存してください。色はプリセット自体に保存されるので、移動、エクスポート、復元してもプリセットと一緒に引き継がれます。",
@@ -2335,7 +2457,22 @@ var LANGS = {
     "footer.1": "セットアップページで HXtra をビルドしてインストール",
     "footer.2": "GitHub の HXtra",
     "doc.title": "HXtra 機能ツアー",
-    "lang": "言語"
+    "lang": "言語",
+    "hx-edit.name": "HXtra のノブに対応した HX Edit",
+    "hx-edit.desc": "ビルドが追加するノブと Metronome ブロックを表示し、エクスポートとインポートで保持する、パッチを当てた HX Edit のコピー。",
+    "hx-edit.floc": "Mac 上の HX Edit のコピー",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>、<a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a> を参照",
+    "hx-edit.p1": "HX Edit は各ブロックのノブを独自の一覧で把握しているため、HXtra が追加するノブを表示せず、エクスポート（<code>.hlx</code>、<code>.hls</code>）でも失われます。<code>tools/hxedit_patch.py</code> はお使いの <code>.hxf</code> からノブを読み取り、HX Edit のコピーに追加します。インストール済みの HX Edit はそのままです。コピーは Distortion Crossover、GR メーター、FX Loop ゲート、Input Sidechain のノブを表示し、Metronome を Looper &gt; Mono に並べ、エクスポートとインポートでそれらをすべて保持します。",
+    "hx-edit.li1": "<strong>お使いのビルド専用：</strong>コピーはパッチの元になった <code>.hxf</code> に対応します。使う前に <code>probe</code> を実行してください。パッチしたノブを持たないファームウェアは、コピーが送ったプリセットを丸ごと破棄します。HX Edit の更新後や新しいビルドでは、新しいコピーにパッチを当ててください。",
+    "hx-edit.li2": "<strong>パッチなしでも保持されるもの：</strong>NAM ブロック（HX Edit は Xenomorph Fuzz として表示し、すべての値を保持）と Tap command のフットスイッチ。",
+    "hx-edit.li3": "<strong>パッチがあっても失われるもの：</strong>スナップショット 4–6 とプリセットの LED カラーは HX Stomp 上にしかなく、エクスポート、インポート、HX Edit が書き込むプリセット全体には含まれません。",
+    "hx-edit.li4": "<strong>必要なもの：</strong>Mac（コピーは <code>codesign</code> でアドホック署名します）、ファームウェア 3.80 用の HX Edit（3.82 でテスト）、<code>msgpack</code> と <code>pyusb</code> を入れた Python 3.10 以降、Line 6 の純正ファームウェアファイル、インストールした <code>.hxf</code>。v1.2.1-bass.2 の HX Stomp で動作確認済み。",
+    "hx-edit.li5": "<strong>コピーは自分だけで使ってください：</strong>Line 6 のプログラムなので、各自が自分の HX Edit にパッチを当てます。",
+    "hx-edit.what1": "何が変わるかを表示し、何も書き込みません。",
+    "hx-edit.what2": "HX Edit をコピーしてコピーにパッチを当て、検疫属性を外してアドホック署名します。インストール済みの HX Edit や、別のビルド用にパッチしたコピーは拒否します。",
+    "hx-edit.what3": "コピーをビルドと照合します。読み取りのみ。",
+    "hx-edit.what4": "HX Edit を閉じた状態で USB 経由で、HX Stomp がコピーのパッチ元のビルドを実行しているかを確認します。",
+    "th.command": "コマンド"
   },
   "zh": {
     "title": "功能导览",
@@ -2370,7 +2507,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong>（部分模块为 Volume）设定整个模块的音量，包括干信号；Wet Level 和 Dry Level 设定两者之间的比例。",
     "distortion-crossover.li3": "<strong>−60 dB 并非完全关闭：</strong>Wet Level 为 −60 dB 时，高增益模块仍可能隐约可闻。",
     "distortion-crossover.li4": "<strong>DSP：</strong>无论旋钮如何设置，这些模块每个都会多计入 1% 的 DSP 上限。已经接近上限且含有这类模块的预设可能无法加载。",
-    "distortion-crossover.li5": "之前保存的<strong>预设</strong>声音不变：新旋钮从默认值开始。HX Edit 有自己的模块旋钮列表，因此不显示新旋钮；在原厂固件中打开带有它们保存的预设尚未测试。",
+    "distortion-crossover.li5": "之前保存的<strong>预设</strong>声音不变：新旋钮从默认值开始。已安装的 HX Edit 有自己的模块旋钮列表，因此不显示新旋钮，导出时也会丢失它们；<a href=\"#hx-edit\">打过补丁的副本</a>会显示并保留它们。在原厂固件中打开带有它们保存的预设尚未测试。",
     "distortion-crossover.what1": "分频频率：失真听到它以上的输入。Off 时听到全部，与原厂固件完全相同。",
     "distortion-crossover.what2": "混音中的干净输入：Mode 为 Full 时是全频段，为 Xover 时在 Frequency 以下。",
     "distortion-crossover.what3": "混音中的失真。",
@@ -2489,7 +2626,7 @@ var LANGS = {
     "fx-loop-gate.p1": "FX Loop 和 Return 模块内置噪声门，就像 Input 模块那样，因此回路中噪声较大的单块不必再单独占用一个 Noise Gate 模块（<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>）。它处理从回路返回的信号，位于模块的 Return 电平和 Mix 之前；干信号和 Send 不经过噪声门。",
     "fx-loop-gate.li1": "<strong>DSP：</strong>无论噪声门开或关，每个 FX Loop 和 Return 模块都会多占用 0.2%（立体声 0.4%）。已到上限且含有这类模块的预设可能无法载入。",
     "fx-loop-gate.li2": "<strong>立体声模块</strong>的左右两侧各自独立处理，互不联动。",
-    "fx-loop-gate.li3": "<strong>预设</strong>保存时会保留噪声门的旋钮设置。在原厂固件或 HX Edit 中打开这样的预设，尚未经过测试。",
+    "fx-loop-gate.li3": "<strong>预设</strong>保存时会保留噪声门的旋钮设置。已安装的 HX Edit 不显示这些旋钮，导出时也会丢失；<a href=\"#hx-edit\">打过补丁的副本</a>会显示并保留它们。在原厂固件中打开这样的预设，尚未经过测试。",
     "fx-loop-gate.what1": "开启噪声门。设为 Off 时，模块的声音与原厂固件相同。",
     "fx-loop-gate.what2": "返回信号低于此电平时会被静音。",
     "fx-loop-gate.what3": "噪声门关闭的速度。",
@@ -2522,7 +2659,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>实验性功能：</strong>已用录制的信号测试，尚未用实际演奏的乐器测试，可能需要调整。仅在 HX Stomp 的吉他输入插有线缆时有效。",
     "gate-sidechain.li1": "<strong>DSP：</strong>无论 Input Sidechain 是否开启，每个 Noise Gate 模块都会多占用 0.1%（立体声 0.2%）。已经接近上限且含有 Noise Gate 的预设可能无法加载。",
     "gate-sidechain.li2": "<strong>Threshold</strong> 此时与输入电平比较，所以请像设置 Input 模块的噪声门那样设置它。Input 模块自身的 Input Gate 开或关均可。",
-    "gate-sidechain.li3": "使用 Input Sidechain 保存的<strong>预设</strong>会保留该旋钮。HX Edit 有自己的模块旋钮列表，因此不显示它；在原厂固件中打开这类预设尚未测试。",
+    "gate-sidechain.li3": "使用 Input Sidechain 保存的<strong>预设</strong>会保留该旋钮。已安装的 HX Edit 有自己的模块旋钮列表，因此不显示它，导出时也会丢失；<a href=\"#hx-edit\">打过补丁的副本</a>会显示并保留它。在原厂固件中打开这类预设尚未测试。",
     "gate-sidechain.what1": "开启时，噪声门跟随输入信号，而不是送到模块的信号。Off 时，模块与原厂固件相同。",
     "preset-led-color.p1": "在 Preset 脚踏开关模式下，HX Stomp 把当前预设的灯环点亮为红色，主屏幕上的开关图标也是红色，另外两个预设的灯环则熄灭。HXtra 让每个预设拥有自己的颜色，调色板与 Tap LED Color 相同。",
     "preset-led-color.li1": "<strong>This Preset</strong>（Global Settings &gt; Displays，第 2 页）设置当前预设的颜色。保存预设才能保留它：颜色存储在预设本身中，因此移动、导出或恢复预设时颜色都会随之保留。",
@@ -2570,7 +2707,22 @@ var LANGS = {
     "footer.1": "在安装页面制作并安装 HXtra",
     "footer.2": "GitHub 上的 HXtra",
     "doc.title": "HXtra 功能导览",
-    "lang": "语言"
+    "lang": "语言",
+    "hx-edit.name": "支持 HXtra 旋钮的 HX Edit",
+    "hx-edit.desc": "打过补丁的 HX Edit 副本，显示你的构建新增的旋钮和 Metronome 模块，并在导出和导入时保留它们。",
+    "hx-edit.floc": "Mac 上的一份 HX Edit 副本",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>，见 <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "HX Edit 从自己的列表中了解每个模块的旋钮，因此不显示 HXtra 新增的旋钮，导出（<code>.hlx</code>、<code>.hls</code>）时也会丢失它们。<code>tools/hxedit_patch.py</code> 从你的 <code>.hxf</code> 中读取这些旋钮，并添加到一份 HX Edit 副本中；已安装的 HX Edit 保持不变。副本会显示 Distortion Crossover、GR 表、FX Loop 噪声门和 Input Sidechain 的旋钮，把 Metronome 列在 Looper &gt; Mono 下，导出和导入时全部保留。",
+    "hx-edit.li1": "<strong>只适用于你的构建：</strong>副本对应打补丁时用的 <code>.hxf</code>。使用前先运行 <code>probe</code>：没有这些补丁旋钮的固件会丢弃副本发送的整个预设。HX Edit 更新后或换了新构建，请给新副本打补丁。",
+    "hx-edit.li2": "<strong>不打补丁也会保留：</strong>NAM 模块（HX Edit 显示为 Xenomorph Fuzz，保留每个数值）和 Tap command 脚踏开关。",
+    "hx-edit.li3": "<strong>打了补丁也会丢失：</strong>快照 4–6 和预设的 LED 颜色只存在于 HX Stomp 上；导出、导入以及 HX Edit 写入的任何完整预设都不包含它们。",
+    "hx-edit.li4": "<strong>你需要</strong>一台 Mac（副本用 <code>codesign</code> 进行临时签名）、适用于固件 3.80 的 HX Edit（已用 3.82 测试）、装有 <code>msgpack</code> 和 <code>pyusb</code> 的 Python 3.10 或更新版本、Line 6 原厂固件文件，以及你安装的 <code>.hxf</code>。已在装有 v1.2.1-bass.2 的 HX Stomp 上运行。",
+    "hx-edit.li5": "<strong>副本请自己使用：</strong>它是 Line 6 的程序；每个人给自己的副本打补丁。",
+    "hx-edit.what1": "显示会改变什么，不写入任何内容。",
+    "hx-edit.what2": "复制 HX Edit 并给副本打补丁，去掉其隔离标记并临时签名。拒绝已安装的 HX Edit，以及为其他构建打过补丁的副本。",
+    "hx-edit.what3": "将副本与构建核对；只读。",
+    "hx-edit.what4": "在关闭 HX Edit 的情况下通过 USB 检查 HX Stomp 运行的是否是副本打补丁时对应的构建。",
+    "th.command": "命令"
   },
   "ko": {
     "title": "기능 둘러보기",
@@ -2605,7 +2757,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong>(일부 블록에서는 Volume)은 드라이 신호를 포함한 블록 전체의 음량을 정합니다. Wet Level과 Dry Level은 둘 사이의 균형을 정합니다.",
     "distortion-crossover.li3": "<strong>−60 dB는 완전히 꺼진 것이 아닙니다:</strong> Wet Level이 −60 dB여도 하이 게인 블록은 희미하게 들릴 수 있습니다.",
     "distortion-crossover.li4": "<strong>DSP:</strong> 이 블록들은 노브 설정과 상관없이 각각 DSP 한도에 1% 더 계산됩니다. 이런 블록이 있고 이미 한도에 다다른 프리셋은 불러오지 못할 수 있습니다.",
-    "distortion-crossover.li5": "이전에 저장한 <strong>프리셋</strong>은 이전과 같은 소리를 냅니다. 새 노브는 기본값에서 시작합니다. HX Edit는 블록마다 자체 노브 목록을 갖고 있어 새 노브를 표시하지 않습니다. 새 노브와 함께 저장한 프리셋을 순정 펌웨어에서 여는 것은 아직 테스트하지 않았습니다.",
+    "distortion-crossover.li5": "이전에 저장한 <strong>프리셋</strong>은 이전과 같은 소리를 냅니다. 새 노브는 기본값에서 시작합니다. 설치된 HX Edit는 블록마다 자체 노브 목록을 갖고 있어 새 노브를 표시하지 않고, 내보내기에서도 잃습니다. <a href=\"#hx-edit\">패치한 사본</a>은 이를 표시하고 유지합니다. 새 노브와 함께 저장한 프리셋을 순정 펌웨어에서 여는 것은 아직 테스트하지 않았습니다.",
     "distortion-crossover.what1": "크로스오버 주파수: 디스토션은 이보다 위의 입력을 듣습니다. Off에서는 전부 듣고, 순정 펌웨어와 똑같습니다.",
     "distortion-crossover.what2": "믹스 속 클린 입력: Mode가 Full이면 전 대역, Xover면 Frequency 아래.",
     "distortion-crossover.what3": "믹스 속 디스토션.",
@@ -2724,7 +2876,7 @@ var LANGS = {
     "fx-loop-gate.p1": "FX Loop와 Return 블록에 Input 블록처럼 노이즈 게이트를 내장해, 루프에 노이즈가 많은 페달이 있어도 Noise Gate 블록을 따로 쓸 필요가 없습니다(<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). 루프에서 돌아오는 신호를 블록의 Return 레벨과 Mix 앞에서 게이트하며, 드라이 신호와 Send는 게이트하지 않습니다.",
     "fx-loop-gate.li1": "<strong>DSP:</strong> FX Loop와 Return 블록은 게이트를 켜든 끄든 각각 0.2%(스테레오는 0.4%) 더 씁니다. 이미 한도에 다다른 프리셋에 이 블록이 있으면 불러오지 못할 수 있습니다.",
     "fx-loop-gate.li2": "<strong>스테레오 블록</strong>은 양쪽을 연동하지 않고 각각 따로 게이트합니다.",
-    "fx-loop-gate.li3": "<strong>프리셋</strong>을 게이트와 함께 저장하면 노브 값이 유지됩니다. 그런 프리셋을 순정 펌웨어나 HX Edit에서 여는 것은 아직 테스트하지 않았습니다.",
+    "fx-loop-gate.li3": "<strong>프리셋</strong>을 게이트와 함께 저장하면 노브 값이 유지됩니다. 설치된 HX Edit는 이 노브를 표시하지 않고 내보내기에서도 잃습니다. <a href=\"#hx-edit\">패치한 사본</a>은 이를 표시하고 유지합니다. 그런 프리셋을 순정 펌웨어에서 여는 것은 아직 테스트하지 않았습니다.",
     "fx-loop-gate.what1": "게이트를 켭니다. Off이면 블록은 순정 펌웨어와 똑같은 소리를 냅니다.",
     "fx-loop-gate.what2": "이 레벨 아래로 떨어진 리턴 신호는 음소거됩니다.",
     "fx-loop-gate.what3": "게이트가 닫히는 속도.",
@@ -2757,7 +2909,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>실험적 기능:</strong> 녹음된 신호로 테스트했고 실제로 연주한 악기로는 아직 테스트하지 않아 조정이 필요할 수 있습니다. HX Stomp의 기타 입력에 케이블이 꽂혀 있을 때만 동작합니다.",
     "gate-sidechain.li1": "<strong>DSP:</strong> Input Sidechain을 켜든 끄든 Noise Gate 블록마다 0.1%(스테레오 0.2%) 더 듭니다. Noise Gate가 있고 이미 한도에 다다른 프리셋은 불러오지 못할 수 있습니다.",
     "gate-sidechain.li2": "<strong>Threshold</strong>는 이때 입력 레벨과 비교되므로 Input 블록의 게이트처럼 설정하세요. Input 블록 자체의 Input Gate는 켜도 되고 꺼도 됩니다.",
-    "gate-sidechain.li3": "Input Sidechain으로 저장한 <strong>프리셋</strong>은 노브 설정을 유지합니다. HX Edit는 블록마다 자체 노브 목록을 갖고 있어 이 노브를 표시하지 않습니다. 그런 프리셋을 순정 펌웨어에서 여는 것은 아직 테스트하지 않았습니다.",
+    "gate-sidechain.li3": "Input Sidechain으로 저장한 <strong>프리셋</strong>은 노브 설정을 유지합니다. 설치된 HX Edit는 블록마다 자체 노브 목록을 갖고 있어 이 노브를 표시하지 않고, 내보내기에서도 잃습니다. <a href=\"#hx-edit\">패치한 사본</a>은 이를 표시하고 유지합니다. 그런 프리셋을 순정 펌웨어에서 여는 것은 아직 테스트하지 않았습니다.",
     "gate-sidechain.what1": "켜면 게이트가 블록에 도착하는 신호 대신 입력을 따라갑니다. Off면 순정 펌웨어처럼 동작합니다.",
     "preset-led-color.p1": "Preset 풋스위치 모드에서 HX Stomp는 현재 프리셋의 링을 빨간색으로 켜고 홈 화면에 빨간 스위치 아이콘을 표시하며, 나머지 두 프리셋의 링은 꺼 둡니다. HXtra는 Tap LED Color와 같은 팔레트에서 프리셋마다 고유한 색을 줍니다.",
     "preset-led-color.li1": "<strong>This Preset</strong>(Global Settings &gt; Displays, 2페이지)으로 현재 프리셋의 색을 정합니다. 유지하려면 프리셋을 저장하세요. 색이 프리셋 자체에 저장되므로 프리셋을 옮기거나 내보내거나 복원해도 함께 따라갑니다.",
@@ -2805,7 +2957,22 @@ var LANGS = {
     "footer.1": "설치 페이지에서 HXtra 빌드 및 설치",
     "footer.2": "GitHub의 HXtra",
     "doc.title": "HXtra 기능 둘러보기",
-    "lang": "언어"
+    "lang": "언어",
+    "hx-edit.name": "HXtra 노브를 지원하는 HX Edit",
+    "hx-edit.desc": "빌드가 추가하는 노브와 Metronome 블록을 표시하고, 내보내기와 가져오기에서 유지하는 패치한 HX Edit 사본.",
+    "hx-edit.floc": "Mac에 있는 HX Edit 사본",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a> 참조",
+    "hx-edit.p1": "HX Edit는 각 블록의 노브를 자체 목록으로 알기 때문에 HXtra가 추가하는 노브를 표시하지 않고, 내보내기(<code>.hlx</code>, <code>.hls</code>)에서도 잃습니다. <code>tools/hxedit_patch.py</code>는 사용자의 <code>.hxf</code>에서 노브를 읽어 HX Edit 사본에 추가합니다. 설치된 HX Edit는 그대로입니다. 사본은 Distortion Crossover, GR 미터, FX Loop 게이트, Input Sidechain 노브를 표시하고, Metronome을 Looper &gt; Mono에 두며, 내보내기와 가져오기에서 이를 모두 유지합니다.",
+    "hx-edit.li1": "<strong>사용자의 빌드 전용:</strong> 사본은 패치할 때 쓴 <code>.hxf</code>에 맞습니다. 쓰기 전에 <code>probe</code>를 실행하세요. 패치한 노브가 없는 펌웨어는 사본이 보낸 프리셋 전체를 버립니다. HX Edit 업데이트나 새 빌드 뒤에는 새 사본을 패치하세요.",
+    "hx-edit.li2": "<strong>패치 없이도 유지되는 것:</strong> NAM 블록(HX Edit는 Xenomorph Fuzz로 표시하고 모든 값을 유지)과 Tap command 풋스위치.",
+    "hx-edit.li3": "<strong>패치해도 잃는 것:</strong> 스냅샷 4–6과 프리셋의 LED 색상은 HX Stomp에만 있습니다. 내보내기, 가져오기, HX Edit가 쓰는 전체 프리셋에는 빠집니다.",
+    "hx-edit.li4": "<strong>필요한 것:</strong> Mac(사본은 <code>codesign</code>으로 임시 서명합니다), 펌웨어 3.80용 HX Edit(3.82로 테스트), <code>msgpack</code>과 <code>pyusb</code>를 설치한 Python 3.10 이상, Line 6 순정 펌웨어 파일, 설치한 <code>.hxf</code>. v1.2.1-bass.2를 쓰는 HX Stomp에서 실행했습니다.",
+    "hx-edit.li5": "<strong>사본은 혼자만 쓰세요:</strong> Line 6의 프로그램이므로 각자 자기 것을 패치합니다.",
+    "hx-edit.what1": "무엇이 바뀔지 보여 주고, 아무것도 쓰지 않습니다.",
+    "hx-edit.what2": "HX Edit를 복사해 사본을 패치하고, 격리 속성을 없앤 뒤 임시 서명합니다. 설치된 HX Edit와 다른 빌드용으로 패치한 사본은 거부합니다.",
+    "hx-edit.what3": "사본을 빌드와 대조합니다. 읽기만 합니다.",
+    "hx-edit.what4": "HX Edit를 닫은 상태에서 USB로 HX Stomp가 사본을 패치한 빌드를 실행 중인지 확인합니다.",
+    "th.command": "명령"
   },
   "ru": {
     "title": "Обзор функций",
@@ -2840,7 +3007,7 @@ var LANGS = {
     "distortion-crossover.li2": "<strong>Level</strong> (на некоторых блоках Volume) задаёт громкость всего блока, включая сухой сигнал; Wet Level и Dry Level задают соотношение между ними.",
     "distortion-crossover.li3": "<strong>−60 dB — это не полное выключение:</strong> при Wet Level −60 dB блок с большим гейном может оставаться едва слышным.",
     "distortion-crossover.li4": "<strong>DSP:</strong> каждый такой блок считается на 1% больше к пределу DSP, как бы ни стояли его регуляторы. Пресет, который уже на пределе и содержит такой блок, может не загрузиться.",
-    "distortion-crossover.li5": "<strong>Пресеты</strong>, сохранённые раньше, звучат как раньше: новые регуляторы начинают со значений по умолчанию. HX Edit не показывает новые регуляторы, так как у него свой список регуляторов каждого блока; открытие пресета, сохранённого с ними, на заводской прошивке ещё не проверено.",
+    "distortion-crossover.li5": "<strong>Пресеты</strong>, сохранённые раньше, звучат как раньше: новые регуляторы начинают со значений по умолчанию. Установленный HX Edit не показывает новые регуляторы, а его экспорт их теряет, так как у него свой список регуляторов каждого блока; <a href=\"#hx-edit\">пропатченная копия</a> показывает и сохраняет их. Открытие пресета, сохранённого с ними, на заводской прошивке ещё не проверено.",
     "distortion-crossover.what1": "Частота разделения: искажение слышит вход выше неё. При Off — весь, точно как на заводской прошивке.",
     "distortion-crossover.what2": "Чистый вход в миксе: во всём диапазоне при Mode Full, ниже Frequency при Xover.",
     "distortion-crossover.what3": "Искажение в миксе.",
@@ -2959,7 +3126,7 @@ var LANGS = {
     "fx-loop-gate.p1": "Нойз-гейт, встроенный в блоки FX Loop и Return, как у блока Input, чтобы шумной педали в петле не требовался собственный блок Noise Gate (<a href=\"https://github.com/wisemandenny/hxtra/issues/69\">#69</a>). Он гейтирует то, что возвращается из петли, до уровня Return и Mix блока; сухой сигнал и Send не гейтируются.",
     "fx-loop-gate.li1": "<strong>DSP:</strong> каждый блок FX Loop и Return стоит на 0.2% больше (0.4% в стерео), включён его гейт или нет. Пресет, уже упёршийся в лимит, с одним из этих блоков может не загрузиться.",
     "fx-loop-gate.li2": "<strong>Стереоблоки</strong> гейтируют каждую сторону отдельно, без связки.",
-    "fx-loop-gate.li3": "<strong>Пресеты</strong>, сохранённые с гейтом, сохраняют его ручки. Открытие такого пресета на стоковой прошивке или в HX Edit пока не проверено.",
+    "fx-loop-gate.li3": "<strong>Пресеты</strong>, сохранённые с гейтом, сохраняют его ручки. Установленный HX Edit их не показывает, а его экспорт их теряет; <a href=\"#hx-edit\">пропатченная копия</a> показывает и сохраняет их. Открытие такого пресета на стоковой прошивке пока не проверено.",
     "fx-loop-gate.what1": "Включает гейт. При Off блок звучит как на стоковой прошивке.",
     "fx-loop-gate.what2": "Ниже этого уровня возвращённый сигнал глушится.",
     "fx-loop-gate.what3": "Как быстро закрывается гейт.",
@@ -2992,7 +3159,7 @@ var LANGS = {
     "gate-sidechain.exp": "<strong>Экспериментально:</strong> проверено на записанных сигналах, но ещё не на живом инструменте, поэтому может потребовать доработки. Работает, только когда в гитарный вход HX Stomp вставлен кабель.",
     "gate-sidechain.li1": "<strong>DSP:</strong> каждый блок Noise Gate стоит на 0.1% больше (0.2% в стерео), включён Input Sidechain или нет. Пресет, который уже на пределе и содержит Noise Gate, может не загрузиться.",
     "gate-sidechain.li2": "<strong>Threshold</strong> тогда сравнивается с уровнем на входе, поэтому настраивайте его как гейт блока Input. Собственный Input Gate блока Input может быть включён или выключен.",
-    "gate-sidechain.li3": "<strong>Пресеты</strong>, сохранённые с Input Sidechain, сохраняют регулятор. HX Edit его не показывает, так как у него свой список регуляторов каждого блока; открытие такого пресета на заводской прошивке ещё не проверено.",
+    "gate-sidechain.li3": "<strong>Пресеты</strong>, сохранённые с Input Sidechain, сохраняют регулятор. Установленный HX Edit его не показывает, а его экспорт его теряет, так как у него свой список регуляторов каждого блока; <a href=\"#hx-edit\">пропатченная копия</a> показывает и сохраняет его. Открытие такого пресета на заводской прошивке ещё не проверено.",
     "gate-sidechain.what1": "Когда включён, гейт следует за входом, а не за сигналом, который приходит в блок. В положении Off блок работает как на заводской прошивке.",
     "preset-led-color.p1": "В режиме футсвичей Preset HX Stomp подсвечивает кольцо текущего пресета красным, с красной иконкой кнопки на главном экране, а кольца двух других пресетов не горят. HXtra даёт каждому пресету свой цвет из той же палитры, что и у Tap LED Color.",
     "preset-led-color.li1": "<strong>This Preset</strong> (Global Settings &gt; Displays, страница 2) задаёт цвет текущего пресета. Чтобы цвет остался, сохраните пресет: цвет хранится в самом пресете, поэтому переходит вместе с ним при перемещении, экспорте или восстановлении.",
@@ -3040,7 +3207,22 @@ var LANGS = {
     "footer.1": "Соберите и установите HXtra на странице установки",
     "footer.2": "HXtra на GitHub",
     "doc.title": "Обзор функций HXtra",
-    "lang": "Язык"
+    "lang": "Язык",
+    "hx-edit.name": "HX Edit с регуляторами HXtra",
+    "hx-edit.desc": "Пропатченная копия HX Edit, которая показывает регуляторы, добавленные вашей сборкой, и блок Metronome и сохраняет их при экспорте и импорте.",
+    "hx-edit.floc": "Копия HX Edit на Mac",
+    "hx-edit.where": "<code>tools/hxedit_patch.py</code>, см. <a href=\"https://github.com/muetze-online/hxtra-bass/blob/bass/docs/hx-edit.md\">docs/hx-edit.md</a>",
+    "hx-edit.p1": "HX Edit знает регуляторы каждого блока по своему списку, поэтому не показывает те, что добавляет HXtra, а его экспорт (<code>.hlx</code>, <code>.hls</code>) их теряет. <code>tools/hxedit_patch.py</code> читает регуляторы из вашего <code>.hxf</code> и добавляет их в копию HX Edit; установленный HX Edit остаётся как есть. Копия показывает регуляторы Distortion Crossover, индикатора GR, гейта FX Loop и Input Sidechain, ставит Metronome в Looper &gt; Mono, а её экспорт и импорт сохраняют их все.",
+    "hx-edit.li1": "<strong>Только для вашей сборки:</strong> копия подходит к <code>.hxf</code>, для которого её пропатчили. Перед работой запустите <code>probe</code>: прошивка без пропатченных регуляторов отбрасывает весь пресет, присланный копией. После обновления HX Edit или новой сборки пропатчите новую копию.",
+    "hx-edit.li2": "<strong>Сохраняется и без патча:</strong> блоки NAM (HX Edit показывает их как Xenomorph Fuzz и сохраняет все значения) и футсвичи с Tap command.",
+    "hx-edit.li3": "<strong>Теряется и с патчем:</strong> снапшоты 4–6 и цвет LED пресета есть только на HX Stomp; экспорт, импорт и любой целый пресет, который пишет HX Edit, их не содержат.",
+    "hx-edit.li4": "<strong>Нужны</strong> Mac (копия подписывается ad hoc через <code>codesign</code>), HX Edit для прошивки 3.80 (проверено с 3.82), Python 3.10 или новее с <code>msgpack</code> и <code>pyusb</code>, файл заводской прошивки Line 6 и установленный вами <code>.hxf</code>. Проверено на HX Stomp с v1.2.1-bass.2.",
+    "hx-edit.li5": "<strong>Не передавайте копию другим:</strong> это программа Line 6; каждый патчит свою.",
+    "hx-edit.what1": "Показывает, что изменится, ничего не записывает.",
+    "hx-edit.what2": "Копирует HX Edit и патчит копию, снимает с неё флаг карантина и подписывает ad hoc. Отказывается патчить установленный HX Edit и копию, пропатченную для другой сборки.",
+    "hx-edit.what3": "Сверяет копию со сборкой; только читает.",
+    "hx-edit.what4": "Проверяет по USB, при закрытом HX Edit, что HX Stomp работает на сборке, для которой пропатчена копия.",
+    "th.command": "Команда"
   }
 };
 // LANGS-END
