@@ -55,7 +55,7 @@ Only files in `Contents/Resources` of the copy: `Helix.sym`, `HelixModelDefs.bin
 
 ## Limits
 
-- Tap command footswitches: not tested with HX Edit yet.
+- Tap command footswitches need no patch: HX Edit exports and imports them as they are (tested with the Command Center on FS1 and FS2).
 - NAM A2 Lite keeps Xenomorph Fuzz's preset ID, so HX Edit keeps its values but shows and exports it as Xenomorph Fuzz, and doesn't list it in the block browser.
 - Bank B (snapshots 4–6) and the preset colour travel only in the unit's own preset files. HX Edit never sees them: exports lose them, and HX Edit's Save or Import writes the preset without them.
 - A stereo block shows the mono block's new knobs at their defaults, because HX Edit has one list for both. That's harmless: the unit gets the stereo block's own knobs only.
